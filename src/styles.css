@@ -1,0 +1,141 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/outfit';
+@import '@fontsource-variable/figtree';
+
+@source '../src';
+
+/*
+ * daisyUI with one custom light theme. Calm and clinical-but-warm:
+ *   primary  = deep teal (trust)
+ *   accent   = highlighter yellow (what is kept)
+ *   black    = redaction (what is removed)
+ */
+@plugin 'daisyui' {
+  themes: false;
+}
+
+@plugin 'daisyui/theme' {
+  name: 'carryover';
+  default: true;
+  prefersdark: false;
+  color-scheme: light;
+
+  --color-base-100: #ffffff;
+  --color-base-200: #f4f7f6;
+  --color-base-300: #e3ebe8;
+  --color-base-content: #16302c;
+  --color-primary: #0d7a68;
+  --color-primary-content: #ffffff;
+  --color-secondary: #ea7d61;
+  --color-secondary-content: #ffffff;
+  --color-accent: #fcd34d;
+  --color-accent-content: #3b2c00;
+  --color-neutral: #16302c;
+  --color-neutral-content: #eef4f2;
+  --color-info: #2f7fd8;
+  --color-info-content: #ffffff;
+  --color-success: #17a058;
+  --color-success-content: #ffffff;
+  --color-warning: #f2a516;
+  --color-warning-content: #3b2600;
+  --color-error: #d4372c;
+  --color-error-content: #ffffff;
+
+  --radius-selector: 2rem;
+  --radius-field: 0.75rem;
+  --radius-box: 1.25rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}
+
+@theme {
+  --font-sans: 'Figtree Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Outfit Variable', 'Figtree Variable', ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-base-100 text-base-content font-sans antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-display;
+  }
+
+  ::selection {
+    background: var(--color-accent);
+    color: var(--color-accent-content);
+  }
+}
+
+@layer components {
+  /* A black bar standing in for a removed word. */
+  .redact {
+    display: inline-block;
+    background: #000;
+    height: 1em;
+    border-radius: 2px;
+    vertical-align: -0.12em;
+  }
+
+  /* A highlighter stroke behind kept text. */
+  .highlight {
+    background: linear-gradient(transparent 18%, var(--color-accent) 18%, var(--color-accent) 88%, transparent 88%);
+    padding-inline: 0.15em;
+    border-radius: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0ms !important;
+    transition: none !important;
+  }
+}
+
+/* Comfortable controls, visible keyboard focus and an immediate route past navigation. */
+:focus-visible { outline: 3px solid #0d7a68; outline-offset: 3px; }
+.btn, summary, .menu a { min-height: 44px; }
+.input, .select, .textarea { font-size: 1rem; }
+label.btn:focus-within { outline: 3px solid #0d7a68; outline-offset: 3px; }
+.stat-title, .stat-desc { color: #405651; }
+.skip-link { position: absolute; left: 1rem; top: -6rem; z-index: 100; padding: 0.75rem 1rem; background: white; border: 2px solid #0d7a68; border-radius: 0.5rem; }
+.skip-link:focus { top: 0.5rem; }
+@media (max-width: 480px) {
+  .app-header { flex-wrap: wrap; gap: 0.25rem; }
+  .app-header .navbar-center { order: 3; width: 100%; justify-content: center; }
+  .table { font-size: 0.875rem; }
+}
+@media print {
+  @page { size: A4; margin: 14mm; }
+  .app-header, .app-footer, .no-print, app-toasts, app-source-dialog, .skip-link { display: none !important; }
+  html, body, app-root, main { display: block !important; background: white !important; color: #16302c !important; }
+  .appointment { max-width: none; padding: 0; display: block; font-size: 10pt; }
+  .appointment > * { margin-bottom: 6mm; }
+  .appointment h1 { font-size: 24pt; }
+  .appointment h2 { font-size: 17pt; break-after: avoid; }
+  .appointment h3 { font-size: 12pt; break-after: avoid; }
+  .appointment-chart { break-inside: avoid; box-shadow: none; margin-bottom: 5mm; }
+  .appointment .chart-table { break-inside: auto; }
+  .chart-table > summary { display: none; }
+  .chart-table > div { display: block !important; overflow: visible; }
+  .appointment table { width: 100%; font-size: 9pt; }
+  .appointment th, .appointment td { white-space: normal !important; padding: 2mm; }
+  .appointment tr { break-inside: avoid; }
+  .appointment thead { display: table-header-group; }
+  .appointment .tip { display: none; }
+  .appointment svg { max-width: 100%; }
+  .appointment * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}

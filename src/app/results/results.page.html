@@ -1,0 +1,249 @@
+<div class="mx-auto max-w-7xl px-5 sm:px-8 py-6 sm:py-12 flex flex-col gap-8">
+  <header class="flex flex-col gap-3">
+    <app-step-rail class="hidden sm:block -ml-6 mb-4" />
+    <h1 class="text-4xl sm:text-5xl tracking-tight"><span class="font-bold">{{ demo ? 'Explore sample results' : 'Your results' }}</span></h1>
+    <p class="text-lg text-base-content/80 max-w-3xl leading-relaxed">
+      Your lab results, organized by test and date. Tap a value to check its source.
+    </p>
+    <div class="flex flex-wrap gap-2 mt-2">
+      <a routerLink="/appointment" [queryParams]="demo ? { demo: 'true' } : {}" class="btn btn-primary rounded-full">Prepare for my appointment</a>
+      @if (demo) { <a routerLink="/sign-in" class="btn btn-outline rounded-full">Use my own documents</a> }
+    </div>
+    @if (demo) { <p class="p-3 rounded-box bg-base-200 text-sm"><strong>Fictional sample:</strong> these invented results show how Carryover works. No account or upload is needed.</p> }
+  </header>
+
+  @if (error()) {
+    <div role="alert" class="alert alert-error alert-soft">
+      <app-icon name="alert" />
+      <span>{{ error() }} Your saved results have not been changed.</span><button type="button" class="btn btn-sm" [disabled]="refreshing()" (click)="refresh()">Try again</button>
+    </div>
+  }
+  @if (data() === null && !error()) {
+    <div class="flex flex-col gap-3" aria-label="Loading results">
+      <div class="skeleton h-24 w-full"></div>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div class="skeleton h-72 w-full"></div>
+        <div class="skeleton h-72 w-full"></div>
+      </div>
+    </div>
+  } @else if (data() && !data()!.stats.values && !data()!.warnings.length && !data()!.textResults.length && !data()!.issues?.length) {
+    <div class="card bg-base-200">
+      <div class="card-body items-center text-center gap-3 py-14">
+        <span class="grid place-items-center size-14 rounded-full bg-base-100 text-primary"><app-icon name="chart" size="1.6rem" /></span>
+        <p class="font-display text-xl font-semibold">No results yet</p>
+        <p class="text-base-content/80 max-w-md">Results appear here after you approve and save a lab document.</p>
+        <a routerLink="/" class="btn btn-primary rounded-full">Add lab results</a>
+      </div>
+    </div>
+  } @else if (data()) {
+    @let d = data()!;
+
+    @if (d.model.state === 'working') {
+      <div role="status" class="alert alert-info alert-soft">
+        <span class="loading loading-spinner loading-sm"></span>
+        <span>
+          Muse Spark is checking {{ d.model.waiting }} {{ d.model.waiting === 1 ? 'name, unit or document' : 'names, units and documents' }}
+          the built-in list doesn't cover. The charts update when it's done.
+        </span>
+      </div>
+    } @else if (d.model.state === 'error') {
+      <div role="alert" class="alert alert-warning alert-soft">
+        <app-icon name="alert" />
+        <span>{{ d.model.message }} Readings that need checking are listed below.</span><button type="button" class="btn btn-sm" [disabled]="refreshing()" (click)="refresh(true)">Retry matching</button>
+      </div>
+    }
+
+    @if (paused()) {
+      <p role="status" class="alert alert-info alert-soft">Matching is taking longer than expected. Your saved readings remain available.<button type="button" class="btn btn-sm" (click)="refresh()">Check progress</button></p>
+    }
+    @if (d.issues?.length) {
+      <section role="alert" class="rounded-box border border-warning p-4">
+        <h2 class="font-semibold">Some documents need attention</h2>
+        <ul class="mt-2 space-y-2">@for (issue of d.issues; track issue.documentId) { <li>{{ issue.documentName }}: {{ issue.message }} <a class="link" [routerLink]="['/saved', issue.documentId]">Open document</a></li> }</ul>
+      </section>
+    }
+    @if (d.warnings.length) {
+      <a [href]="anchor('review-readings')" class="block rounded-box border border-warning bg-warning/10 p-4" (click)="$event.preventDefault(); jump('review-readings')"><strong>{{ d.warnings.length }} {{ d.warnings.length === 1 ? 'reading needs' : 'readings need' }} checking.</strong> These are not on the charts. Review them against the source before your appointment. <span class="underline">Review readings</span></a>
+    }
+
+    <div class="stats stats-vertical sm:stats-horizontal border border-base-300 bg-base-100 shadow-sm">
+      <div class="stat">
+        <div class="stat-title">Tests</div>
+        <div class="stat-value font-display">{{ d.stats.tests }}</div>
+        <div class="stat-desc">each one line over time</div>
+      </div>
+      <div class="stat">
+        <div class="stat-title">Values</div>
+        <div class="stat-value font-display">{{ d.stats.values }}</div>
+        <div class="stat-desc">from {{ d.stats.documents }} {{ d.stats.documents === 1 ? 'document' : 'documents' }}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-title">Time span</div>
+        <div class="stat-value font-display text-2xl sm:text-3xl">{{ span(d.stats.from, d.stats.to) }}</div>
+        <div class="stat-desc">by collection date</div>
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-3">
+      <label class="input w-full sm:w-80 rounded-full">
+        <app-icon name="scan" size="1rem" />
+        <input type="search" aria-label="Search tests by name" placeholder="Search a test" [value]="query()" (input)="query.set($any($event.target).value)" />
+      </label>
+      @if (domains().length > 1) {
+        <nav class="flex gap-2 overflow-x-auto pb-1" aria-label="Jump to a group of tests">
+          @for (dom of domains(); track dom.key) {
+            <a class="btn btn-sm btn-ghost rounded-full border border-base-300 whitespace-nowrap font-medium" [href]="anchor(dom.key)"
+              (click)="$event.preventDefault(); jump(dom.key)">{{ dom.label }}</a>
+          }
+        </nav>
+      }
+    </div>
+
+    @for (dom of sections(); track dom.key) {
+      <section [id]="dom.key" class="flex flex-col gap-4 scroll-mt-24" [attr.aria-labelledby]="dom.key + '-h'">
+        <h2 [id]="dom.key + '-h'" class="font-display text-2xl font-semibold">{{ dom.label }}</h2>
+        @if (dom.charts.length) {
+          <div class="grid lg:grid-cols-2 gap-4">
+            @for (chart of dom.charts; track chart.id) {
+              <article class="card border border-base-300 bg-base-100 shadow-sm min-w-0">
+                <div class="card-body p-4 sm:p-5 gap-3">
+                  <header>
+                    <h3 class="font-semibold text-base-content">{{ chartTitle(chart) }}</h3>
+                    <p class="text-sm text-base-content/80">{{ unit(chart.unit) }} · printed as {{ printedAs(chart) }}</p>
+                
+  </header>
+                  <app-line-chart [chart]="chart" (pick)="openPoint($event)" />
+                </div>
+              </article>
+            }
+          </div>
+        }
+        @if (dom.once.length) {
+          <div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
+            <p class="px-4 pt-3 text-sm font-semibold text-base-content/80">Measured once</p>
+            <ul class="divide-y divide-base-300">
+              @for (o of dom.once; track o.series.key) {
+                <li class="flex items-center gap-3 px-4 py-2.5">
+                  <div class="min-w-0 flex-1">
+                    <p class="font-medium truncate">{{ o.series.label }}</p>
+                    <p class="text-xs text-base-content/80 truncate">printed as {{ o.point.printedName }}</p>
+                  </div>
+                  <p class="text-right whitespace-nowrap">
+                    <span class="font-semibold tabular-nums">{{ o.point.conversion ? ((o.point.comparator ?? '') + (o.point.value | number: '1.0-4')) : o.point.printedValue }}</span>
+                    <span class="text-base-content/80"> {{ unit(o.series.unit) }}</span>
+                    <span class="block text-xs text-base-content/80 tabular-nums">{{ calendarDate(o.point.date) | date: 'd MMM y':'UTC' }}</span>
+                  </p>
+                  <button type="button" class="btn btn-ghost btn-sm rounded-full" (click)="openPoint(o)" [attr.aria-label]="'Show ' + o.series.label + ' on its page'">
+                    <app-icon name="eye" size="1rem" /> <span class="hidden sm:inline">Show</span>
+                  </button>
+                </li>
+              }
+            </ul>
+          </div>
+        }
+      </section>
+    } @empty {
+      @if (query()) {
+        <p class="text-base-content/80">No test matches “{{ query() }}”.</p>
+      }
+    }
+
+    @if (textResults().length) {
+      <section class="flex flex-col gap-4" aria-labelledby="text-h">
+        <h2 id="text-h" class="font-display text-2xl font-semibold">Results in words</h2>
+        <div class="overflow-x-auto rounded-box border border-base-300 bg-base-100 shadow-sm">
+          <table class="table">
+            <thead><tr><th>Test</th><th>Printed result</th><th>Collected</th><th><span class="sr-only">Show on page</span></th></tr></thead>
+            <tbody>
+              @for (t of textResults(); track t.observationId) {
+                <tr>
+                  <td class="font-medium">{{ t.label }} <span class="block text-xs text-base-content/80 font-normal">{{ t.printedName }}</span></td>
+                  <td>{{ t.printedValue }}</td>
+                  <td class="whitespace-nowrap tabular-nums">{{ t.date ? (calendarDate(t.date) | date: 'd MMM y':'UTC') : 'Unknown' }}</td>
+                  <td class="text-right">
+                    <button type="button" class="btn btn-ghost btn-sm rounded-full" (click)="openText(t)" [attr.aria-label]="'Show ' + t.label + ' on its page'">
+                      <app-icon name="eye" size="1rem" /> <span class="hidden sm:inline">Show</span>
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    }
+
+    @if (d.warnings.length) {
+      <section id="review-readings" class="flex flex-col gap-3 scroll-mt-24" aria-labelledby="warn-h">
+        <div>
+          <h2 id="warn-h" class="font-display text-2xl font-semibold">Readings to check <span class="badge badge-ghost align-middle">{{ d.warnings.length }}</span></h2>
+          <p class="text-base-content/80 mt-1">These rows were read from your documents but could not be placed on a chart. Open each one to check the page.</p>
+        </div>
+        <ul class="rounded-box border border-base-300 bg-base-100 shadow-sm divide-y divide-base-300">
+          @for (w of d.warnings; track w.observationId) {
+            <li class="flex items-start gap-3 p-3 sm:p-4">
+              <span class="badge badge-sm badge-soft shrink-0 mt-0.5 w-28 sm:w-36 justify-center" [class.badge-warning]="w.reason !== 'unrecognised'">{{ reasonLabel[w.reason] }}</span>
+              <div class="min-w-0 flex-1">
+                <p class="font-medium truncate">{{ w.printedName }} <span class="font-normal text-base-content/80">{{ w.printedValue }} {{ w.printedUnit ?? '' }}</span></p>
+                <p class="text-sm text-base-content/80">{{ w.detail }}</p>
+                <p class="text-xs text-base-content/80 truncate">{{ w.documentName }}, page {{ w.page + 1 }}</p>
+              </div>
+              <button type="button" class="btn btn-ghost btn-sm rounded-full shrink-0" (click)="openWarning(w)" [attr.aria-label]="'Show ' + w.printedName + ' on its page'">
+                <app-icon name="eye" size="1rem" /> <span class="hidden sm:inline">Show</span>
+              </button>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
+    @if (raw(); as r) {
+      <div class="collapse collapse-arrow border border-base-300 rounded-box bg-base-100">
+        <input type="checkbox" aria-label="Everything that was read" />
+        <div class="collapse-title font-semibold">Everything that was read <span class="badge badge-ghost badge-sm ml-1">{{ r.observations.length }}</span></div>
+        <div class="collapse-content overflow-x-auto">
+          <p class="text-sm text-base-content/80 mb-3">Every extracted reading, including checks and corrections. Text recognition can make mistakes; use the source page to verify.</p>
+          <table class="table table-sm">
+            <thead>
+              <tr>
+                <th>Test, as printed</th><th class="text-right">Result</th><th>Unit</th><th class="hidden md:table-cell">Reference</th>
+                <th class="hidden sm:table-cell">Collected</th><th class="hidden lg:table-cell">Source</th><th><span class="sr-only">Show on page</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (o of rawRows(); track o.id) {
+                <tr>
+                  <td class="max-w-64"><span class="line-clamp-2">{{ o.name }}</span></td>
+                  <td class="text-right whitespace-nowrap tabular-nums font-semibold">
+                    <span [class.fixed]="fixNote(o, 'value')" [attr.title]="fixNote(o, 'value')">{{ o.valueText }}</span>
+                  </td>
+                  <td class="text-base-content/80 whitespace-nowrap">{{ o.unit ?? '' }}</td>
+                  <td class="hidden md:table-cell text-base-content/80 whitespace-nowrap tabular-nums">
+                    <span [class.fixed]="fixNote(o, 'range')" [attr.title]="fixNote(o, 'range')">{{ o.refText ?? '' }}</span>
+                  </td>
+                  <td class="hidden sm:table-cell whitespace-nowrap tabular-nums">{{ o.date ? (calendarDate(o.date) | date: 'd MMM y':'UTC') : 'Unknown' }}</td>
+                  <td class="hidden lg:table-cell text-xs text-base-content/80 max-w-48">
+                    <span class="line-clamp-1">{{ docNames().get(o.documentId) }}</span>page {{ o.page + 1 }}
+                  </td>
+                  <td class="text-right">
+                    <button type="button" class="btn btn-ghost btn-xs rounded-full" (click)="openRaw(o)" [attr.aria-label]="'Show ' + o.name + ' on its page'">
+                      <app-icon name="eye" size="0.9rem" />
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+  }
+  @if (!demo && raw()?.documents?.length) { <app-recovery-panel [documents]="raw()!.documents" (accepted)="refresh()" /> }
+</div>
+
+<app-source-dialog (corrected)="refresh()" />
+
+
+
+
+

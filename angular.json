@@ -22,34 +22,96 @@
           "options": {
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
-            "inlineStyleLanguage": "scss",
             "assets": [
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "pdf.worker.min.mjs",
+                "input": "node_modules/pdfjs-dist/build",
+                "output": "vendor/pdfjs"
+              },
+              {
+                "glob": "**/*",
+                "input": "node_modules/pdfjs-dist/wasm",
+                "output": "vendor/pdfjs/wasm"
+              },
+              {
+                "glob": "**/*",
+                "input": "node_modules/pdfjs-dist/cmaps",
+                "output": "vendor/pdfjs/cmaps"
+              },
+              {
+                "glob": "**/*",
+                "input": "node_modules/pdfjs-dist/standard_fonts",
+                "output": "vendor/pdfjs/standard_fonts"
+              },
+              {
+                "glob": "**/*",
+                "input": "node_modules/pdfjs-dist/iccs",
+                "output": "vendor/pdfjs/iccs"
+              },
+              {
+                "glob": "worker.min.js",
+                "input": "node_modules/tesseract.js/dist",
+                "output": "vendor/tesseract"
+              },
+              {
+                "glob": "*lstm.wasm.js",
+                "input": "node_modules/tesseract.js-core",
+                "output": "vendor/tesseract-core"
+              },
+              {
+                "glob": "*.traineddata.gz",
+                "input": "node_modules/@tesseract.js-data/pol/4.0.0_best_int",
+                "output": "vendor/tessdata"
+              },
+              {
+                "glob": "*.traineddata.gz",
+                "input": "node_modules/@tesseract.js-data/deu/4.0.0_best_int",
+                "output": "vendor/tessdata"
+              },
+              {
+                "glob": "*.traineddata.gz",
+                "input": "node_modules/@tesseract.js-data/eng/4.0.0_best_int",
+                "output": "vendor/tessdata"
+              },
+              {
+                "glob": "ort-wasm-simd-threaded.asyncify.{mjs,wasm}",
+                "input": "node_modules/onnxruntime-web/dist",
+                "output": "vendor/ort"
               }
             ],
             "styles": [
-              "src/styles.scss"
+              "src/styles.css"
             ],
-            "server": "src/main.server.ts",
-            "outputMode": "server",
-            "ssr": {
-              "entry": "src/server.ts"
-            }
+            "webWorkerTsConfig": "tsconfig.worker.json",
+            "allowedCommonJsDependencies": [
+              "@xmldom/xmldom",
+              "mammoth",
+              "lop",
+              "base64-js",
+              "jszip",
+              "dingbat-to-unicode",
+              "xmlbuilder",
+              "heic2any",
+              "tesseract.js",
+              "regenerator-runtime"
+            ]
           },
           "configurations": {
             "production": {
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "500kB",
+                  "maximumWarning": "600kB",
                   "maximumError": "1MB"
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "4kB",
-                  "maximumError": "8kB"
+                  "maximumWarning": "8kB",
+                  "maximumError": "16kB"
                 }
               ],
               "outputHashing": "all"
@@ -72,7 +134,10 @@
               "buildTarget": "carryover-labs:build:development"
             }
           },
-          "defaultConfiguration": "development"
+          "defaultConfiguration": "development",
+          "options": {
+            "proxyConfig": "proxy.conf.json"
+          }
         },
         "test": {
           "builder": "@angular/build:unit-test"

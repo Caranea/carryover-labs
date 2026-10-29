@@ -1,0 +1,182 @@
+:host {
+  position: relative;
+  display: block;
+}
+
+.scene {
+  perspective: 1800px;
+}
+
+/* Tilted, layered cards like daisyUI's hero. Flat and stacked on small screens. */
+.tilt {
+  position: relative;
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 1024px) {
+  .tilt {
+    display: block;
+    height: 500px;
+    transform: rotateX(16deg) rotateY(-20deg) rotateZ(4deg);
+    transform-origin: 50% 40%;
+  }
+
+  .tilt > .card {
+    position: absolute;
+    height: auto;
+  }
+
+  .printout {
+    width: 300px;
+    left: 0;
+    top: 50px;
+    z-index: 2;
+  }
+
+  .toggles {
+    width: 290px;
+    left: 280px;
+    top: 0;
+    z-index: 1;
+  }
+
+  .chart {
+    width: 330px;
+    left: 235px;
+    top: 255px;
+    z-index: 3;
+  }
+
+  .promise {
+    width: max-content;
+    left: 10px;
+    top: 420px;
+    z-index: 4;
+  }
+}
+
+@media (max-width: 1023px) {
+  .toggles,
+  .promise {
+    display: none;
+  }
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  white-space: nowrap;
+}
+
+.k {
+  display: inline-block;
+  width: 6.5rem;
+  flex: none;
+  color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
+}
+
+/* Black bars sweep over personal details. */
+.x {
+  position: relative;
+}
+
+.x::after {
+  content: '';
+  position: absolute;
+  inset: 0.15em -0.15em 0.1em;
+  background: #000;
+  border-radius: 2px;
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: bar 0.4s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+
+.x1::after {
+  animation-delay: 0.7s;
+}
+.x2::after {
+  animation-delay: 0.95s;
+}
+.x3::after {
+  animation-delay: 1.2s;
+}
+
+/* Highlighter marks what is kept. */
+.m {
+  border-radius: 3px;
+  padding-inline: 0.15em;
+  background: linear-gradient(var(--color-accent), var(--color-accent)) no-repeat left / 0% 100%;
+  animation: hl 0.45s ease-out forwards;
+}
+
+.m1 {
+  animation-delay: 1.6s;
+}
+.m2 {
+  animation-delay: 1.85s;
+}
+
+.refband {
+  fill: color-mix(in oklab, var(--color-primary) 8%, transparent);
+}
+
+.area {
+  fill: color-mix(in oklab, var(--color-primary) 10%, transparent);
+  opacity: 0;
+  animation: fade 0.6s ease 2.9s forwards;
+}
+
+.line {
+  fill: none;
+  stroke: var(--color-primary);
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw 1s cubic-bezier(0.65, 0, 0.35, 1) 2.4s forwards;
+}
+
+.pt {
+  fill: var(--color-base-100);
+  stroke: var(--color-primary);
+  stroke-width: 2;
+  opacity: 0;
+  animation: fade 0.3s ease forwards;
+}
+
+.pt.last {
+  fill: var(--color-accent);
+  stroke: var(--color-accent-content);
+}
+
+.replay {
+  position: absolute;
+  right: 0;
+  bottom: -2.25rem;
+}
+
+@keyframes bar {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes hl {
+  to {
+    background-size: 100% 100%;
+  }
+}
+
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes fade {
+  to {
+    opacity: 1;
+  }
+}

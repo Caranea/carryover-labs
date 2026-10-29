@@ -1,0 +1,218 @@
+<div class="mx-auto max-w-5xl px-5 sm:px-8 py-10 sm:py-14 flex flex-col gap-10">
+  <header class="flex flex-col gap-3">
+    <app-step-rail class="block mb-4" />
+    <h1 class="text-4xl sm:text-5xl tracking-tight">
+      <span class="font-bold">Add lab results</span>
+    </h1>
+    <p class="text-lg text-base-content/80 max-w-2xl leading-relaxed">
+      Add a clear photo or a document. We suggest personal details to hide on this device. You check each page before approving the copy to save.
+    </p>
+  </header>
+
+  <app-storage-notice />
+  <fieldset class="rounded-box border border-base-300 bg-base-100 p-5 flex flex-col gap-3">
+    <legend class="px-2 font-display text-xl font-semibold">Choose how to check personal details</legend>
+    <label class="flex items-start gap-3 cursor-pointer rounded-xl p-3 hover:bg-base-200">
+      <input type="radio" name="privacy-mode" class="radio radio-primary mt-1" [checked]="privacyMode() === 'automatic'" (change)="privacyMode.set('automatic')" />
+      <span><strong class="block">Full local check · Recommended</strong><span class="block text-sm text-base-content/80 mt-1">Finds names, addresses and common personal details on your device. The first use downloads about 280 MB and needs more memory. Add a file to start. You still check each page.</span></span>
+    </label>
+    <label class="flex items-start gap-3 cursor-pointer rounded-xl p-3 hover:bg-base-200">
+      <input type="radio" name="privacy-mode" class="radio radio-primary mt-1" [checked]="privacyMode() === 'lightweight'" (change)="privacyMode.set('lightweight')" />
+      <span><strong class="block">Lightweight review · For older phones</strong><span class="block text-sm text-base-content/80 mt-1">Skips the large detector download and checks common patterns only. You must find any missed names and addresses yourself and confirm that you checked every page. Reading photos can still take time.</span></span>
+    </label>
+    @if (privacyMode() === 'lightweight') {
+      <p role="status" class="rounded-lg bg-warning/10 p-3 text-sm">Lightweight review selected. No full privacy detector will be downloaded for these files. Personal details may be missed.</p>
+    }
+  </fieldset>
+  <!-- Dropzone -->
+  <section
+    class="card border-2 border-dashed transition-colors"
+    [class]="dragging() ? 'border-primary bg-primary/5' : 'border-base-300 bg-base-100 hover:border-primary/60'"
+    (dragenter)="onDragEnter($event)"
+    (dragover)="$event.preventDefault()"
+    (dragleave)="onDragLeave()"
+    (drop)="onDrop($event)"
+    aria-labelledby="drop-h"
+  >
+    <div class="card-body items-center text-center gap-4 py-12">
+      <span class="grid place-items-center size-16 rounded-full bg-primary/10 text-primary">
+        <app-icon name="upload" size="1.9rem" />
+      </span>
+      <div>
+        <h2 id="drop-h" class="font-display text-2xl font-semibold">
+          {{ dragging() ? 'Release to add' : 'Choose a file or take a photo' }}
+        </h2>
+        <p class="text-base-content/80 mt-1">Start with one document. On a computer, you can also drag files here.</p>
+      </div>
+      <div class="flex flex-wrap justify-center gap-3">
+        <label class="btn btn-primary rounded-full px-6">
+          <app-icon name="upload" size="1.1rem" /> Choose files
+          <input type="file" multiple [accept]="accept" (change)="onFiles($any($event.target))" class="sr-only" />
+        </label>
+        <label class="btn btn-outline rounded-full px-6 border-base-300 pointer-fine:hidden">
+          <app-icon name="camera" size="1.1rem" /> Take a photo
+          <input type="file" accept="image/*" capture="environment" (change)="onFiles($any($event.target))" class="sr-only" />
+        </label>
+      </div>
+      <ul class="flex flex-wrap justify-center gap-1.5" aria-label="Supported formats">
+        @for (f of formats; track f) {
+          <li class="badge badge-ghost badge-sm">{{ f }}</li>
+        }
+      </ul>
+    </div>
+  </section>
+
+  <!-- On this device -->
+  @if (local().length) {
+    <section class="flex flex-col gap-3" aria-labelledby="local-h">
+      <div class="flex flex-wrap items-center gap-2">
+        <h2 id="local-h" class="font-display text-2xl font-semibold mr-1">On this device</h2>
+        @if (readyCount()) {
+          <span class="badge badge-success badge-soft">{{ readyCount() }} ready to check</span>
+        }
+        <span class="text-sm text-base-content/80 ml-auto">Not saved yet. Closing this tab discards them.</span>
+      </div>
+      <ul class="list bg-base-100 rounded-box border border-base-300 shadow-sm">
+        @for (doc of local(); track doc.localId) {
+          <li class="list-row items-center">
+            <span class="grid place-items-center size-11 rounded-xl"
+              [class]="doc.status === 'review' ? 'bg-success/15 text-success' : doc.status === 'error' ? 'bg-error/10 text-error' : 'bg-base-200 text-base-content/80'">
+              <app-icon [name]="kindIcon[doc.sourceKind]" size="1.35rem" />
+            </span>
+            <div class="flex flex-col gap-1.5 min-w-0">
+              <p class="font-semibold truncate">{{ doc.serverId ? doc.name : doc.fileName }}</p>
+              <p class="flex flex-wrap items-center gap-2 text-sm" aria-live="polite">
+                <span class="badge badge-sm" [class]="statusBadge(doc).cls">{{ statusBadge(doc).text }}</span>
+                <span [class]="doc.status === 'error' ? 'text-error' : 'text-base-content/80'">{{ statusLine(doc) }}</span>
+              </p>
+              @if (busy(doc)) {
+                <progress [attr.aria-label]="doc.message" class="progress progress-primary w-full max-w-md" [value]="doc.progress * 100" max="100"></progress>
+              }
+            </div>
+            <div class="flex flex-wrap justify-end gap-2">
+              @if (doc.status === 'review') {
+                <button type="button" class="btn btn-primary btn-sm rounded-full" (click)="review(doc)">
+                  Check and approve <app-icon name="arrow-right" size="1rem" />
+                </button>
+              }
+              @if (doc.status === 'error' && doc.file) {
+                <button type="button" class="btn btn-sm rounded-full" (click)="queue.retry(doc.localId)">Try again</button>
+              }
+              @if (doc.status !== 'saving') {
+                <button type="button" class="btn btn-ghost btn-sm btn-circle" (click)="queue.remove(doc.localId)" [attr.aria-label]="'Remove ' + doc.fileName">
+                  <app-icon name="x" size="1.1rem" />
+                </button>
+              }
+            </div>
+          </li>
+        }
+      </ul>
+    </section>
+  }
+
+  <!-- Saved -->
+  <section class="flex flex-col gap-3" aria-labelledby="saved-h">
+    <div class="flex flex-wrap items-center gap-2">
+      <h2 id="saved-h" class="font-display text-2xl font-semibold mr-1">Your documents</h2>
+      @if (queue.saved()?.length) {
+        <span class="badge badge-ghost">{{ queue.saved()!.length }}</span>
+      }
+      <span class="text-sm text-base-content/80 ml-auto flex items-center gap-1.5">
+        <app-icon name="lock" size="0.95rem" /> Only blacked-out copies are stored
+      </span>
+      @if (queue.saved()?.length) {
+        <a routerLink="/results" class="btn btn-sm btn-primary btn-soft rounded-full">
+          <app-icon name="chart" size="1rem" /> See results
+        </a>
+      }
+    </div>
+
+    @if (queue.savedError()) {
+      <div role="alert" class="alert alert-error alert-soft">
+        <app-icon name="alert" />
+        <span>{{ queue.savedError() }}</span>
+        <button type="button" class="btn btn-sm rounded-full" (click)="queue.refreshSaved()">Try again</button>
+      </div>
+    } @else if (queue.saved() === null) {
+      <div class="flex flex-col gap-3" aria-label="Loading your documents">
+        <div class="skeleton h-16 w-full"></div>
+        <div class="skeleton h-16 w-full"></div>
+      </div>
+    } @else if (!queue.saved()!.length) {
+      <div class="card bg-base-200">
+        <div class="card-body items-center text-center gap-3 py-12">
+          <div class="w-24 rounded-xl bg-base-100 p-3 shadow-sm flex flex-col gap-2" aria-hidden="true">
+            <span class="h-1.5 w-4/5 rounded bg-base-300"></span>
+            <span class="h-1.5 w-1/2 rounded bg-black"></span>
+            <span class="h-1.5 w-3/4 rounded bg-accent"></span>
+          </div>
+          <p class="font-display text-lg font-semibold">No documents yet</p>
+          <p class="text-base-content/80 max-w-sm">Approved documents appear here, with personal details already removed.</p>
+        </div>
+      </div>
+    } @else {
+      <div class="overflow-x-auto rounded-box border border-base-300 bg-base-100 shadow-sm">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Document</th>
+              <th class="hidden sm:table-cell">Pages</th>
+              <th class="hidden sm:table-cell">Details removed</th>
+              <th class="hidden md:table-cell">Saved</th>
+              <th><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (doc of queue.saved(); track doc.id) {
+              <tr class="hover:bg-base-200/60">
+                <td>
+                  <div class="flex items-center gap-3">
+                    <span class="grid place-items-center size-10 rounded-xl bg-primary/10 text-primary">
+                      <app-icon [name]="kindIcon[doc.sourceKind]" size="1.2rem" />
+                    </span>
+                    <div class="min-w-0">
+                      <p class="font-semibold truncate">{{ doc.name }}</p>
+                      <p class="text-xs text-base-content/80 md:hidden">{{ doc.updatedAt | date: 'd MMM y' }}</p>
+                    </div>
+                  </div>
+                </td>
+                <td class="hidden sm:table-cell tabular-nums">{{ doc.pageCount }}</td>
+                <td class="hidden sm:table-cell">
+                  <span class="inline-flex items-center gap-2 tabular-nums"><span class="redact w-5"></span>{{ doc.hiddenCount }}</span>
+                </td>
+                <td class="hidden md:table-cell text-base-content/80 tabular-nums">{{ doc.updatedAt | date: 'd MMM y, HH:mm' }}</td>
+                <td>
+                  <div class="flex justify-end gap-1">
+                    <a class="btn btn-sm btn-ghost rounded-full" [routerLink]="['/saved', doc.id]">
+                      <app-icon name="eye-off" size="1rem" /> <span class="hidden sm:inline">Hide more</span>
+                    </a>
+                    <button type="button" class="btn btn-sm btn-ghost btn-circle text-error" (click)="askDelete(doc)" [attr.aria-label]="'Delete ' + doc.name">
+                      <app-icon name="trash" size="1rem" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+</div>
+
+<dialog #deleteDialog class="modal" aria-labelledby="del-h">
+  <div class="modal-box">
+    <h3 id="del-h" class="font-display text-xl font-semibold">Delete “{{ toDelete()?.name }}”?</h3>
+    <p class="py-3 text-base-content/80">The blacked-out copy is removed from your account for good.</p>
+    @if (deleteError()) {
+      <div role="alert" class="alert alert-error alert-soft mb-2"><span>{{ deleteError() }}</span></div>
+    }
+    <div class="modal-action">
+      <form method="dialog"><button class="btn btn-ghost rounded-full">Keep it</button></form>
+      <button type="button" class="btn btn-error rounded-full" (click)="confirmDelete()">Delete</button>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
+
+

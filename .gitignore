@@ -41,3 +41,12 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+# Carryover: never commit keys or real documents
+.env
+api/.env
+api/storage/
+private-test-data/
+
+# Local verification screenshots
+/artifacts/

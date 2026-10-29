@@ -1,0 +1,76 @@
+@for (r of [run()]; track r) {
+  <div class="scene" aria-hidden="true">
+    <div class="tilt">
+      <!-- The printout being cleaned -->
+      <div class="card bg-base-100 shadow-xl border border-base-300 printout">
+        <div class="card-body gap-2 p-5 text-[0.8rem]">
+          <div class="flex items-center justify-between">
+            <span class="font-semibold">Laboratorium Medica</span>
+            <span class="text-base-content/50">Kraków</span>
+          </div>
+          <div class="divider my-0"></div>
+          <p class="row"><span class="k">Pacjent</span><span class="x x1">Anna Nowak</span></p>
+          <p class="row"><span class="k">PESEL</span><span class="x x2">44051401359</span></p>
+          <p class="row"><span class="k">Lekarz</span>dr <span class="x x3">Jan Wiśniewski</span></p>
+          <p class="row"><span class="k">Pobrano</span><span class="m m1">12.03.2021</span></p>
+          <div class="divider my-0"></div>
+          <p class="row font-medium"><span class="k">Płytki krwi</span><span class="m m2">245</span><span class="text-base-content/50 ml-2">tys/µl</span></p>
+          <p class="row text-base-content/50"><span class="k">Hemoglobina</span>13,2<span class="ml-2">g/dl</span></p>
+        </div>
+      </div>
+
+      <!-- What gets removed -->
+      <div class="card bg-base-100 shadow-xl border border-base-300 toggles">
+        <div class="card-body p-5 gap-3">
+          <div class="flex items-center gap-2">
+            <span class="grid place-items-center size-8 rounded-full bg-primary/10 text-primary"><app-icon name="shield" size="1.1rem" /></span>
+            <span class="font-display font-semibold">Removed on your device</span>
+          </div>
+          @for (t of removed; track t.label) {
+            <label class="flex items-center justify-between gap-6 text-sm">
+              <span [class]="t.on ? '' : 'text-base-content/50'">{{ t.label }}</span>
+              <input type="checkbox" class="toggle toggle-sm" [class.toggle-primary]="t.on" [checked]="t.on" tabindex="-1" />
+            </label>
+          }
+        </div>
+      </div>
+
+      <!-- One test across labs and countries -->
+      <div class="card bg-base-100 shadow-xl border border-base-300 chart">
+        <div class="card-body p-5 gap-2">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="text-xs text-base-content/60">Platelets · PLT · Thrombozyten</p>
+              <p class="font-display text-2xl font-semibold">245 <span class="text-sm font-normal text-base-content/60">× 10⁹/l</span></p>
+            </div>
+            <span class="badge badge-accent badge-sm">New result</span>
+          </div>
+          <svg [attr.viewBox]="'0 0 ' + w + ' ' + h" class="w-full">
+            <rect x="0" [attr.y]="rangeTop" [attr.width]="w" [attr.height]="rangeBottom - rangeTop" rx="6" class="refband" />
+            <polygon [attr.points]="area" class="area" />
+            <polyline [attr.points]="line" class="line" pathLength="1" />
+            @for (p of points; track $index) {
+              <circle [attr.cx]="px($index)" [attr.cy]="py(p.value)" [attr.r]="$last ? 5 : 3.5" [class.last]="$last" class="pt" [style.animation-delay]="2.6 + $index * 0.12 + 's'" />
+            }
+          </svg>
+          <div class="flex gap-1.5">
+            <span class="badge badge-ghost badge-sm"><b>PL</b> Medica</span>
+            <span class="badge badge-ghost badge-sm"><b>DE</b> Synlab</span>
+            <span class="badge badge-ghost badge-sm"><b>AU</b> Sonic</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Promise chip -->
+      <div class="card bg-base-100 shadow-lg border border-base-300 promise">
+        <div class="card-body p-4 flex-row items-center gap-3">
+          <span class="grid place-items-center size-9 rounded-full bg-success/15 text-success"><app-icon name="lock" size="1.1rem" /></span>
+          <span class="text-sm leading-tight">Original file<br /><span class="text-base-content/60">never uploaded</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+<button type="button" class="btn btn-ghost btn-xs rounded-full replay" (click)="replay()">
+  <app-icon name="replay" size="0.9rem" /> Replay
+</button>

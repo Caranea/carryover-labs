@@ -1,0 +1,145 @@
+import { Component, computed, inject, input, signal } from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
+import { DocumentQueueService } from '../core/document-queue.service';
+import { ToastService } from '../core/toast.service';
+import { Box, PiiKind, WorkingWord } from '../core/models';
+import { redactionPlan } from '../redaction/burn';
+
+import { KIND_LABEL, KIND_PLURAL } from './describe';
+import { EditMode, PageView } from './page-view';
+import { TextView } from './text-view';
+import { Icon } from '../ui/icon';
+import { StepRail } from '../shell/step-rail';
+import { StorageNotice } from '../shell/storage-notice';
+
+interface HiddenGroup {
+  key: string;
+  text: string;
+  kind: PiiKind;
+  count: number;
+  /** One occurrence to toggle; toggling shows every occurrence in turn. */
+  refs: { page: number; id: number }[];
+  byYou: boolean;
+}
+
+@Component({
+  selector: 'app-review',
+  imports: [PageView, TextView, RouterLink, Icon, StepRail, StorageNotice],
+  templateUrl: './review.page.html',
+})
+export class ReviewPage {
+  protected readonly queue = inject(DocumentQueueService);
+
+  private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
+
+  readonly localId = input.required<string>();
+
+  protected readonly mode = signal<EditMode>('words');
+  protected readonly reveal = signal(false);
+  protected readonly textView = signal(false);
+
+  protected readonly doc = computed(() => this.queue.byId(this.localId()));
+  protected readonly busy = computed(() => {
+    const s = this.doc()?.status;
+    return s === 'detecting' || s === 'saving';
+  });
+  protected readonly hasImages = computed(() => this.doc()?.pages.some((p) => p.image) ?? false);
+  private readonly plannedPages = computed(() => (this.doc()?.pages ?? []).map((page) => ({ page, plan: redactionPlan(page) })));
+  protected readonly hiddenCount = computed(() => this.plannedPages().reduce((count, { page, plan }) => count + plan.hidden.size + page.regions.length, 0));
+  protected readonly nearbyCount = computed(() => this.plannedPages().reduce((count, { page, plan }) => count + [...plan.hidden].filter((index) => !page.words[index].hidden).length, 0));
+  protected readonly lockedCount = computed(
+    () =>
+      this.doc()?.pages.reduce(
+        (n, p) => n + p.words.filter((w) => w.locked).length + (p.lockedRegions ?? 0),
+        0,
+      ) ?? 0,
+  );
+
+  /** Hidden words grouped by text, so "Kowalska" ×4 is one line in the list. */
+  protected readonly groups = computed<HiddenGroup[]>(() => {
+    const doc = this.doc();
+    if (!doc) return [];
+    const map = new Map<string, HiddenGroup>();
+    doc.pages.forEach((page, p) => {
+      for (const w of page.words) {
+        if (!w.hidden || w.locked || w.text === null) continue;
+        const key = w.text.toLowerCase();
+        const g = map.get(key) ?? { key, text: w.text, kind: w.kind ?? 'other', count: 0, refs: [], byYou: false };
+        g.count++;
+        g.refs.push({ page: p, id: w.id });
+        g.byYou ||= w.source === 'you';
+        map.set(key, g);
+      }
+    });
+    return [...map.values()];
+  });
+
+  /** Hidden words per kind, for the ledger ("names ...... 6"). */
+  protected readonly kindRows = computed(() => {
+    const counts = new Map<PiiKind, number>();
+    for (const g of this.groups()) counts.set(g.kind, (counts.get(g.kind) ?? 0) + g.count);
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([kind, n]) => ({ label: n === 1 ? KIND_LABEL[kind] : KIND_PLURAL[kind], n }));
+  });
+
+  protected readonly regionCount = computed(
+    () => this.doc()?.pages.reduce((n, p) => n + p.regions.length - (p.lockedRegions ?? 0), 0) ?? 0,
+  );
+
+  protected readonly kindLabel = KIND_LABEL;
+
+  protected toggle(pageIndex: number, wordId: number) {
+    if (!this.busy()) this.queue.toggleWord(this.localId(), pageIndex, wordId);
+  }
+
+  /** Show every occurrence of a hidden word. */
+  protected showGroup(g: HiddenGroup) {
+    for (const ref of g.refs) {
+      const w = this.wordAt(ref.page, ref.id);
+      if (w?.hidden) this.queue.toggleWord(this.localId(), ref.page, ref.id);
+    }
+  }
+
+  protected addRegion(pageIndex: number, box: Box) {
+    if (!this.busy()) this.queue.addRegion(this.localId(), pageIndex, box);
+  }
+
+  protected removeRegion(pageIndex: number, index: number) {
+    if (!this.busy()) this.queue.removeRegion(this.localId(), pageIndex, index);
+  }
+
+  protected rename(value: string) {
+    this.queue.rename(this.localId(), value);
+  }
+
+  protected rescan() {
+    void this.queue.rescan(this.localId(), true);
+  }
+
+  protected async approve() {
+    const before = this.doc();
+    const removed = this.hiddenCount();
+    const ok = await this.queue.approve(this.localId());
+    if (!ok) return;
+    this.toast.show(
+      before?.serverId ? `Saved changes to “${before.name}”` : `Saved “${before?.name ?? 'document'}”`,
+      `${removed} ${removed === 1 ? 'detail' : 'details'} removed before upload. The original stayed on this device.`,
+    );
+    const next = this.queue.documents().find((d) => d.status === 'review');
+    void this.router.navigate(next ? ['/review', next.localId] : ['/results']);
+  }
+
+  protected discard() {
+    this.queue.remove(this.localId());
+    void this.router.navigate(['/']);
+  }
+
+  private wordAt(page: number, id: number): WorkingWord | undefined {
+    return this.doc()?.pages[page]?.words.find((w) => w.id === id);
+  }
+}
+
+
+

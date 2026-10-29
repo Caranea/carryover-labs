@@ -1,0 +1,57 @@
+# Template only. Install inside nginx's http {} context after replacing example.invalid
+# and certificate paths. Do not expose port 3000 outside loopback.
+# App environment: HOST=127.0.0.1, TRUST_LOOPBACK_PROXY=true, NODE_ENV=production.
+limit_req_zone $binary_remote_addr zone=carryover_api:10m rate=4r/s;
+limit_conn_zone $binary_remote_addr zone=carryover_connections:10m;
+
+server {
+    listen 80;
+    server_name example.invalid;
+    return 308 https://example.invalid$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name example.invalid;
+    ssl_certificate /etc/carryover/tls/fullchain.pem;
+    ssl_certificate_key /etc/carryover/tls/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    server_tokens off;
+    client_max_body_size 47m;
+    client_body_timeout 60s;
+    send_timeout 60s;
+    access_log off;
+    # Review local error-log permissions/retention; never enable request-body or debug logging.
+    error_log /var/log/nginx/carryover-error.log warn;
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    proxy_hide_header Strict-Transport-Security;
+
+    location /api/ {
+        limit_req zone=carryover_api burst=30 nodelay;
+        limit_req_status 429;
+        limit_conn carryover_connections 12;
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        # Overwrite client forwarding headers; never append an untrusted supplied value.
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+        proxy_request_buffering off;
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_no_cache 1;
+        proxy_read_timeout 120s;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+        proxy_buffering off;
+        proxy_cache off;
+    }
+}
