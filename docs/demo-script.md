@@ -8,8 +8,8 @@ The main script below is the target recording, not a claim that every step has a
 
 | Segment | Required evidence before recording | Current recording rule |
 | --- | --- | --- |
-| Local masking and save | Run the actual upload/review/save flow with a fictional file and the session used for recording | Use a real authenticated session for a public product demo. If using isolated test authentication, label it explicitly; do not present it as a completed Clerk sign-in. |
-| Prepared multilingual history | Inspect `/demo`, or an explicitly prepared fictional account with the same source-backed readings | Show a persistent **Fictional prepared sample** label. `/demo` does not call an AI model. |
+| Local masking and save | Run the actual upload/review/save flow with a fictional file and the session used for recording | Use the login-free browser flow, refresh to show saved results, and use fictional data. |
+| Prepared multilingual history | Inspect `/demo`, or an explicitly prepared fictional browser history with the same source-backed readings | Show a persistent **Fictional prepared sample** label. `/demo` does not call an AI model. |
 | Live missed-row recovery | Confirm a fresh request to the configured Meta model with the split-row fixture; record model/provider, time, returned evidence, and successful explicit acceptance | Service-path verification passed on 29 October: Baseten `meta-models/muse-spark-open-1026`, 9.9-second model step, 10.1 seconds overall. One verified proposal was explicitly accepted and charted. The immediately preceding identical-fixture attempt returned no verified proposal. Rehearse the real browser flow separately and retain the fallback. See [the full evidence and caveats](synthetic-recovery-check.md). |
 | PDF download | Click the actual download button, open the resulting file, and check its contents | The current export engine passed visual inspection, and the integration owner confirmed an actual browser download. Recheck the final selected groups/questions in the recording browser. |
 

@@ -1,12 +1,11 @@
 import { DatePipe } from '@angular/common';
-import { Component, effect, ElementRef, inject, OnDestroy, output, signal, untracked, viewChild } from '@angular/core';
+import { Component, ElementRef, inject, OnDestroy, output, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { describeHttpError } from '../core/document-queue.service';
 import { DocumentsApi } from '../core/documents-api';
 import { StoredWord } from '../core/models';
 import { Observation } from '../core/results';
 import { Icon } from '../ui/icon';
-import { AuthService } from '../auth/auth.service';
 
 export interface SourceTarget {
   documentId: string;
@@ -123,9 +122,6 @@ export function sourceText(words: StoredWord[]): string {
 })
 export class SourceDialog implements OnDestroy {
   private readonly api = inject(DocumentsApi);
-  private readonly auth = inject(AuthService);
-  private session = this.auth.sessionRevision();
-  private sourceSession = this.session;
   private destroyed = false;
   private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>('dialog');
   readonly corrected = output<Observation>();
@@ -136,33 +132,18 @@ export class SourceDialog implements OnDestroy {
   protected readonly saveError = signal<string | null>(null);
   protected form: CorrectionDraft = { name: '', valueText: '', unit: '', date: '', note: '' };
 
-  constructor() {
-    effect(() => {
-      const session = this.auth.sessionRevision();
-      if (session === this.session) return;
-      this.session = session;
-      untracked(() => {
-        this.clear();
-        const dialog = this.dialog().nativeElement;
-        if (dialog.open) dialog.close();
-      });
-    });
-  }
-
-  private current(target: SourceTarget, owner: string | null, session: number) {
-    return !this.destroyed && this.shown()?.target === target && owner === this.auth.userId() && session === this.auth.sessionRevision();
+  private current(target: SourceTarget) {
+    return !this.destroyed && this.shown()?.target === target;
   }
 
   async open(target: SourceTarget): Promise<boolean> {
-    const owner = this.auth.userId(), session = this.auth.sessionRevision();
-    if (this.destroyed || (target.demoText === undefined && !owner)) return false;
+    if (this.destroyed) return false;
     this.release();
-    this.sourceSession = session;
     this.editing.set(false); this.saveError.set(null); this.zoom.set(100);
     this.shown.set({ target, url: null, text: target.demoText ?? '', width: 0, height: 0, loading: target.demoText === undefined, error: null });
     if (!this.dialog().nativeElement.open) this.dialog().nativeElement.showModal();
     if (target.demoText !== undefined) return true;
-    const current = () => this.current(target, owner, session);
+    const current = () => this.current(target);
     try {
       const saved = await this.api.get(target.documentId);
       if (!current()) return false;
@@ -183,17 +164,16 @@ export class SourceDialog implements OnDestroy {
   protected async save() {
     const target = this.shown()?.target;
     const o = target?.observation;
-    const owner = this.auth.userId(), session = this.auth.sessionRevision();
-    if (!target || !owner || !o?.revision || this.saving() || session !== this.sourceSession || this.destroyed) return;
+    if (!target || !o?.revision || this.saving() || this.destroyed) return;
     if (!this.form.name.trim() || !this.form.valueText.trim() || !this.form.note.trim()) { this.saveError.set('Enter the test, result and a note describing what you checked.'); return; }
     this.saving.set(true); this.saveError.set(null);
     try {
       const corrected = await this.api.correct(o.documentId, o.id, { name: this.form.name.trim(), valueText: this.form.valueText.trim(), unit: this.form.unit.trim() || null, date: this.form.date || null, note: this.form.note.trim(), expectedRevision: o.revision });
-      if (!this.current(target, owner, session)) return;
+      if (!this.current(target)) return;
       this.corrected.emit(corrected);
       this.saving.set(false); this.close();
-    } catch (e) { if (this.current(target, owner, session)) this.saveError.set(describeHttpError(e)); }
-    finally { if (this.current(target, owner, session)) this.saving.set(false); }
+    } catch (e) { if (this.current(target)) this.saveError.set(describeHttpError(e)); }
+    finally { if (this.current(target)) this.saving.set(false); }
   }
   protected historyChanges(changes: Record<string, unknown>): string {
     const entries = Object.entries(changes);

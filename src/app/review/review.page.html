@@ -3,7 +3,7 @@
     <app-step-rail class="block mb-6" />
     <div class="breadcrumbs text-sm text-base-content/80 mb-2">
       <ul>
-        <li><a routerLink="/">Documents</a></li>
+        <li><a routerLink="/documents">Documents</a></li>
         <li>Check and approve</li>
       </ul>
     </div>
@@ -18,7 +18,7 @@
     <div class="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] items-start">
       <!-- Pages -->
       <section class="relative rounded-box bg-base-200 border border-base-300" aria-label="Pages">
-        <div class="sticky top-16 z-10 flex flex-wrap items-center gap-3 rounded-t-box bg-base-200/90 backdrop-blur px-4 py-3 border-b border-base-300" aria-label="Editing tools">
+        <div class="sticky top-[var(--app-header-height)] z-10 flex flex-wrap items-center gap-3 rounded-t-box bg-base-200/90 backdrop-blur px-4 py-3 border-b border-base-300" aria-label="Editing tools">
           @if (hasImages() && !textView()) {
             <div class="join" role="group" aria-label="What clicking does">
               <button type="button" class="btn btn-sm join-item" [class.btn-primary]="mode() === 'words'" [attr.aria-pressed]="mode() === 'words'" (click)="mode.set('words')">
@@ -85,7 +85,7 @@
       </section>
 
       <!-- Summary and decision -->
-      <aside class="card bg-base-100 border border-base-300 shadow-sm lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
+      <aside class="card bg-base-100 border border-base-300 shadow-sm lg:sticky lg:top-[calc(var(--app-header-height)+1rem)] lg:max-h-[calc(100dvh-var(--app-header-height)-2rem)] lg:overflow-y-auto">
         <div class="card-body gap-5 p-5">
           <fieldset class="fieldset p-0">
             <legend class="fieldset-legend pt-0">Document name</legend>
@@ -215,7 +215,7 @@
           Files that were not saved are discarded when the page is reloaded or closed, because they never leave this
           device. Add the file again to continue.
         </p>
-        <a routerLink="/" class="btn btn-primary rounded-full">Back to documents</a>
+        <a routerLink="/documents" class="btn btn-primary rounded-full">Back to documents</a>
       </div>
     </div>
   </div>

@@ -1,3 +1,5 @@
+> Historical server-storage evidence: the current demo uses browser localStorage and stateless Meta inference. See [API](api.md) and [privacy](privacy-and-redaction.md) for current behavior. Offline storage tools and legacy tests remain available; their routes are not served by the demo.
+
 # Reproducible synthetic benchmark
 
 Every identity, value and layout in `fixtures/synthetic-labs/cases.mjs` was invented from scratch. No private medical fixtures or their findings were used. These measurements are engineering regression evidence, not clinical validation or a population estimate of personal-detail detection.
@@ -41,6 +43,6 @@ The benchmark exits unsuccessfully for an incorrect chart point or a failure of 
 
 `check:flow` consumes the benchmark's approved visible-word manifest, uploads a synthetic JPEG to an isolated Nest application, verifies independent server masking, no-store headers, account isolation and source preservation, confirms a correction, runs a labelled model test double through the real recovery API, accepts its proposal, retrieves chart records and generates a PDF using the production engine. It checks encryption of every stored content payload. The opaque cache-generation UUID contains no document content and remains plaintext by design.
 
-The OCR-backed run produced four observations, four chart points, seven encrypted payload files and a 33,738-byte PDF. Reports and the PDF are in ignored `artifacts/flow/`. The process uses a temporary encrypted store and removes only that temporary directory afterward. It does not load real application credentials or storage. The model and token verifier are explicit injected test doubles; this is not a real Clerk sign-in, a live Meta evaluation, or an automated browser upload test.
+The OCR-backed run produced four observations, four chart points, seven encrypted payload files and a 33,738-byte PDF. Reports and the PDF are in ignored `artifacts/flow/`. The process uses a temporary encrypted store and removes only that temporary directory afterward. It does not load real application credentials or storage. The model and token verifier are explicit injected test doubles; this is not a live Meta evaluation, or an automated browser upload test.
 
 For live Meta evidence, use the separately documented recovery check with its explicit `--live` opt-in. Do not put keys or real documents in CI. The browser's actual PDF download was verified separately on the fictional appointment page.

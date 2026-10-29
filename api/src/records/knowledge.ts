@@ -2,15 +2,9 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { decodeStored, encodeStored } from '../security/storage-crypto.js';
-import type { CatalogueTest } from './catalogue.js';
 
-/** Learned suggestions belong to one account, never the global catalogue. */
-export interface Knowledge {
-  version: 1;
-  names: Record<string, { key: string | null; reason?: string }>;
-  tests: CatalogueTest[];
-  conversions: Record<string, { factor: number; note: string }>;
-}
+import type { Knowledge } from './knowledge-types.js';
+export type { Knowledge } from './knowledge-types.js';
 
 const EMPTY: Knowledge = { version: 1, names: {}, tests: [], conversions: {} };
 const queues = new Map<string, Promise<unknown>>();

@@ -43,14 +43,10 @@ export async function runStorageCommand(args: string[], env: NodeJS.ProcessEnv):
       // Passing a clone explicitly avoids loading an actual .env behind the operator's back.
       const config = loadConfig({ ...env, NODE_ENV: 'production' });
       const report = await inventoryStorage(values.source, config.storageEncryptionKey);
-      const authentication = !!config.clerkPublishableKey && !!config.clerkSecretKey;
-      const httpsOrigins = config.authorizedParties.length > 0 && config.authorizedParties.every((origin) => {
-        try { const url = new URL(origin); return url.protocol === 'https:' && url.origin === origin && !['localhost', '127.0.0.1'].includes(url.hostname); } catch { return false; }
-      });
       const localGateway = config.listenHost === '127.0.0.1' && config.trustLoopbackProxy;
-      const codeChecksPass = authentication && httpsOrigins && localGateway && report.verified && report.plaintextPayloads === 0;
+      const codeChecksPass = localGateway && report.verified && report.plaintextPayloads === 0;
       return { exitCode: codeChecksPass ? 0 : 2, output: {
-        command, codeChecksPass, authenticationConfigured: authentication, httpsOriginsConfigured: httpsOrigins, loopbackGatewayConfigured: localGateway, report,
+        command, codeChecksPass, loopbackGatewayConfigured: localGateway, report,
         operatorChecksStillRequired: ['HTTPS gateway and firewall verified', 'one API writer per store', 'separate secret recovery tested', 'backup restore tested', 'retention and deletion schedules approved', 'provider processing and retention terms reviewed', 'production access and log controls reviewed'],
       } };
     }

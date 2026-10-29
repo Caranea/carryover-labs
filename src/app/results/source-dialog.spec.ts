@@ -1,6 +1,4 @@
 import { TestBed } from '@angular/core/testing';
-import { signal } from '@angular/core';
-import { AuthService } from '../auth/auth.service';
 import { vi } from 'vitest';
 import { DocumentsApi } from '../core/documents-api';
 import { DEMO_RESULTS } from '../core/demo-data';
@@ -25,7 +23,7 @@ describe('source checking', () => {
   });
 
   async function setup(api: Partial<DocumentsApi>) {
-    TestBed.configureTestingModule({ imports: [SourceDialog], providers: [{ provide: DocumentsApi, useValue: api }, { provide: AuthService, useValue: { userId: signal<string | null>('account-a'), sessionRevision: signal(0) } }] });
+    TestBed.configureTestingModule({ imports: [SourceDialog], providers: [{ provide: DocumentsApi, useValue: api }] });
     const fixture = TestBed.createComponent(SourceDialog);
     fixture.detectChanges();
     const dialog = fixture.nativeElement.querySelector('dialog') as HTMLDialogElement;
@@ -66,14 +64,12 @@ describe('source checking', () => {
     expect(emitted).toHaveBeenCalledWith(corrected);
   });
 
-  it('closes and discards a source reply from a previous session, including a switch back to the same account', async () => {
+  it('discards a delayed source reply after its dialog closes', async () => {
     let resolve!: (value: unknown) => void;
     const get = vi.fn().mockReturnValue(new Promise((done) => { resolve = done; }));
     const fixture = await setup({ get });
     const opening = fixture.componentInstance.open({ documentId: 'private-a', documentName: 'Account A source', page: 0, bbox: null, title: 'Private reading', detail: '2.5' });
-    const auth = TestBed.inject(AuthService);
-    auth.userId.set('account-b'); auth.sessionRevision.update((n) => n + 1);
-    auth.userId.set('account-a'); auth.sessionRevision.update((n) => n + 1);
+    fixture.componentInstance.close();
     resolve({ pages: [{ index: 0, width: 0, height: 0, hasImage: false, words: [{ t: 'Account A secret', l: 0 }] }] });
     expect(await opening).toBe(false);
     fixture.detectChanges();
@@ -81,7 +77,7 @@ describe('source checking', () => {
     expect(fixture.nativeElement.textContent).not.toContain('Account A');
   });
 
-  it('discards a correction reply after sign-out and clears its private draft', async () => {
+  it('discards a correction reply after the source view is destroyed', async () => {
     let resolve!: (value: unknown) => void;
     const get = vi.fn().mockResolvedValue({ pages: [{ index: 0, width: 0, height: 0, hasImage: false, words: [{ t: 'TSH', l: 0 }] }] });
     const correct = vi.fn().mockReturnValue(new Promise((done) => { resolve = done; }));
@@ -91,12 +87,10 @@ describe('source checking', () => {
     component.form = { ...correctionDraft(observation), note: 'Private correction note' };
     const emitted = vi.fn(); component.corrected.subscribe(emitted);
     const saving = component.save();
-    const auth = TestBed.inject(AuthService); auth.userId.set(null); auth.sessionRevision.update((n) => n + 1);
-    fixture.detectChanges();
+    fixture.destroy();
     resolve({ ...observation, confirmed: true }); await saving;
     expect(emitted).not.toHaveBeenCalled();
     expect(component.form.note).toBe('');
-    expect(fixture.nativeElement.querySelector('dialog').open).toBe(false);
   });
 });
 

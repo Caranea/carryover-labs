@@ -13,7 +13,7 @@ import { describeHttpError, DocumentQueueService } from '../core/document-queue.
           <div class="card-body items-center text-center gap-4">
             <h1 class="font-display text-2xl font-semibold">This document could not be opened</h1>
             <div role="alert" class="alert alert-error alert-soft"><span>{{ error() }}</span></div>
-            <a routerLink="/" class="btn btn-primary rounded-full">Back to documents</a>
+            <a routerLink="/documents" class="btn btn-primary rounded-full">Back to documents</a>
           </div>
         </div>
       } @else {

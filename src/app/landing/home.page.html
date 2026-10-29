@@ -1,0 +1,67 @@
+<section class="mx-auto max-w-7xl px-5 sm:px-8 pt-12 lg:pt-20 pb-16 lg:pb-24">
+  <div class="grid items-center gap-14 lg:grid-cols-[1fr_1.05fr]">
+    <div class="flex flex-col items-start gap-7">
+      <span class="badge badge-soft badge-primary gap-1.5 py-3 px-3">
+        <app-icon name="lock" size="0.9rem" /> Personal information never leave your device
+      </span>
+      <h1 class="text-4xl sm:text-5xl lg:text-6xl leading-[1.05] tracking-tight">
+        <span class="font-bold">Seeing a doctor soon?</span><br />
+        <span class="font-light">Give them a clearer picture of your health</span>
+      </h1>
+      <p class="text-lg sm:text-xl text-base-content/80 max-w-xl leading-relaxed">
+        Carryover Labs turns years of lab reports — even blurry printouts in different formats and languages — into one clear summary that helps your doctor spot what matters.
+      </p>
+      <div class="flex max-w-full flex-wrap gap-3">
+        <a routerLink="/documents" class="btn btn-primary btn-lg h-auto min-h-12 max-w-full rounded-full px-5 py-3 sm:px-7">
+          <span class="min-w-0 whitespace-normal">Prepare for your appointment</span> <app-icon name="arrow-right" size="1.15rem" />
+        </a>
+      </div>
+    </div>
+
+    <app-hero-stack />
+  </div>
+</section>
+
+<section id="how" class="bg-base-200 scroll-mt-16">
+  <div class="mx-auto max-w-7xl px-5 sm:px-8 py-20 lg:py-28">
+    <div class="text-center max-w-2xl mx-auto mb-14">
+      <h2 class="text-3xl sm:text-5xl tracking-tight">
+        <span class="font-bold">Three steps,</span>{{ ' ' }}<span class="font-light">and you stay in control</span>
+      </h2>
+    </div>
+    <ol class="grid gap-6 md:grid-cols-3">
+      @for (step of steps; track step.title; let index = $index) {
+        <li class="card bg-base-100 border border-base-300 shadow-sm">
+          <div class="card-body gap-4">
+            <div class="flex items-center justify-between">
+              <span class="grid place-items-center size-12 rounded-2xl bg-primary/10 text-primary">
+                <app-icon [name]="step.icon" size="1.5rem" />
+              </span>
+              <span class="font-display text-4xl font-light text-base-content/15">{{ index + 1 }}</span>
+            </div>
+            <h3 class="card-title font-display text-xl">{{ step.title }}</h3>
+            <p class="text-base-content/80 leading-relaxed">{{ step.text }}</p>
+          </div>
+        </li>
+      }
+    </ol>
+  </div>
+</section>
+
+<section class="mx-auto max-w-3xl px-5 sm:px-8 py-20 lg:py-24">
+  <h2 class="text-3xl sm:text-4xl tracking-tight text-center mb-10">
+    <span class="font-bold">Questions</span>{{ ' ' }}<span class="font-light">people ask first</span>
+  </h2>
+  <div class="join join-vertical w-full">
+    @for (item of faq; track item.question; let first = $first) {
+      <div class="collapse collapse-arrow join-item border border-base-300 bg-base-100">
+        <input type="radio" name="faq" [checked]="first" [attr.aria-label]="item.question" />
+        <div class="collapse-title font-semibold text-lg">{{ item.question }}</div>
+        <div class="collapse-content text-base-content/80 leading-relaxed">{{ item.answer }}</div>
+      </div>
+    }
+  </div>
+  <div class="text-center mt-12">
+    <a routerLink="/documents" class="btn btn-primary rounded-full px-7">Add lab results</a>
+  </div>
+</section>

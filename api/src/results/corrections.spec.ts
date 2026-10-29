@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { after, before, describe, it } from 'node:test';
 import type { INestApplication } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from '../app.module.js';
+import { StorageTestModule as AppModule } from '../testing/storage-test.module.js';
 import { loadConfig } from '../config.js';
 import type { DocumentManifest } from '../documents/contract.js';
 import { DocumentStorage } from '../documents/storage.js';
@@ -32,7 +32,7 @@ describe('authenticated source corrections', () => {
       if (!token.startsWith('user:')) throw new Error('Invalid test session');
       return { sub: token.slice(5) };
     };
-    app = await NestFactory.create(AppModule.forRoot(loadConfig({ STORAGE_DIR: dir, CLERK_PUBLISHABLE_KEY: 'pk_test' }), verifier, null), { logger: false });
+    app = await NestFactory.create(AppModule.forRoot(loadConfig({ STORAGE_DIR: dir }), verifier, null), { logger: false });
     app.setGlobalPrefix('api');
     await app.listen(0);
     base = `${await app.getUrl()}/api`.replace('[::1]', 'localhost');

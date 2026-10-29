@@ -7,9 +7,10 @@
     </p>
     <div class="flex flex-wrap gap-2 mt-2">
       <a routerLink="/appointment" [queryParams]="demo ? { demo: 'true' } : {}" class="btn btn-primary rounded-full">Prepare for my appointment</a>
-      @if (demo) { <a routerLink="/sign-in" class="btn btn-outline rounded-full">Use my own documents</a> }
+      @if (demo) { <a routerLink="/documents" class="btn btn-outline rounded-full">Use my own documents</a> }
     </div>
-    @if (demo) { <p class="p-3 rounded-box bg-base-200 text-sm"><strong>Fictional sample:</strong> these invented results show how Carryover works. No account or upload is needed.</p> }
+    @if (demo) { <p class="p-3 rounded-box bg-base-200 text-sm"><strong>Fictional sample:</strong> these invented results show how Carryover works. No upload is needed.</p> }
+    @if (!demo) { <p class="p-3 rounded-box bg-base-200 text-sm">Previous results are saved in this browser. Clearing site data removes them.</p> }
   </header>
 
   @if (error()) {
@@ -32,7 +33,7 @@
         <span class="grid place-items-center size-14 rounded-full bg-base-100 text-primary"><app-icon name="chart" size="1.6rem" /></span>
         <p class="font-display text-xl font-semibold">No results yet</p>
         <p class="text-base-content/80 max-w-md">Results appear here after you approve and save a lab document.</p>
-        <a routerLink="/" class="btn btn-primary rounded-full">Add lab results</a>
+        <a routerLink="/documents" class="btn btn-primary rounded-full">Add lab results</a>
       </div>
     </div>
   } @else if (data()) {
@@ -52,6 +53,7 @@
         <span>{{ d.model.message }} Readings that need checking are listed below.</span><button type="button" class="btn btn-sm" [disabled]="refreshing()" (click)="refresh(true)">Retry matching</button>
       </div>
     }
+    @if (d.model.state === 'off' && d.model.message) { <p role="status" class="alert alert-info alert-soft">{{ d.model.message }}</p> }
 
     @if (paused()) {
       <p role="status" class="alert alert-info alert-soft">Matching is taking longer than expected. Your saved readings remain available.<button type="button" class="btn btn-sm" (click)="refresh()">Check progress</button></p>

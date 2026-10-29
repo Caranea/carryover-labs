@@ -1,3 +1,5 @@
+> Historical server-storage evidence: the current demo uses browser localStorage and stateless Meta inference. See [API](api.md) and [privacy](privacy-and-redaction.md) for current behavior. Offline storage tools and legacy tests remain available; their routes are not served by the demo.
+
 # Storage and deployment operations
 
 These are preparation tools and templates. Nothing in this document has been applied to a live service or to personal records. Passing the checks below does not certify compliance, detector accuracy or complete security.

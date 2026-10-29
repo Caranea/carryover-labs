@@ -39,7 +39,7 @@
       <h2 id="overview-h" class="font-display text-2xl font-semibold">At a glance</h2>
       <p class="mt-2">{{ counts().tests }} tests · {{ counts().values }} chart readings · {{ d.textResults.length }} written results · {{ d.warnings.length }} unresolved readings</p>
       <p class="text-sm text-base-content/80 mt-2">Included groups: @for (domain of selected(); track domain.key; let last = $last) { {{ domain.label }}{{ last ? '' : ', ' }} } @empty { none selected. }</p>
-      <p class="text-sm text-base-content/80 mt-2">Dates and values come from uploaded records and may contain recognition errors. This is not a complete medical history; bring the original documents where possible.</p>
+      <p class="text-sm text-base-content/80 mt-2">Dates and values come from saved records and may contain recognition errors. This is not a complete medical history; bring the original documents where possible.</p>
       @if (d.model.state === 'working' || d.model.state === 'error') { <p class="mt-3 font-medium">Some test matching is incomplete. Review the unresolved readings before relying on this record.</p> }
       @if (d.issues?.length) { <div class="mt-3"><strong>{{ d.issues!.length }} document(s) could not be fully read:</strong><ul>@for (issue of d.issues; track issue.documentId) { <li>{{ issue.documentName }} — {{ issue.message }}</li> }</ul></div> }
       @if (notes.trim()) { <h3 class="font-semibold mt-4">My questions</h3><p class="whitespace-pre-wrap mt-1">{{ notes }}</p> }

@@ -21,7 +21,7 @@ import {
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
-import { ClerkAuthGuard, type AuthedRequest } from '../auth/clerk-auth.guard.js';
+import { TestScopeGuard, type AuthedRequest } from '../testing/request-scope.guard.js';
 import type { DocumentManifest, SavedDocument, SavedDocumentSummary } from './contract.js';
 import { resultsFor } from '../results/results.controller.js';
 import { DocumentStorage, NotFoundError, StorageQuotaError } from './storage.js';
@@ -37,7 +37,7 @@ const upload = FilesInterceptor('pages', LIMITS.pages, {
 });
 
 @Controller('documents')
-@UseGuards(ClerkAuthGuard)
+@UseGuards(TestScopeGuard)
 export class DocumentsController {
   constructor(@Inject(STORAGE) private readonly storage: DocumentStorage) {}
 

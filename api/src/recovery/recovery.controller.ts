@@ -1,12 +1,12 @@
 import { Body, Controller, Get, Inject, Param, Post, Req, UseGuards } from '@nestjs/common';
-import { ClerkAuthGuard, type AuthedRequest } from '../auth/clerk-auth.guard.js';
+import { TestScopeGuard, type AuthedRequest } from '../testing/request-scope.guard.js';
 import type { RecoveryResponse } from './contract.js';
 import { RecoveryService } from './recovery.service.js';
 
 export const RECOVERY = Symbol('RECOVERY');
 
 @Controller('recovery')
-@UseGuards(ClerkAuthGuard)
+@UseGuards(TestScopeGuard)
 export class RecoveryController {
   constructor(@Inject(RECOVERY) private readonly recovery: RecoveryService) {}
 

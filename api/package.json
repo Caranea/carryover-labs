@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Stores already-redacted lab documents per Clerk user.",
+  "description": "Stateless Meta AI checks for browser-local lab records.",
   "engines": {
     "node": ">=22"
   },
@@ -15,7 +15,6 @@
     "test": "tsc -p tsconfig.json --outDir .test-build && node --test \".test-build/**/*.spec.js\""
   },
   "dependencies": {
-    "@clerk/backend": "3.26.3",
     "@nestjs/common": "12.3.2",
     "@nestjs/core": "12.3.2",
     "@nestjs/platform-express": "12.3.2",

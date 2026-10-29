@@ -1,6 +1,6 @@
-import { Component, effect, ElementRef, inject, OnDestroy, viewChild } from '@angular/core';
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { AuthService } from './auth/auth.service';
+import { afterNextRender, Component, ElementRef, inject, Injector, signal, viewChild } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { DetectorStatus } from './shell/detector-status';
 import { Mark } from './shell/mark';
 import { Toasts } from './shell/toasts';
@@ -10,38 +10,46 @@ import { Icon } from './ui/icon';
   selector: 'app-root',
   imports: [RouterOutlet, RouterLink, RouterLinkActive, Mark, DetectorStatus, Toasts, Icon],
   templateUrl: './app.html',
-  host: { class: 'flex min-h-screen flex-col' },
+  styleUrl: './app.css',
+  host: {
+    class: 'flex min-h-screen flex-col',
+    '(document:keydown.escape)': 'closeMenu(true)',
+    '(document:click)': 'onDocumentClick($event)',
+    '(document:focusin)': 'onDocumentClick($event)',
+  },
 })
-export class App implements OnDestroy {
-  protected readonly auth = inject(AuthService);
+export class App {
   private readonly router = inject(Router);
-  private readonly userButton = viewChild<ElementRef<HTMLDivElement>>('userButton');
-  private mounted: HTMLDivElement | null = null;
+  private readonly injector = inject(Injector);
+  private readonly navigation = viewChild<ElementRef<HTMLElement>>('navigation');
+  private readonly menuToggle = viewChild<ElementRef<HTMLButtonElement>>('menuToggle');
+  protected readonly menuOpen = signal(false);
 
   constructor() {
-    let priorOwner = this.auth.userId();
-    let priorRevision = this.auth.sessionRevision();
-    effect(() => {
-      const owner = this.auth.userId();
-      const revision = this.auth.sessionRevision();
-      const changed = priorOwner !== null && (owner !== priorOwner || revision !== priorRevision);
-      priorOwner = owner;
-      priorRevision = revision;
-      // Re-run the route guard and destroy views belonging to the previous session.
-      if (changed) void this.router.navigateByUrl('/');
+    this.router.events.pipe(takeUntilDestroyed()).subscribe((event) => {
+      if (event instanceof NavigationEnd) this.closeMenu();
     });
-    effect(() => {
-      const el = this.userButton()?.nativeElement ?? null;
-      const signedIn = this.auth.status() === 'signed-in';
-      if (el && signedIn && el !== this.mounted) {
-        this.mounted = el;
-        void this.auth.mountUserButton(el);
-      }
-      if ((!el || !signedIn) && this.mounted) {
-        void this.auth.unmountUserButton(this.mounted);
-        this.mounted = null;
-      }
-    });
+  }
+
+  protected toggleMenu() {
+    this.menuOpen.update((open) => !open);
+    if (this.menuOpen()) {
+      afterNextRender(() => {
+        if (this.menuOpen()) this.navigation()?.nativeElement.querySelector('a')?.focus();
+      }, { injector: this.injector });
+    }
+  }
+
+  protected closeMenu(restoreFocus = false) {
+    if (!this.menuOpen()) return;
+    this.menuOpen.set(false);
+    if (restoreFocus) this.menuToggle()?.nativeElement.focus();
+  }
+
+  protected onDocumentClick(event: Event) {
+    if (event.target instanceof Element && !event.target.closest('.app-header')) {
+      this.closeMenu();
+    }
   }
 
   protected skipHref() { return this.router.url.split('#')[0] + '#main-content'; }
@@ -54,7 +62,4 @@ export class App implements OnDestroy {
     document.getElementById('start')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  ngOnDestroy() {
-    if (this.mounted) void this.auth.unmountUserButton(this.mounted);
-  }
 }

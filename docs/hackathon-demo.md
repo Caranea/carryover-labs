@@ -33,7 +33,7 @@ Do not publish keys, storage, original documents or patient-derived fixtures. Co
 
 On 29 October, direct browser PDF download and the six-page rendered fictional packet were verified. Explicit Meta recovery is implemented and was verified live on an invented split row; the first call returned no verified suggestion and the second succeeded, so the demo must allow that honest outcome. See [the exact check](synthetic-recovery-check.md).
 
-- Test one full synthetic upload with the actual Clerk session and provider configuration.
+- Test one full synthetic upload with the actual browser-local flow and provider configuration.
 - Rehearse the verified direct PDF download on the presentation device and on Android.
 - Test on a physical budget Android phone, including the first model download and camera capture.
 - Rehearse with the model offline, an unreadable row and a missing unit; the UI must stay honest.

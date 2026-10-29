@@ -1,68 +1,38 @@
-# API
+# Demo API
 
-NestJS/Express, ES modules. All routes are under `/api`. Authenticated document routes verify the Clerk session and derive ownership from its subject; inaccessible document IDs return 404.
+NestJS/Express exposes stateless Meta inference under `/api`. No login, user ID, device ID or server-side document history is required.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| GET | `/config` | Public Clerk key and storageProtection status |
-| GET | `/health` | Public health response |
-| GET, POST | `/documents` | List or upload an approved redacted document |
-| GET, PUT, DELETE | `/documents/:id` | Read, hide more, or remove an owned document |
-| GET | `/documents/:id/pages/:index` | Redacted JPEG |
-| GET | `/results` | Source observations, original/corrected fields and document issues |
-| PATCH | `/results/:documentId/observations/:observationId` | Checked correction with expectedRevision |
-| GET | `/records` | Grouped charts, unresolved rows and model status |
-| POST | `/records/retry` | Explicitly retry unfinished model checks |
-| GET | `/recovery/:documentId` | Recovery status/proposals; never starts inference |
-| POST | `/recovery/:documentId` | Explicit selected-page recovery with page and expectedRevision |
-| POST | `/recovery/:documentId/proposals/:proposalId/accept` | Confirm verified evidence with expectedRevision and a source-check note |
-| POST | `/recovery/:documentId/proposals/:proposalId/reject` | Dismiss a proposal with expectedRevision |
+| GET | `/health` | Availability and browser-storage mode |
+| GET | `/demo/config` | Configured model name; no secrets |
+| POST | `/demo/records` | Check a supplied snapshot of result fields and return charts, unresolved rows and model status |
+| POST | `/demo/recovery` | Check one approved source page and return source-verified proposals |
 
-All except config/health require authentication. See [corrections](extraction.md) and [records](records.md).
+The previous document, correction and saved-history routes are not mounted. Existing disk records are neither opened nor migrated by the demo. Legacy storage code is reachable only through offline tools and an explicitly injected test harness.
 
-## Upload boundary
+## Requests and limits
 
-Multipart fields are a JSON `manifest` plus `pages` named `page-<index>.jpg`. Types in `src/app/core/models.ts` mirror `api/src/documents/contract.ts`.
+Records requests contain `{documents: [{id, name, observations}]}`. IDs are local source references, not account identifiers. The API rebuilds numeric values from printed text and validates the snapshot. It processes up to 100 documents / 5,000 observations, with at most eight model tasks per request.
 
-The server rebuilds known manifest fields, rejects hidden text, checks boxes/regions, scans visible text for a checksum-valid PESEL, and decodes actual JPEGs with dimension/pixel limits. It reapplies declared masks and re-encodes without metadata. Re-redaction preserves the existing saved source pixels and only adds masking; it cannot swap in a different page or restore removed content.
+Recovery requests contain `{document, page, acceptedEvidence?}`. The approved manifest contains only visible text and positions; hidden words must have null text. Page images are not sent. The model selects word indices, and the server reconstructs and verifies each proposal. The browser saves proposals and requires explicit source confirmation before adding a reading.
 
-Defaults: 40 pages, 20,000 words per page, 500 regions per page, 8 MiB per image, 6 MiB manifest, 40 MiB aggregate image upload, 25 million pixels per image. Account storage defaults to 500 documents / 512 MiB, including derived writes. HTTP request budgets are 240 reads / 30 writes per minute per observed IP, with four concurrent uploads. These are process-local protections; deployment gateways need their own limits.
+JSON requests are limited to 8 MiB. Up to four inference requests run concurrently. Request budgets are 240 reads / 30 writes per minute per observed IP. These are process-local limits. API responses use private/no-store headers.
 
-Validation returns readable 400/413/422 errors, stale corrections 409, rate limits 429 and unavailable capacity 503. API responses carry private/no-store headers.
-
-## Storage
-
-```
-STORAGE_DIR/<sha256 account ID, 40 hex>/
-  <document UUID>/
-    document.json
-    page-0.jpg
-    results.json
-    corrections.json
-    review.json
-    recovery.json
-  _knowledge/
-    current
-    <generation>/knowledge.json
-```
-
-Payload filenames do not imply plaintext: with a key configured, all payloads use the authenticated encryption envelope. Writes use temporary files/directories and swaps, with account-scoped locks and recovery handling. Run a single API process against this store. Existing plaintext can be read and explicitly migrated; see [privacy](privacy-and-redaction.md).
+All record history, approved source images, corrections, accepted recovery evidence and cached results are in browser localStorage under `carryover.demo.history.v1`. A revision check prevents late responses from restoring deleted or changed content.
 
 ## Configuration
 
-Copy `api/.env.example` to `api/.env`; never commit credentials.
+Copy `api/.env.example` to `api/.env` if the latter does not already exist. Keep keys out of the repository.
 
 | Variable | Purpose |
 | --- | --- |
-| `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | Account sign-in/session verification |
-| `CLERK_JWT_KEY` | Optional networkless verification key |
-| `CLERK_AUTHORIZED_PARTIES` | Allowed frontend origins |
-| `STORAGE_DIR` | File store, default `./storage` relative to api |
-| `STORAGE_ENCRYPTION_KEY` | Base64-encoded 32-byte key; required when NODE_ENV=production |
-| `PORT`, `WEB_ROOT` | API port and built frontend directory |
-| `HOST`, `TRUST_LOOPBACK_PROXY` | Defaults to private loopback binding; opt-in forwarding trust only for a local gateway |
-| `BASETEN_API_KEY`, `BASETEN_BASE_URL`, `BASETEN_MODEL` | Primary Meta open-weight inference |
+| `BASETEN_API_KEY`, `BASETEN_BASE_URL`, `BASETEN_MODEL` | Primary Meta inference |
 | `META_MODEL_API_KEY`, `META_MODEL_BASE_URL`, `META_MODEL` | Meta Model API fallback |
+| `PORT`, `WEB_ROOT` | API port and built frontend directory |
+| `HOST`, `TRUST_LOOPBACK_PROXY` | Loopback binding and optional trust of a local gateway |
 
-Security headers include no-sniff, no-referrer, frame denial, same-origin resource policy and a restricted permissions policy. HTTPS requests receive HSTS. HTTPS termination, trusted proxy settings, CSP, operational logging/retention and secrets custody need deployment review.
+Without a model key, local extraction and deterministic charts remain available and the UI explains that AI is unavailable. Storage encryption settings apply only to the retained offline legacy tools. The demo API does not require or use a document store.
+
+Keep model keys on the server and serve the app/API on the same HTTPS origin for hosting. Provider retention is governed by the configured inference provider.
 

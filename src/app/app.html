@@ -1,29 +1,35 @@
 <a [href]="skipHref()" (click)="skipToContent($event)" class="skip-link">Skip to main content</a>
-<header class="app-header navbar sticky top-0 z-30 bg-base-100/85 backdrop-blur border-b border-base-300 px-4 sm:px-6 min-h-16">
-  <div class="navbar-start w-auto flex-1">
-    <a routerLink="/" class="flex items-center gap-2.5" aria-label="Carryover Labs, home">
-      <app-mark [size]="34" />
-      <span class="font-display text-xl font-semibold tracking-tight">Carryover</span>
-      <span class="badge badge-ghost badge-sm hidden sm:inline-flex">Labs</span>
+<header class="app-header">
+  <div class="header-inner">
+    <a routerLink="/" class="brand" aria-label="Carryover Labs, home" (click)="closeMenu()">
+      <app-mark [size]="44" />
+      <span class="brand-wordmark">
+        <span class="brand-name">Carryover</span>
+        <span class="brand-label">Labs</span>
+      </span>
     </a>
-  </div>
 
-  @if (auth.status() === 'signed-in') {
-    <nav class="navbar-center" aria-label="Main">
-      <ul class="menu menu-horizontal menu-sm gap-1 px-1">
-        <li><a routerLink="/" routerLinkActive="menu-active" [routerLinkActiveOptions]="{ exact: true }" class="rounded-full">Documents</a></li>
-        <li><a routerLink="/results" routerLinkActive="menu-active" class="rounded-full">Results</a></li>
+    <nav #navigation id="main-navigation" class="header-nav" [class.is-open]="menuOpen()" aria-label="Main">
+      <ul class="header-nav-list">
+        <li><a routerLink="/" routerLinkActive="is-active" ariaCurrentWhenActive="page" [routerLinkActiveOptions]="{ exact: true }" (click)="closeMenu()">Home</a></li>
+        <li><a routerLink="/documents" routerLinkActive="is-active" ariaCurrentWhenActive="page" (click)="closeMenu()">Documents</a></li>
+        <li><a routerLink="/results" routerLinkActive="is-active" ariaCurrentWhenActive="page" (click)="closeMenu()">Results</a></li>
       </ul>
+      <div class="mobile-menu-actions">
+        <a routerLink="/demo" class="header-sample" (click)="closeMenu()">Try sample <app-icon name="arrow-right" size="1rem" /></a>
+        <a routerLink="/documents" class="header-cta" (click)="closeMenu()">Get started <app-icon name="arrow-right" size="1rem" /></a>
+      </div>
     </nav>
-    <div class="navbar-end w-auto gap-3">
+
+    <div class="header-actions">
       <app-detector-status />
-      <div #userButton class="min-w-8 min-h-8"></div>
+      <a routerLink="/demo" class="header-sample desktop-action">Try sample</a>
+      <a routerLink="/documents" class="header-cta desktop-action">Get started <app-icon name="arrow-right" size="1rem" /></a>
+      <button #menuToggle type="button" class="menu-toggle" [attr.aria-expanded]="menuOpen()" aria-controls="main-navigation" [attr.aria-label]="menuOpen() ? 'Close navigation menu' : 'Open navigation menu'" (click)="toggleMenu()">
+        <app-icon [name]="menuOpen() ? 'x' : 'menu'" size="1.35rem" />
+      </button>
     </div>
-  } @else {
-    <div class="navbar-end w-auto gap-2">
-      <a routerLink="/demo" class="btn btn-ghost btn-sm rounded-full">See demo</a><a routerLink="/sign-in" fragment="start" class="btn btn-primary btn-sm rounded-full">Get started</a>
-    </div>
-  }
+  </div>
 </header>
 
 <main id="main-content" class="flex-1" tabindex="-1">
@@ -32,13 +38,13 @@
 
 <footer class="app-footer footer sm:footer-horizontal bg-base-200 text-base-content/80 px-6 py-8 text-sm">
   <aside class="flex items-center gap-3">
-    <app-mark [size]="28" />
+    <app-mark [size]="28" class="size-7 shrink-0" />
     <p class="max-w-md">Carryover organises lab results. It never interprets them or gives medical advice.</p>
   </aside>
   <nav class="sm:justify-self-end">
     <p class="flex items-center gap-2">
       <app-icon name="lock" size="1rem" />
-      Documents are read on your device. Only the copy you approve is saved.
+      Documents are read on your device. Your result history is saved in this browser.
     </p>
   </nav>
 </footer>

@@ -5,21 +5,19 @@ import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { NextFunction, Request, Response } from 'express';
-import { AppModule } from './app.module.js';
+import { DemoModule } from './demo/demo.module.js';
 import { loadConfig } from './config.js';
 import { requestLimits, securityHeaders } from './security/http-security.js';
 
 async function bootstrap() {
-  const config = loadConfig();
+  const config = loadConfig(process.env, { persistentStorage: false });
   const log = new Logger('Carryover');
-  if (!config.clerkSecretKey || !config.clerkPublishableKey) {
-    log.warn('CLERK_SECRET_KEY or CLERK_PUBLISHABLE_KEY is missing. Copy api/.env.example to api/.env.');
-  }
-  if (!config.storageEncryptionKey) log.warn('Development storage is plaintext. Set STORAGE_ENCRYPTION_KEY before storing personal records. Existing files need explicit migration.');
 
-  const app = await NestFactory.create<NestExpressApplication>(AppModule.forRoot(config), {
+  const app = await NestFactory.create<NestExpressApplication>(DemoModule.forRoot(config), {
     logger: ['error', 'warn', 'log'],
+    bodyParser: false,
   });
+  app.useBodyParser('json', { limit: '8mb' });
   app.disable('x-powered-by');
   if (config.trustLoopbackProxy) app.set('trust proxy', 'loopback');
   app.setGlobalPrefix('api');

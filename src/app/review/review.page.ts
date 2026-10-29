@@ -125,7 +125,7 @@ export class ReviewPage {
     if (!ok) return;
     this.toast.show(
       before?.serverId ? `Saved changes to “${before.name}”` : `Saved “${before?.name ?? 'document'}”`,
-      `${removed} ${removed === 1 ? 'detail' : 'details'} removed before upload. The original stayed on this device.`,
+      `${removed} ${removed === 1 ? 'detail' : 'details'} removed. The approved copy is saved in this browser.`,
     );
     const next = this.queue.documents().find((d) => d.status === 'review');
     void this.router.navigate(next ? ['/review', next.localId] : ['/results']);
@@ -133,7 +133,7 @@ export class ReviewPage {
 
   protected discard() {
     this.queue.remove(this.localId());
-    void this.router.navigate(['/']);
+    void this.router.navigate(['/documents']);
   }
 
   private wordAt(page: number, id: number): WorkingWord | undefined {

@@ -1,6 +1,4 @@
 import { TestBed } from '@angular/core/testing';
-import { signal } from '@angular/core';
-import { AuthService } from '../auth/auth.service';
 import { By } from '@angular/platform-browser';
 import { vi } from 'vitest';
 import { DocumentsApi } from '../core/documents-api';
@@ -23,7 +21,7 @@ describe('reviewing recovered readings', () => {
   async function setup() {
     const state = response();
     const api = { recovery: vi.fn().mockResolvedValue(state), findMissedReadings: vi.fn(), acceptRecoveredReading: vi.fn().mockResolvedValue({ ...state, proposals: [{ ...proposal, state: 'accepted' }] }), rejectRecoveredReading: vi.fn() };
-    TestBed.configureTestingModule({ imports: [RecoveryPanel], providers: [{ provide: DocumentsApi, useValue: api }, { provide: AuthService, useValue: { userId: signal<string | null>('account-a'), sessionRevision: signal(0) } }] });
+    TestBed.configureTestingModule({ imports: [RecoveryPanel], providers: [{ provide: DocumentsApi, useValue: api }] });
     const fixture = TestBed.createComponent(RecoveryPanel);
     fixture.componentRef.setInput('documents', DEMO_RESULTS.documents);
     fixture.detectChanges();
@@ -63,7 +61,7 @@ describe('reviewing recovered readings', () => {
     expect(fixture.nativeElement.querySelector('[role=alert]')).not.toBeNull();
   });
 
-  it('clears proposals and private notes and ignores acceptance from the previous account', async () => {
+  it('ignores a delayed acceptance after the panel is destroyed', async () => {
     const { fixture, api } = await setup();
     let resolve!: (value: RecoveryResponse) => void;
     api.acceptRecoveredReading.mockReturnValue(new Promise((done) => { resolve = done; }));
@@ -72,13 +70,9 @@ describe('reviewing recovered readings', () => {
     component.inspected.set(new Set([key])); component.confirmed.set(new Set([key])); component.notes[key] = 'Private review note';
     const emitted = vi.fn(); component.accepted.subscribe(emitted);
     const accepting = component.decide(proposal, 'accept');
-    const auth = TestBed.inject(AuthService); auth.userId.set('account-b'); auth.sessionRevision.update((n) => n + 1);
-    fixture.detectChanges();
+    fixture.destroy();
     resolve({ ...response(), proposals: [{ ...proposal, state: 'accepted' }] }); await accepting;
-    fixture.detectChanges();
-    expect(emitted).not.toHaveBeenCalled(); expect(component.data()).toBeNull();
-    expect(component.notes).toEqual({}); expect(component.documentId()).toBe('');
-    expect(fixture.nativeElement.textContent).not.toContain('Private review note');
+    expect(emitted).not.toHaveBeenCalled();
   });
 });
 

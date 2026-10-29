@@ -1,6 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
-import { AuthService } from '../auth/auth.service';
+import { computed, inject, Injectable, signal } from '@angular/core';
 import { ExtractionService, sourceKindOf } from '../extraction/extraction.service';
 import { applyDetections, NORMAL, PagePredictions, STRICT } from '../pii/detect';
 import { NerService } from '../pii/ner.service';
@@ -13,7 +12,7 @@ import { Box, LocalDocument, PrivacyMode, SavedDocumentSummary, WorkingPage, Wor
 
 /**
  * Holds every document being prepared on this device and the list of
- * documents saved to the account. Files are processed one at a time so a
+ * documents saved in this browser. Files are processed one at a time so a
  * phone does not run out of memory.
  */
 @Injectable({ providedIn: 'root' })
@@ -21,7 +20,6 @@ export class DocumentQueueService {
   private readonly extraction = inject(ExtractionService);
   private readonly ner = inject(NerService);
   private readonly api = inject(DocumentsApi);
-  private readonly auth = inject(AuthService);
 
   readonly documents = signal<LocalDocument[]>([]);
   readonly saved = signal<SavedDocumentSummary[] | null>(null);
@@ -33,38 +31,6 @@ export class DocumentQueueService {
   private running = false;
   private counter = 0;
   private readonly activeChecks = new Map<string, AbortController>();
-  private accountId = this.auth.userId();
-  private sessionRevision = this.auth.sessionRevision();
-  private accountVersion = 0;
-
-  constructor() {
-    effect(() => {
-      const accountId = this.auth.userId();
-      const revision = this.auth.sessionRevision();
-      untracked(() => this.syncAccount(accountId, revision));
-    });
-  }
-
-  /** Never retain one person's working originals or cached list for another session. */
-  private syncAccount(accountId = this.auth.userId(), revision = this.auth.sessionRevision()) {
-    if (accountId === this.accountId && revision === this.sessionRevision) return;
-    this.accountId = accountId;
-    this.sessionRevision = revision;
-    this.accountVersion++;
-    for (const abort of this.activeChecks.values()) abort.abort();
-    this.activeChecks.clear();
-    for (const doc of this.documents()) revokePages(doc.pages);
-    this.documents.set([]);
-    this.predictions.clear();
-    this.saved.set(null);
-    this.savedError.set(null);
-  }
-
-  private currentAccount(version: number) {
-    this.syncAccount();
-    return version === this.accountVersion;
-  }
-
   byId(localId: string): LocalDocument | undefined {
     return this.documents().find((d) => d.localId === localId);
   }
@@ -74,7 +40,6 @@ export class DocumentQueueService {
   // ---------------------------------------------------------------------------
 
   add(files: Iterable<File>, privacyMode: PrivacyMode = 'automatic'): string[] {
-    this.syncAccount();
     const added: LocalDocument[] = [];
     for (const file of files) {
       const kind = sourceKindOf(file);
@@ -124,7 +89,6 @@ export class DocumentQueueService {
 
   private async process(doc: LocalDocument) {
     const id = doc.localId;
-    const accountVersion = this.accountVersion;
     const abort = new AbortController();
     this.activeChecks.set(id, abort);
     try {
@@ -132,11 +96,10 @@ export class DocumentQueueService {
       const pages = await this.extraction.extract(doc.file!, (fraction, message) =>
         this.patch(id, { progress: fraction * 0.7, message }),
       );
-      if (!this.currentAccount(accountVersion) || !this.byId(id)) return revokePages(pages);
+      if (!this.byId(id)) return revokePages(pages);
 
       this.patch(id, { status: 'detecting', progress: 0.7, message: doc.privacyMode === 'lightweight' ? 'Checking common personal-detail patterns' : 'Finding personal details', pages });
       const predictions = doc.privacyMode === 'lightweight' ? pages.map(() => null) : await this.ner.predict(pages, abort.signal);
-      if (!this.currentAccount(accountVersion)) return;
       const current = this.byId(id);
       if (!current) return;
       this.predictions.set(id, predictions);
@@ -158,8 +121,6 @@ export class DocumentQueueService {
 
   /** Run detection again with a lower model threshold and wider rules. Hand edits are kept. */
   async rescan(localId: string, strict = true) {
-    this.syncAccount();
-    const accountVersion = this.accountVersion;
     const doc = this.byId(localId);
     if (!doc || doc.status !== 'review') return;
     const abort = new AbortController();
@@ -171,7 +132,6 @@ export class DocumentQueueService {
       else if (!predictions || predictions.some((p) => p === null)) {
         this.ner.retry();
         predictions = await this.ner.predict(doc.pages, abort.signal);
-        if (!this.currentAccount(accountVersion)) return;
         if (this.byId(localId)) this.predictions.set(localId, predictions);
       }
       const current = this.byId(localId);
@@ -179,7 +139,6 @@ export class DocumentQueueService {
       const pages = applyDetections(current.pages, predictions, strict ? STRICT : NORMAL, fileNameHints(current.fileName));
       this.patch(localId, { status: 'review', message: '', pages, strict, ...privacyStatus(pages, predictions, current.privacyMode) });
     } catch (e) {
-      if (!this.currentAccount(accountVersion)) return;
       this.patch(localId, { status: 'review', message: '', error: e instanceof Error ? e.message : String(e) });
     } finally {
       this.activeChecks.delete(localId);
@@ -258,12 +217,10 @@ export class DocumentQueueService {
   }
 
   // ---------------------------------------------------------------------------
-  // Saving to the account
+  // Saving in this browser
   // ---------------------------------------------------------------------------
 
   async approve(localId: string): Promise<boolean> {
-    this.syncAccount();
-    const accountVersion = this.accountVersion;
     const doc = this.byId(localId);
     if (!doc || doc.status !== 'review') return false;
     if (doc.privacyCheck === 'incomplete' && !doc.privacyAcknowledged) {
@@ -282,14 +239,14 @@ export class DocumentQueueService {
       const images: (Blob | null)[] = [];
       for (const page of doc.pages) {
         images.push(await burnPage(page));
-        if (!this.currentAccount(accountVersion) || !this.byId(localId)) return false;
+        if (!this.byId(localId)) return false;
       }
       const manifest = buildManifest(doc, name);
-      this.patch(localId, { message: 'Saving to your account' });
+      this.patch(localId, { message: 'Saving on this device' });
       const summary = doc.serverId
         ? await this.api.replace(doc.serverId, manifest, images)
         : await this.api.create(manifest, images);
-      if (!this.currentAccount(accountVersion) || !this.byId(localId)) return false;
+      if (!this.byId(localId)) return false;
       // The originals are no longer needed on this device either.
       revokePages(this.byId(localId)?.pages ?? []);
       this.patch(localId, { status: 'saved', serverId: summary.id, message: '', file: null, pages: [] });
@@ -297,27 +254,22 @@ export class DocumentQueueService {
       this.predictions.delete(localId);
       return true;
     } catch (e) {
-      if (!this.currentAccount(accountVersion)) return false;
       this.patch(localId, { status: 'review', message: '', error: describeHttpError(e) });
       return false;
     }
   }
 
-  /** Open a saved document to hide more. Hidden parts stay hidden; they are not on the server anymore. */
+  /** Open a saved document to hide more. Hidden parts stay hidden in its local copy. */
   async openSaved(serverId: string): Promise<string> {
-    this.syncAccount();
-    const accountVersion = this.accountVersion;
     const existing = this.documents().find((d) => d.serverId === serverId && d.status === 'review');
     if (existing) return existing.localId;
 
     const doc = await this.api.get(serverId);
-    if (!this.currentAccount(accountVersion)) throw new Error('Your account changed. Open the document again after signing in.');
     const pages: WorkingPage[] = [];
     let nextId = 0;
     try {
       for (const p of doc.pages) {
         const image = p.hasImage ? await this.api.pageImage(serverId, p.index) : null;
-        if (!this.currentAccount(accountVersion)) throw new Error('Your account changed. Open the document again after signing in.');
         pages.push({
           index: p.index,
           width: p.width,
@@ -365,22 +317,17 @@ export class DocumentQueueService {
   }
 
   async refreshSaved() {
-    this.syncAccount();
-    const accountVersion = this.accountVersion;
     try {
       this.savedError.set(null);
       const list = await this.api.list();
-      if (this.currentAccount(accountVersion)) this.saved.set(list);
+      this.saved.set(list);
     } catch (e) {
-      if (this.currentAccount(accountVersion)) this.savedError.set(describeHttpError(e));
+      this.savedError.set(describeHttpError(e));
     }
   }
 
   async deleteSaved(serverId: string) {
-    this.syncAccount();
-    const accountVersion = this.accountVersion;
     await this.api.delete(serverId);
-    if (!this.currentAccount(accountVersion)) return;
     this.saved.update((list) => list?.filter((d) => d.id !== serverId) ?? null);
     for (const d of this.documents().filter((x) => x.serverId === serverId)) this.remove(d.localId);
   }
@@ -421,7 +368,6 @@ export function describeHttpError(e: unknown): string {
   if (e instanceof HttpErrorResponse) {
     const serverMessage = typeof e.error === 'object' && e.error?.message;
     if (e.status === 0) return 'The server could not be reached. Check your connection and try again.';
-    if (e.status === 401) return 'Your session has ended. Sign in again and retry.';
     if (serverMessage) return Array.isArray(serverMessage) ? serverMessage.join(' ') : String(serverMessage);
     if (e.status === 413) return 'This document is too large to save.';
     if (e.status === 429) return 'Too many requests at once. Wait a minute, then try again.';

@@ -203,7 +203,7 @@
 <dialog #deleteDialog class="modal" aria-labelledby="del-h">
   <div class="modal-box">
     <h3 id="del-h" class="font-display text-xl font-semibold">Delete “{{ toDelete()?.name }}”?</h3>
-    <p class="py-3 text-base-content/80">The blacked-out copy is removed from your account for good.</p>
+    <p class="py-3 text-base-content/80">The blacked-out copy is removed from this browser for good.</p>
     @if (deleteError()) {
       <div role="alert" class="alert alert-error alert-soft mb-2"><span>{{ deleteError() }}</span></div>
     }

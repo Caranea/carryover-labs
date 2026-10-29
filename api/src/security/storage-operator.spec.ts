@@ -136,11 +136,11 @@ describe('offline encrypted storage operations', () => {
     const encoded = randomBytes(32).toString('base64');
     const encrypted = join(root, 'encrypted');
     await copyEncryptedStorage({ source, destination: encrypted, targetKey: Buffer.from(encoded, 'base64'), apply: true, writersStopped: true });
-    const env = { STORAGE_ENCRYPTION_KEY: encoded, CLERK_PUBLISHABLE_KEY: 'pk_test_synthetic', CLERK_SECRET_KEY: 'sk_test_synthetic', CLERK_AUTHORIZED_PARTIES: 'https://example.invalid', HOST: '127.0.0.1', TRUST_LOOPBACK_PROXY: 'true' };
+    const env = { STORAGE_ENCRYPTION_KEY: encoded, HOST: '127.0.0.1', TRUST_LOOPBACK_PROXY: 'true' };
     const ready = await runStorageCommand(['readiness', '--source', encrypted], env);
     assert.equal(ready.exitCode, 0);
     assert.ok((ready.output as any).operatorChecksStillRequired.length > 0);
     assert.equal(JSON.stringify(ready.output).includes(encoded), false);
-    assert.equal((await runStorageCommand(['readiness', '--source', encrypted], { ...env, CLERK_AUTHORIZED_PARTIES: 'http://example.invalid' })).exitCode, 2);
+    assert.equal((await runStorageCommand(['readiness', '--source', encrypted], { ...env, HOST: '0.0.0.0' })).exitCode, 2);
   }));
 });

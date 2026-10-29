@@ -1,3 +1,5 @@
+> Current demo: browser-local history and stateless Meta requests supersede earlier server-storage decisions below.
+
 # Decisions
 
 Short records of choices made so far. Newest last.
@@ -24,7 +26,7 @@ results without running OCR again. Hidden words are kept as `null` with their po
 (and step 2's table parsing) still works.
 
 ### 5. Saved documents can only gain hidden parts
-"Hide more" edits the already-redacted copy. The server enforces that nothing hidden before becomes
+"Hide more" edits the already-redacted copy. The local history service enforces that nothing hidden before becomes
 visible, so a client bug can't undo a redaction.
 
 ### 6. Backend in NestJS (TypeScript), not Python
@@ -38,15 +40,13 @@ behind auth, and SSR would complicate dynamic imports of browser-only libraries 
 ### 8. Self-host processing assets
 OCR engine, language data, PDF worker and ONNX runtime are served by the app instead of a CDN, so
 third parties don't see when documents are being processed. Exceptions: the model download from Hugging
-Face (no user data, cached) and Clerk's sign-in UI.
+Face (no user data, cached).
 
-### 9. Clerk for authentication
-Hosted sign-in (e-mail, social) with no password storage on our side. Clerk's npm package ships
-without UI, so the UI script is loaded from Clerk's CDN on account screens only.
+### 9. Public demo without accounts
+All demo routes are public. Inference requests carry source references and text, with no account or device identity.
 
-### 10. Files on disk for storage (for now)
-Folder per user (hashed id) and per document, atomic writes. Enough for the hackathon and easy to
-inspect. The storage class is injected so it can move to object storage later.
+### 10. Browser localStorage for approved history
+Approved sources, images, results, corrections and AI proposals persist in one localStorage entry. The API processes Meta requests without storing records. Previous disk storage utilities remain offline only.
 
 ### 11. Unsaved documents live in memory only
 Reloading the tab discards them. Keeping originals in IndexedDB would be convenient but would leave

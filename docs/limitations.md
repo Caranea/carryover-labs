@@ -1,3 +1,5 @@
+> Historical server-storage evidence: the current demo uses browser localStorage and stateless Meta inference. See [API](api.md) and [privacy](privacy-and-redaction.md) for current behavior. Offline storage tools and legacy tests remain available; their routes are not served by the demo.
+
 # Remaining limitations
 
 The current work makes the prototype safer and more useful for an appointment. It does not establish clinical accuracy, accessibility conformance or production security certification.

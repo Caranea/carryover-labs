@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { after, before, describe, it } from 'node:test';
 import type { INestApplication } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from '../app.module.js';
+import { StorageTestModule as AppModule } from '../testing/storage-test.module.js';
 import { loadConfig } from '../config.js';
 import sharp from 'sharp';
 import { securityHeaders } from '../security/http-security.js';
@@ -21,7 +21,7 @@ describe('documents API', () => {
   before(async () => {
     JPEG = await sharp({ create: { width: 10, height: 10, channels: 3, background: '#fff' } }).jpeg().toBuffer();
     dir = await mkdtemp(join(tmpdir(), 'carryover-'));
-    const config = { ...loadConfig({ STORAGE_DIR: dir, CLERK_PUBLISHABLE_KEY: 'pk_test' }), storageDir: dir };
+    const config = { ...loadConfig({ STORAGE_DIR: dir }), storageDir: dir };
     const verifier = async (token: string) => {
       if (!token.startsWith('user:')) throw new Error('bad');
       return { sub: token.slice(5) };
@@ -49,7 +49,7 @@ describe('documents API', () => {
 
   it('serves the public config without a token', async () => {
     const res = await fetch(`${base}/config`);
-    assert.deepEqual(await res.json(), { clerkPublishableKey: 'pk_test', storageProtection: 'development-plaintext' });
+    assert.deepEqual(await res.json(), { storageProtection: 'development-plaintext' });
     assert.equal(res.headers.get('cache-control'), 'private, no-store');
   });
 

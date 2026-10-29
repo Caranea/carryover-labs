@@ -1,4 +1,4 @@
-/** Isolated synthetic HTTP integration. No real Clerk session, patient data or external model calls. */
+/** Isolated synthetic HTTP integration. No patient data or external model calls. */
 import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -7,7 +7,7 @@ import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import { randomBytes } from 'node:crypto';
 import { build } from 'esbuild';
-import { AppModule } from '../api/dist/app.module.js';
+import { StorageTestModule as AppModule } from '../api/dist/testing/storage-test.module.js';
 import { loadConfig } from '../api/dist/config.js';
 import { securityHeaders } from '../api/dist/security/http-security.js';
 
@@ -29,7 +29,7 @@ const model = { name: 'Synthetic test double (not live Meta)', async ask(task) {
   calls++;
   return { rows: [{ page: 0, name: [2], value: [3], unit: [4], date: [1], reference: [5, 6, 7] }] };
 } };
-const config = loadConfig({ STORAGE_DIR: temp, CLERK_PUBLISHABLE_KEY: 'pk_test', STORAGE_ENCRYPTION_KEY: randomBytes(32).toString('base64') });
+const config = loadConfig({ STORAGE_DIR: temp, STORAGE_ENCRYPTION_KEY: randomBytes(32).toString('base64') });
 const verifier = async token => { if (!['synthetic:owner', 'synthetic:other'].includes(token)) throw new Error('invalid test token'); return { sub: token }; };
 let app;
 try {
@@ -103,7 +103,7 @@ try {
   } };
   await inspect(temp); assert.ok(encryptedFiles >= 6);
   checks.push('every stored payload, including corrections and recovery, uses authenticated encryption');
-  const report = { syntheticOnly: true, mode: variant, realClerkSignIn: false, liveModel: false, generatedAt: new Date().toISOString(), checks, observations: finalRaw.observations.length, plotted: points.length, encryptedFiles, pdfBytes: pdf.length };
+  const report = { syntheticOnly: true, mode: variant, legacyStorageHarness: true, liveModel: false, generatedAt: new Date().toISOString(), checks, observations: finalRaw.observations.length, plotted: points.length, encryptedFiles, pdfBytes: pdf.length };
   await writeFile(join(out, `report-${variant}.json`), JSON.stringify(report, null, 2)); console.log(JSON.stringify(report, null, 2));
 } finally {
   await app?.close();

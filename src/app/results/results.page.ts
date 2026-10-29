@@ -1,5 +1,5 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { Component, computed, effect, inject, OnDestroy, OnInit, signal, untracked, viewChild } from '@angular/core';
+import { Component, computed, inject, OnDestroy, OnInit, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { describeHttpError } from '../core/document-queue.service';
 import { DocumentsApi } from '../core/documents-api';
@@ -12,7 +12,6 @@ import { formatUnit, LineChart, PointPick } from './line-chart';
 import { calendarTimestamp } from './calendar-date';
 import { SourceDialog } from './source-dialog';
 import { RecoveryPanel } from './recovery-panel';
-import { AuthService } from '../auth/auth.service';
 
 const REASON: Record<WarningReason, string> = {
   unrecognised: 'Not recognised',
@@ -43,8 +42,6 @@ const MAX_POLLS = 45;
 })
 export class ResultsPage implements OnInit, OnDestroy {
   private readonly api = inject(DocumentsApi);
-  private readonly auth = inject(AuthService);
-  private session = this.auth.sessionRevision();
   private request = 0;
   private readonly router = inject(Router);
   protected readonly demo = inject(ActivatedRoute).snapshot.data['demo'] === true;
@@ -106,41 +103,24 @@ export class ResultsPage implements OnInit, OnDestroy {
     await this.refresh();
   }
 
-  constructor() {
-    effect(() => {
-      const session = this.auth.sessionRevision();
-      if (session === this.session) return;
-      this.session = session;
-      untracked(() => {
-        this.request++;
-        if (this.poll) clearTimeout(this.poll);
-        this.data.set(null); this.raw.set(null); this.query.set(''); this.error.set(null);
-        this.refreshing.set(false); this.paused.set(false); this.polls = 0;
-        if (this.demo) { this.data.set(DEMO_RECORDS); this.raw.set(DEMO_RESULTS); }
-        else if (this.auth.userId()) void this.refresh();
-      });
-    });
-  }
-
-  private current(request: number, owner: string | null, session: number) {
-    return !this.destroyed && request === this.request && owner === this.auth.userId() && session === this.auth.sessionRevision();
+  private current(request: number) {
+    return !this.destroyed && request === this.request;
   }
 
   protected async refresh(retryModel = false) {
-    const owner = this.auth.userId(), session = this.auth.sessionRevision();
-    if (this.demo || !owner || this.destroyed || this.refreshing()) return;
+    if (this.demo || this.destroyed || this.refreshing()) return;
     const request = ++this.request;
     if (this.poll) clearTimeout(this.poll);
     this.polls = 0; this.paused.set(false); this.refreshing.set(true);
     try {
       if (retryModel) await this.api.retryRecords();
-      if (!this.current(request, owner, session)) return;
+      if (!this.current(request)) return;
       const raw = await this.api.results();
-      if (!this.current(request, owner, session)) return;
+      if (!this.current(request)) return;
       this.raw.set(raw);
-      await this.load(request, owner, session);
-    } catch (e) { if (this.current(request, owner, session)) this.error.set(describeHttpError(e)); }
-    finally { if (this.current(request, owner, session)) this.refreshing.set(false); }
+      await this.load(request);
+    } catch (e) { if (this.current(request)) this.error.set(describeHttpError(e)); }
+    finally { if (this.current(request)) this.refreshing.set(false); }
   }
 
   ngOnDestroy() {
@@ -149,18 +129,18 @@ export class ResultsPage implements OnInit, OnDestroy {
     if (this.poll) clearTimeout(this.poll);
   }
 
-  private async load(request: number, owner: string, session: number) {
-    if (!this.current(request, owner, session)) return;
+  private async load(request: number) {
+    if (!this.current(request)) return;
     try {
       const data = await this.api.records();
-      if (!this.current(request, owner, session)) return;
+      if (!this.current(request)) return;
       this.data.set(data);
       this.error.set(null);
       if (data.model.state === 'working' && this.polls++ < MAX_POLLS) {
-        this.poll = setTimeout(() => void this.load(request, owner, session), POLL_MS);
+        this.poll = setTimeout(() => void this.load(request), POLL_MS);
       } else if (data.model.state === 'working') { this.paused.set(true); }
     } catch (e) {
-      if (this.current(request, owner, session)) this.error.set(describeHttpError(e));
+      if (this.current(request)) this.error.set(describeHttpError(e));
     }
   }
 
@@ -226,7 +206,7 @@ export class ResultsPage implements OnInit, OnDestroy {
   }
 
   private open(ref: SourceRef, title: string, detail: string) {
-    if (!this.demo && (this.auth.sessionRevision() !== this.session || !this.auth.userId())) return;
+    if (this.destroyed) return;
     void this.sourceDialog().open({ documentId: ref.documentId, documentName: ref.documentName, page: ref.page, bbox: ref.bbox, title, detail,
       observation: this.raw()?.observations.find((o) => o.id === ref.observationId && o.documentId === ref.documentId),
       demoText: this.demo ? DEMO_SOURCE_PAGES[ref.documentId]?.[ref.page] ?? 'Fictional source text is unavailable.' : undefined });

@@ -1,3 +1,5 @@
+> Historical server-storage evidence: the current demo uses browser localStorage and stateless Meta inference. See [API](api.md) and [privacy](privacy-and-redaction.md) for current behavior. Offline storage tools and legacy tests remain available; their routes are not served by the demo.
+
 # Release readiness — 29 October 2026
 
 The software preparation plan is implemented and locally verified. Physical Android acceptance is reserved for the user. Real-session rehearsal, hosting verification, user research and submission publication remain separate release steps.
@@ -37,7 +39,7 @@ The [benchmark](benchmark.md) is deliberately small and synthetic. Its 57.5% OCR
 
 The final mask-chain regression covered 20,000 reversed words and completed in 157 ms during the combined desktop run. This is not an Android performance claim.
 
-Browser checks covered phone-width layout, source viewing, selected groups, questions, route-preserving navigation and direct download. The selected PDF retained Ferritin as unresolved and the question/bibliography, while excluding unselected Glucose/Platelets. Account changes during requests, source loading, recovery and export have regression coverage. A complete signed-in browser upload using the real Clerk session has not been demonstrated in this pass; the isolated HTTP verifier is labelled as a test double.
+Browser checks covered phone-width layout, source viewing, selected groups, questions, route-preserving navigation and direct download. The selected PDF retained Ferritin as unresolved and the question/bibliography, while excluding unselected Glucose/Platelets. Account changes during requests, source loading, recovery and export have regression coverage. The isolated HTTP verifier is labelled as a test double; this evidence predates the browser-local demo.
 
 The build retains two expected CommonJS optimization warnings from lazy-loaded pdfmake/font code. Several local checks needed broader permission to access their temporary localhost server or build files, then passed. No automatic approval rejection remains unresolved.
 

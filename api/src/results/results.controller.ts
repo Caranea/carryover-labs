@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Inject, Logger, NotFoundException, Param, Patch, Req, UseGuards } from '@nestjs/common';
-import { ClerkAuthGuard, type AuthedRequest } from '../auth/clerk-auth.guard.js';
+import { TestScopeGuard, type AuthedRequest } from '../testing/request-scope.guard.js';
 import { STORAGE } from '../documents/storage.token.js';
 import { DocumentStorage, NotFoundError } from '../documents/storage.js';
 import type { DocumentResults, Observation, ResultsResponse } from './contract.js';
@@ -10,7 +10,7 @@ import { acceptedRecoveryObservations } from '../recovery/verify.js';
 
 /** Every printed result across the user's documents, each with its source location. */
 @Controller('results')
-@UseGuards(ClerkAuthGuard)
+@UseGuards(TestScopeGuard)
 export class ResultsController {
   private readonly log = new Logger('Results');
 

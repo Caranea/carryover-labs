@@ -4,29 +4,25 @@ Angular 21, standalone components, signals, no zone.js, client-side rendering on
 
 ## Routes (`app.routes.ts`)
 
-| Path | Guard | Component | Purpose |
-| --- | --- | --- | --- |
-| `/sign-in` | signed out only | `SignInPage` | Intro + Clerk sign-in/sign-up box |
-| `/` | signed in | `UploadPage` | Add files, local queue, saved documents |
-| `/review/:localId` | signed in | `ReviewPage` | Check and edit redaction, approve and save |
-| `/saved/:serverId` | signed in | `OpenSavedPage` | Downloads a saved document, then opens the review |
-| `/results` | signed in | `ResultsPage` | Every printed result across saved documents, each linked to its page |
+| Path | Component | Purpose |
+| --- | --- | --- |
+| `/` | `HomePage` | Public homepage |
+| `/documents` | `UploadPage` | Add files and reopen browser history |
+| `/review/:localId` | `ReviewPage` | Review redaction and save locally |
+| `/saved/:serverId` | `OpenSavedPage` | Open a locally saved source (parameter name retained) |
+| `/results` | `ResultsPage` | Source-linked charts and Meta checks |
+| `/demo` | `ResultsPage` | Fictional prepared sample |
+| `/appointment` | `AppointmentPage` | Select sections and export a PDF |
 
-| `/demo` | none | `ResultsPage` | Prepared fictional sample; no personal result API calls |
-| `/appointment` | signed in, or demo=true | `AppointmentPage` | Domain selection, local questions and print/PDF preparation |
-
-All pages are lazy-loaded. Unknown paths redirect to `/`.
+All routes are public. All pages are lazy-loaded. Unknown paths redirect to `/`.
 
 ## Services
 
 | Service | File | Responsibility |
 | --- | --- | --- |
-| `ConfigService` | `core/config.service.ts` | Fetches public config (`/api/config`) once |
-| `AuthService` | `auth/auth.service.ts` | Loads Clerk and its UI script, exposes `status`, `userId`, `token()`, mounts sign-in and user button |
-| `authInterceptor` | `auth/auth.interceptor.ts` | Adds `Authorization: Bearer <session token>` to `/api/*` (except config) |
-| `authGuard`, `signedOutGuard` | `auth/auth.guard.ts` | Route protection |
+| `LocalHistory` | `core/local-history.ts` | Atomic localStorage history, corrections, source images and revision checks |
 | `DocumentQueueService` | `core/document-queue.service.ts` | All document state and the workflow: add, process, rescan, toggle, regions, rename, approve, open saved, delete |
-| `DocumentsApi` | `core/documents-api.ts` | HTTP calls to the API (multipart uploads) |
+| `DocumentsApi` | `core/documents-api.ts` | Local history plus stateless Meta requests |
 | `ExtractionService` | `extraction/extraction.service.ts` | File type detection and limits, dispatch to readers |
 | `OcrService` | `extraction/ocr.service.ts` | One reusable tesseract.js worker, language switching, progress |
 | `NerService` | `pii/ner.service.ts` | Starts the model worker, reports download progress, predictions per word, fallback |
@@ -51,9 +47,9 @@ order lines.
 
 ## Components
 
-- `App` (`app.ts`): header with wordmark and Clerk user button.
+- `App` (`app.ts`): header with wordmark and public navigation.
 - `UploadPage`: model status banner, drop zone ("Choose files", "Take a photo" on
-  touch devices), "On this device" queue with progress, "Saved to your account" list
+  touch devices), "On this device" queue with progress, "Saved in this browser" list
   with "Hide more" and delete confirmation.
 - `ReviewPage`: toolbar (Click words / Draw a box, See under the bars, Text only), pages, side panel
   (document name, hidden count by kind, "What was hidden" list with Show buttons, checklist, strict
@@ -61,7 +57,7 @@ order lines.
 - `PageView`: page image with an SVG overlay in page coordinates. Visible words are invisible click
   targets; hidden words and regions are black rectangles drawn with the same padding as the burn-in, so
   the screen matches the saved image.
-- `ResultsPage` (`/results`): built from `GET /api/records` ([records.md](records.md)).
+- `ResultsPage` (`/results`): built from local history and `POST /api/demo/records` ([records.md](records.md)).
   - Muse Spark status banner (polls every 4 s while it works), counts, search, and jump links per
     section.
   - Per domain: chart cards (`LineChart`) and a "Measured once" list.
@@ -135,7 +131,7 @@ the `ICONS` map.
 | Where | Components |
 | --- | --- |
 | Shell | `navbar`, `badge` (detector status, with `tooltip`), `toast` + `alert`, `footer` |
-| Landing (`auth/sign-in.page`) | Hero with `badge`, `btn` (pill), tilted `card` stack with `toggle`; `card` grid for the steps; `stats`; `collapse` + `join` for the FAQ; Clerk mounted in the sign-in section |
+| Landing (`landing/home.page`) | Hero copy and cards, public navigation, steps and FAQ |
 | Upload | Dashed `card` dropzone, `list` / `list-row` queue with `badge` and `progress`, `table` of documents, `skeleton` loading, `modal` to confirm deletion |
 | Review | `steps`, `breadcrumbs`, `join` mode switch, `toggle` for "See under bars" / "Text only", `fieldset` + `input`, `badge` counts, `collapse` list with "Keep" buttons, `alert`, `loading`, block `btn` for approve |
 
@@ -146,8 +142,6 @@ the `ICONS` map.
   in component styles must avoid them; that's why redacted words use `.redacted`.
 - **Whitespace:** Angular strips whitespace between elements. Use `{{ ' ' }}` between inline spans
   that need a space (for example two-weight headlines).
-- **Clerk:** Clerk is themed to match through `CLERK_APPEARANCE` in `auth.service.ts` (teal primary,
-  pill buttons, Outfit titles).
 - **Accessibility:**
   - daisyUI focus styles;
   - 44 px or larger touch targets for primary actions;

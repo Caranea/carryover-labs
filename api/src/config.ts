@@ -9,10 +9,6 @@ export interface AppConfig {
   port: number;
   listenHost: string;
   trustLoopbackProxy: boolean;
-  clerkPublishableKey: string;
-  clerkSecretKey: string;
-  clerkJwtKey?: string;
-  authorizedParties: string[];
   storageDir: string;
   /** External base64-decoded AES-256 key. Never stored in the data directory. */
   storageEncryptionKey?: Buffer;
@@ -30,7 +26,7 @@ export interface ModelEndpoint {
   model: string;
 }
 
-export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
+export function loadConfig(env: NodeJS.ProcessEnv = process.env, options = { persistentStorage: true }): AppConfig {
   const envFile = resolve(API_ROOT, '.env');
   if (env === process.env && existsSync(envFile)) process.loadEnvFile(envFile);
 
@@ -39,7 +35,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (encodedKey && (!/^[A-Za-z0-9+/]{43}=$/.test(encodedKey) || storageEncryptionKey?.length !== 32)) {
     throw new Error('STORAGE_ENCRYPTION_KEY must be a base64-encoded 32-byte key.');
   }
-  if (env['NODE_ENV'] === 'production' && !storageEncryptionKey) {
+  if (options.persistentStorage && env['NODE_ENV'] === 'production' && !storageEncryptionKey) {
     throw new Error('Production storage requires STORAGE_ENCRYPTION_KEY.');
   }
   const port = Number(env['PORT'] ?? 3000);
@@ -49,13 +45,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     port,
     listenHost: env['HOST'] || '127.0.0.1',
     trustLoopbackProxy: env['TRUST_LOOPBACK_PROXY'] === 'true',
-    clerkPublishableKey: env['CLERK_PUBLISHABLE_KEY'] ?? '',
-    clerkSecretKey: env['CLERK_SECRET_KEY'] ?? '',
-    clerkJwtKey: env['CLERK_JWT_KEY'] || undefined,
-    authorizedParties: (env['CLERK_AUTHORIZED_PARTIES'] ?? 'http://localhost:4200')
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean),
     storageDir: resolve(API_ROOT, env['STORAGE_DIR'] ?? './storage'),
     storageEncryptionKey,
     webRoot: resolve(API_ROOT, env['WEB_ROOT'] ?? '../dist/carryover-labs/browser'),

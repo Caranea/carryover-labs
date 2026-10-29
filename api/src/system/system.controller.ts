@@ -9,7 +9,6 @@ export class SystemController {
   @Get('config')
   publicConfig() {
     return {
-      clerkPublishableKey: this.config.clerkPublishableKey,
       storageProtection: this.config.storageEncryptionKey ? 'encrypted-new-files' : 'development-plaintext',
     };
   }
