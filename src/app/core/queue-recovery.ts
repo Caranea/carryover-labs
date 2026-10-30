@@ -13,6 +13,7 @@ export interface QueueSnapshot {
   privacyModeChosen: boolean;
   counter: number;
   rememberedDetails?: RememberedDetails;
+  rememberedDetailsVersion?: number;
 }
 interface QueueHead extends Omit<QueueSnapshot, 'documents'> { version: 1; revision: string; ids: string[] }
 
@@ -20,7 +21,7 @@ interface QueueHead extends Omit<QueueSnapshot, 'documents'> { version: 1; revis
 function sameDocument(a: LocalDocument | undefined, b: LocalDocument): boolean {
   return !!a && a.localId === b.localId && a.file === b.file && a.pages === b.pages && a.status === b.status
     && a.name === b.name && a.generatedName === b.generatedName && a.serverId === b.serverId
-    && a.strict === b.strict && a.privacyMode === b.privacyMode && a.privacyCheck === b.privacyCheck
+    && a.strict === b.strict && a.privacyMode === b.privacyMode && a.privacyCheck === b.privacyCheck && a.privacyVersion === b.privacyVersion
     && a.privacyMessage === b.privacyMessage && a.privacyAcknowledged === b.privacyAcknowledged && a.error === b.error;
 }
 function metadata(snapshot: QueueSnapshot): string {

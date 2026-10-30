@@ -35,13 +35,14 @@ export type EditMode = 'words' | 'draw' | 'corners';
         @for (w of visibleWords(); track w.id) {
           <rect
             class="word"
+            [class.candidate]="!!w.candidate && !w.userSet"
             [attr.x]="w.box!.x"
             [attr.y]="w.box!.y"
             [attr.width]="w.box!.w"
             [attr.height]="w.box!.h"
             (click)="clickWord(w)"
           >
-            <title>{{ w.text }}: click to remove</title>
+            <title>{{ w.text }}: {{ w.candidate && !w.userSet ? 'Possible personal detail. Still visible; click to hide.' : 'click to hide' }}</title>
           </rect>
         }
         @for (h of hiddenBoxes(); track h.word.id) {
@@ -132,6 +133,13 @@ export type EditMode = 'words' | 'draw' | 'corners';
     .word {
       fill: transparent;
       cursor: pointer;
+    }
+    .word.candidate {
+      fill: rgba(255, 213, 79, 0.22);
+      stroke: #ad7100;
+      stroke-width: 1;
+      stroke-dasharray: 3 3;
+      vector-effect: non-scaling-stroke;
     }
     svg:not(.drawing) .word:hover {
       fill: color-mix(in oklab, var(--color-accent) 45%, transparent);

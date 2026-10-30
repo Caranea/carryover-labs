@@ -164,7 +164,11 @@ describe('decideLabel', () => {
     expect(decideLabel('B-DATE').hide).toBe(false);
     expect(decideLabel('B-ORGANIZATION').hide).toBe(false);
     expect(decideLabel('O').hide).toBe(false);
-    expect(decideLabel('B-SOMETHING_NEW').hide).toBe(true);
+    expect(decideLabel('B-SOMETHING_NEW')).toMatchObject({ hide: false, review: true });
+    for (const label of ['PROPER_NAME', 'PERSON_ATTRIBUTE', 'PERSON_ROLE_OR_TITLE', 'DOCUMENT_REFERENCE']) {
+      expect(decideLabel(label)).toMatchObject({ hide: false, review: true });
+    }
+    expect(decideLabel('PHONE_NUMBER')).toEqual({ hide: true, kind: 'contact' });
   });
 });
 
@@ -173,11 +177,12 @@ describe('applyDetections', () => {
     index: 0, width: 1000, height: 1000, image: null, imageUrl: null, words: wordsFrom(lines), regions: [], ocr: false,
   });
 
-  it('hides file-name words printed in the document, but not in result rows', () => {
+  it('treats a file name as a suggestion, never proof of identity', () => {
     const hints = fileNameHints('Jane_Doe_morfologia_2012.png');
     expect([...hints]).toEqual(['jane', 'doe']);
     const [p] = applyDetections([page(['JANE DOE', 'Hemoglobin 13 g/dl 12-16'])], [null], NORMAL, hints);
-    expect(p.words.filter((w) => w.hidden).map((w) => w.text)).toEqual(['JANE', 'DOE']);
+    expect(p.words.filter((w) => w.hidden)).toEqual([]);
+    expect(p.words.filter(w => w.candidate).map(w => w.text)).toEqual(['JANE', 'DOE']);
     const [q] = applyDetections([page(['TSH 1,5 mIU/l 0,3-4', 'TSH'])], [null], NORMAL, fileNameHints('TSH_wyniki.pdf'));
     expect(q.words.filter((w) => w.hidden)).toEqual([]);
   });
@@ -197,7 +202,8 @@ describe('applyDetections', () => {
     const normal = applyDetections([p], [preds], NORMAL)[0].words.filter((w) => w.hidden).map((w) => w.text);
     expect(normal).toEqual(['Marek']);
     const strict = applyDetections([p], [preds], STRICT)[0].words.filter((w) => w.hidden).map((w) => w.text);
-    expect(strict).toEqual(['Marek', 'Wiśniewski']);
+    expect(strict).toEqual(['Marek']);
+    expect(applyDetections([p], [preds], STRICT)[0].words[2]).toMatchObject({ hidden: false, candidate: 'person' });
   });
 
   it('propagates a hidden name to every page and respects user choices', () => {

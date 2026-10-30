@@ -91,7 +91,7 @@ export function isResultFlag(raw: string): boolean {
 
 /** A lab value: optional comparator, number with . or , decimals. */
 export function isNumericValue(raw: string): boolean {
-  return /^[<>≤≥]?\d{1,5}(?:[.,]\d+)?(?:[*!]|H{1,2}|L{1,2}|↑{1,2}|↓{1,2})?$/i.test(raw.replace(/[()[\],;]$/g, ''));
+  return /^[<>≤≥]?\d+(?:[.,]\d+)?(?:[*!]|H{1,2}|L{1,2}|↑{1,2}|↓{1,2})?$/i.test(raw.replace(/[()[\],;]$/g, ''));
 }
 
 /** A reference range written in one token, e.g. 150-400 or 4,0-10,0. */

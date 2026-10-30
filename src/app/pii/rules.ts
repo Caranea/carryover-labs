@@ -41,7 +41,7 @@ const LABELS: Label[] = [
     'autoryzowal', 'autoryzowala', 'zatwierdzil', 'zatwierdzila', 'diagnosta', 'technik', 'opiekun',
     'patient', 'patient name', 'name', 'surname', 'given name', 'doctor', 'requested by',
     'referring doctor', 'referred by', 'collected by', 'authorised by', 'authorized by', 'reported by',
-    'vorname', 'nachname', 'patientenname', 'name des patienten', 'versicherter', 'arzt', 'arztin', 'einsender',
+    'vorname', 'nachname', 'patientenname', 'name des patienten', 'versicherter', 'arzt', 'arztin',
     'validiert von', 'befundet von', 'copy to', 'addressee', 'attention',
     'freigegeben von', 'unterschrift',
   ]),
@@ -49,7 +49,8 @@ const LABELS: Label[] = [
   ...fields('national-id', 2, ['pesel']),
   ...fields('id-number', 3, [
     'nr karty', 'nr pacjenta', 'id pacjenta', 'numer karty', 'nr ubezpieczenia', 'nr dokumentu',
-    'medicare', 'medicare no', 'mrn', 'ur no', 'urn', 'patient id', 'lab no', 'lab number',
+    'medicare', 'medicare no', 'medicare number', 'mrn', 'ur no', 'urn', 'patient id', 'lab no', 'lab number',
+    'lab reference', 'lab id', 'order number', 'your reference', 'dml reference', 'qml reference',
     'versichertennummer', 'versicherten-nr', 'patientennummer', 'pat.-nr', 'fallnummer',
   ]),
   ...fields('birth-date', 2, [
@@ -57,7 +58,7 @@ const LABELS: Label[] = [
     'geburtsdatum', 'geb', 'geboren am',
   ]),
   ...fields('age', 2, ['wiek', 'age', 'alter']),
-  ...fields('contact', 4, ['tel', 'telefon', 'tel. kom', 'phone', 'telephone', 'mobile', 'e-mail', 'email', 'fax']),
+  ...fields('contact', 4, ['tel', 'telefon', 'tel. kom', 'phone', 'phone enquiries', 'telephone', 'mobile', 'e-mail', 'email', 'fax']),
 ];
 
 function people(names: string[]): Label[] {
@@ -86,6 +87,7 @@ const TITLES = new Set([
   'dr', 'lek', 'prof', 'mgr', 'doc', 'inz', 'hab', 'med', 'n', 'dent', 'wet', 'dipl', 'mudr',
   'mr', 'mrs', 'ms', 'miss', 'herr', 'frau', 'pan', 'pani',
 ]);
+const NAME_TITLES = new Set(['dr', 'lek', 'prof', 'mgr', 'doc', 'inz', 'mudr', 'mr', 'mrs', 'ms', 'miss', 'herr', 'frau', 'pan', 'pani']);
 
 const KVNR_RE = /^[A-Z]\d{9}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -107,18 +109,20 @@ export function detectWithRules(words: WorkingWord[], options: RuleOptions): Map
   lines.forEach((line, lineIndex) => {
     const result = isResultLine(line);
     const norm = line.map((w) => normalizeToken(w.text));
+    const labels = findLabels(norm);
+    const labelStarts = new Set(labels.map(l => l.start));
 
     line.forEach((w, i) => {
       const raw = w.text;
       const digits = digitsOnly(raw);
 
-      if (digits.length === 11 && /^[\d\s-]+$/.test(raw) && isValidPesel(digits)) add(w, 'national-id');
+      if (!result && digits.length === 11 && /^[\d\s-]+$/.test(raw) && isValidPesel(digits)) add(w, 'national-id');
       if (EMAIL_RE.test(raw)) add(w, 'contact');
       if (KVNR_RE.test(raw)) add(w, 'id-number');
 
       // Long digit strings: insurance, order, sample and phone numbers.
-      const longId = result ? digits.length >= 9 : digits.length >= 7;
-      if (longId && !isDateToken(raw) && /^[\d\s\-./#]+$/.test(raw.replace(/^[A-Za-z]{1,3}[:#-]?/, ''))) {
+      const longId = !result && digits.length >= 7;
+      if (longId && !isDateToken(raw) && /^[\d\s#-]+$/.test(raw.replace(/^[\[(]+|[\]),]+$/g, '').replace(/^[A-Za-z]{1,3}[:#-]?/, ''))) {
         add(w, 'id-number');
       }
     });
@@ -138,11 +142,16 @@ export function detectWithRules(words: WorkingWord[], options: RuleOptions): Map
       // Street names: "ul. Długa 12/3", "Hauptstr. 5", "12 Smith St".
       line.forEach((w, i) => {
         const n = norm[i];
-        if (STREET_CUES.has(n) && i + 1 < line.length && /^[\p{Lu}\d]/u.test(line[i + 1].text)) {
+        if (STREET_CUES.has(n) && i + 1 < line.length && (/^\p{Lu}/u.test(line[i + 1].text) || /^\d+[a-z]?(?:\/\d+)?$/i.test(line[i + 1].text))) {
           for (let j = i + 1; j < Math.min(line.length, i + 5); j++) {
-            if (line[j].text.endsWith(':')) break;
+            if (line[j].text.endsWith(':') || labelStarts.has(j) || !/^[\p{Lu}\d]/u.test(line[j].text)) break;
             add(line[j], 'address');
           }
+        }
+        // Number + street + suffix: "123 Example Ave, Demotown 0000".
+        // Include the street itself, rather than only the town following it.
+        if (STREET_CUES.has(n) && i >= 2 && /^\d+[a-z]?$/i.test(line[i - 2].text) && /^\p{Lu}/u.test(line[i - 1].text)) {
+          for (let j = i - 2; j <= i; j++) add(line[j], 'address');
         }
         if (/(?:str|strasse|straße)\.?$/i.test(w.text) && w.text.length > 4) {
           add(w, 'address');
@@ -157,32 +166,49 @@ export function detectWithRules(words: WorkingWord[], options: RuleOptions): Map
     // "P.KOWALSKI, 12345": an initial and surname, then often a licence number.
     line.forEach((w, i) => {
       // Also "P.KOWALSKI,12345;" printed as one word.
-      if (!/^\p{Lu}\.\s?\p{Lu}[\p{Lu}'-]{2,}(?:,\d{0,7};?)?$/u.test(w.text)) return;
+      if (!/^\p{Lu}\.\s?\p{Lu}[\p{L}'-]{2,}(?:,\d{0,7};?)?$/u.test(w.text)) return;
       add(w, 'person');
       if (/^\d{4,7},?$/.test(line[i + 1]?.text ?? '')) add(line[i + 1], 'id-number');
     });
 
     // "SMITH,DR." and "SMITH, DR." (surname first, as on Australian reports).
     line.forEach((w, i) => {
-      if (/^\p{Lu}[\p{L}'-]+,(?:DR|MR|MRS|MS|PROF)\.?$/iu.test(w.text)) add(w, 'person');
+      if (/^\p{Lu}[\p{L}'-]+,(?:DR|MR|MRS|MS|PROF)\.?$/iu.test(w.text)) {
+        add(w, 'person');
+        for (let j = i + 1; j < Math.min(line.length, i + 3); j++) {
+          if (labelStarts.has(j) || !/^\p{Lu}[\p{L}'-]*[,.]?$/u.test(line[j].text)) break;
+          add(line[j], 'person');
+        }
+      }
       if (/^\p{Lu}[\p{L}'-]+,$/u.test(w.text) && TITLES.has(norm[i + 1] ?? '')) add(w, 'person');
     });
 
     // Titles: the capitalised words after "dr", "lek.", "Prof." are a name.
     line.forEach((w, i) => {
-      if (!TITLES.has(norm[i]) || (i > 0 && TITLES.has(norm[i - 1]))) return;
+      if (result && isResultFlag(w.text)) return; // "N" is a result flag, not the Polish title "n. med.".
+      if (!NAME_TITLES.has(norm[i]) || (i > 0 && TITLES.has(norm[i - 1]))) return;
+      if (['mr', 'ms'].includes(norm[i]) && w.text === w.text.toLowerCase()) return;
       let j = i + 1;
       while (j < line.length && TITLES.has(norm[j])) j++;
       let taken = 0;
       for (; j < line.length && taken < 3; j++, taken++) {
+        if (labelStarts.has(j) || line[j].text.endsWith(':') || NOT_NAMES.has(norm[j])) break;
+        if (norm[j + 1] === 'by') break; // OCR may miss the first word of a "... by:" label.
         if (!/^\p{Lu}[\p{L}'-]*[,.]?$/u.test(line[j].text)) break;
         add(line[j], 'person');
       }
     });
 
+    // A surname-first header immediately above contact/birth fields is an
+    // identity block even if OCR lost the "Patient" label.
+    if (line.length >= 2 && line.length <= 4 && /^\p{Lu}[\p{L}'-]+,$/u.test(line[0].text)
+      && line.slice(1).every(w => /^\p{Lu}[\p{L}'-]*[,.]?$/u.test(w.text))
+      && lines.slice(lineIndex + 1, lineIndex + 5).some(next => findLabels(next.map(w => normalizeToken(w.text)))
+        .some(({ label }) => ['birth-date', 'contact', 'address'].includes(label.kind)))) {
+      line.forEach(w => add(w, 'person'));
+    }
+
     // Labelled fields: hide the value after "Pacjent:", "Geburtsdatum:" etc.
-    const labels = findLabels(norm);
-    const labelStarts = new Set(labels.map((l) => l.start));
     labels.forEach(({ start, label }, k) => {
       const valueStart = start + label.tokens.length;
       let taken = 0;
@@ -203,28 +229,36 @@ export function detectWithRules(words: WorkingWord[], options: RuleOptions): Map
       for (let j = valueStart; j < line.length && taken < label.take; j++) {
         const word = line[j];
         if (labelStarts.has(j)) break; // the next label right after this one
-        if (j > valueStart && word.text.endsWith(':')) break; // next field
+        if (/^[:;\-–]$/.test(word.text)) continue;
+        if (word.text.endsWith(':')) break; // next field, even when this field has no value
         // Two-word next field ("Data pobrania:"): stop only if this word starts a label,
         // so "DOE JANE PESEL:" still hides the first name.
         if (line[j + 1]?.text.endsWith(':') && LABEL_STARTERS.has(norm[j])) break;
         if (label.kind === 'person' && /^\p{Ll}/u.test(word.text) && !/^(von|van|de|der|du|da)$/.test(word.text)) break;
         if (j > valueStart && word.box && line[j - 1].box && gap(line[j - 1], word) > 3) break; // next column
         if (label.kind !== 'birth-date' && isDateToken(word.text)) break; // e.g. exam date
+        if (label.kind === 'id-number' && /^\d{1,2}:\d{2}$/.test(word.text)) continue; // OCR may mix time and ID columns.
         if (label.kind === 'person' && isNumericValue(word.text)) break;
         if (/^[:\-–]$/.test(word.text)) continue;
+        if (label.kind === 'person' && !/\p{L}/u.test(word.text)) continue;
+        if (label.kind === 'birth-date' && !/[\p{L}\d]/u.test(word.text)) continue;
+        if (['id-number', 'national-id', 'contact', 'age'].includes(label.kind) && !/[\d@]/.test(word.text)) continue;
         add(word, label.kind);
         taken++;
       }
       // "Nazwisko i imię:" with the name printed on the line below.
-      if (taken === 0 && label.kind === 'person' && valueStart >= line.length && !labelEnd.text.endsWith(':') && start > 0) {
-        hideNamesInColumn(line, lines.slice(lineIndex + 1, lineIndex + 9), start, valueStart - 1, (w) => add(w, 'person'));
-      } else if (taken === 0 && label.kind === 'person') {
+      if (taken === 0 && label.kind === 'person') {
         hideNameBelow(line, lines[lineIndex + 1], labels, k, (w) => add(w, 'person'));
       }
     });
   });
 
   if (options.strict) expandAroundPeople(words, hits);
+  // Column/title/street heuristics cannot turn a clinical field into a person
+  // or address. Explicit identifiers/contact formats still apply.
+  for (const line of lines) for (const id of clinicalFieldWordIds(line)) {
+    if (['person', 'address'].includes(hits.get(id)?.kind ?? '')) hits.delete(id);
+  }
   return hits;
 }
 
@@ -257,15 +291,16 @@ function hideNameBelow(
   };
   const left = k > 0 ? (endOf(k - 1) + startOf(k)) / 2 : -Infinity;
   const right = k + 1 < labels.length ? (endOf(k) + startOf(k + 1)) / 2 : Infinity;
-  let taken = 0;
+  const candidates: LineWord[] = [];
   for (const w of below) {
     const x = w.box?.x ?? 0;
     if (x < left || x >= right) continue;
     if (w.text.endsWith(':') || NOT_NAMES.has(normalizeToken(w.text))) return;
     if (!/^\p{Lu}[\p{L}'-]*[,.]?$/u.test(w.text)) break;
-    hide(w);
-    if (++taken >= 5) break;
+    candidates.push(w);
+    if (candidates.length >= 5) break;
   }
+  if (candidates.some(w => (w.text.match(/\p{L}/gu)?.length ?? 0) >= 2)) candidates.forEach(hide);
 }
 
 /**
@@ -295,10 +330,21 @@ function hideNamesInColumn(line: LineWord[], below: LineWord[][], first: number,
 /** A result row: has a unit, or a range next to a value, and no address cue. */
 export function isResultLine(line: { text: string | null }[]): boolean {
   const texts = line.map((w) => w.text ?? '');
-  if (unitTokenIndices(texts).size) return true;
-  const hasRange = texts.some(isRangeToken) || texts.some((t, i) => /^[-–—]$/.test(t) && isNumericValue(texts[i - 1] ?? '') && isNumericValue(texts[i + 1] ?? ''));
-  const hasValue = texts.some(isNumericValue);
-  const hasCue = texts.some((t) => STREET_CUES.has(normalizeToken(t)) || /^\d{2}-\d{3}$/.test(t));
+  // Units follow their values. A stray leading "s" in a scanned address is
+  // not evidence of a clinical row. Conversely OCR "Count" -> "Court" must
+  // not turn a result value into a street address.
+  const hasUnit = [...unitTokenIndices(texts)].some(i => texts.slice(Math.max(0, i - 3), i).some(t => isNumericValue(t) || isResultFlag(t)));
+  if (hasUnit) return true;
+  const hasCue = texts.some((t, i) => /^\d{2}-\d{3}$/.test(t) || (STREET_CUES.has(normalizeToken(t))
+    && ((/^\p{Lu}/u.test(texts[i + 1] ?? '') && !isResultFlag(texts[i + 1]) && !isUnitToken(texts[i + 1]))
+      || (/^\d+[a-z]?$/i.test(texts[i - 2] ?? '') && /^\p{Lu}/u.test(texts[i - 1] ?? '')))));
+  const hasRange = texts.some(isRangeToken)
+    || texts.some(t => /^[<>≤≥]/.test(t) && isNumericValue(t))
+    || texts.some((t, i) => /^[<>≤≥]$/.test(t) && isNumericValue(texts[i + 1] ?? ''))
+    || texts.some((t, i) => /^[-–—]$/.test(t) && isNumericValue(texts[i - 1] ?? '') && isNumericValue(texts[i + 1] ?? ''));
+  // OCR can misread a value ("80" as "so"). A reference range beside a
+  // result flag still establishes a result row, regardless of the test name.
+  const hasValue = texts.some(isNumericValue) || texts.some(isResultFlag);
   return hasRange && hasValue && !hasCue;
 }
 
@@ -319,11 +365,33 @@ export function groupLines(words: WorkingWord[]): LineWord[][] {
   return [...byLine.entries()].sort((a, b) => a[0] - b[0]).map(([, l]) => l);
 }
 
+// These describe the content of a report, not the person. This is field
+// interpretation, independent of which tests or diseases happen to be named.
+const CLINICAL_FIELD = /\b(?:test\s+name|name\s+of\s+(?:the\s+)?test|tests?\s+(?:completed|pending)|investigation|nazwa\s+badania|badanie|untersuchung)\b\s*:?\s*/i;
+
+export function clinicalFieldWordIds(line: WorkingWord[]): Set<number> {
+  const norm = line.map(w => normalizeToken(w.text ?? ''));
+  const field = norm.join(' ').match(CLINICAL_FIELD);
+  if (!field) return new Set();
+  const start = norm.findIndex((_, i) => norm.slice(0, i).join(' ').length + (i ? 1 : 0) >= field.index!);
+  const nextIdentity = findLabels(norm).find(label => label.start > start)?.start ?? line.length;
+  return new Set(line.slice(start, nextIdentity).map(w => w.id));
+}
+
+export function identityLabelWordIds(line: WorkingWord[]): Set<number> {
+  return new Set(findLabels(line.map(w => normalizeToken(w.text ?? '')))
+    .flatMap(({ start, label }) => line.slice(start, start + label.tokens.length).map(w => w.id)));
+}
+
 function findLabels(norm: string[]): { start: number; label: Label }[] {
   const found: { start: number; label: Label }[] = [];
+  const clinical = norm.join(' ').match(CLINICAL_FIELD);
   for (let i = 0; i < norm.length; i++) {
+    const offset = norm.slice(0, i).join(' ').length + (i ? 1 : 0);
+    if (clinical && offset >= clinical.index! && offset < clinical.index! + clinical[0].length) continue;
     let best: Label | null = null;
     for (const label of LABELS) {
+      if (label.tokens.length === 1 && label.tokens[0] === 'name' && (norm[i - 1] === 'test' || norm[i + 1] === 'of')) continue;
       if (label.tokens.every((t, k) => norm[i + k] === t)) {
         if (!best || label.tokens.length > best.tokens.length) best = label;
       }

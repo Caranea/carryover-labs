@@ -12,6 +12,7 @@ import { ExtractionService } from '../extraction/extraction.service';
 import { NerService } from '../pii/ner.service';
 import { LOCAL_HISTORY_KEY } from './local-history';
 import type { LocalDocument } from './models';
+import { PRIVACY_VERSION } from '../pii/detect';
 
 function document(id = 'one', status: LocalDocument['status'] = 'review'): LocalDocument {
   return { localId: id, name: 'Lab document 6', generatedName: 'Lab document 6', fileName: `${id}.txt`,
@@ -46,6 +47,37 @@ describe('queue recovery after refresh', () => {
   });
   afterEach(() => { TestBed.resetTestingModule(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
+  it('rechecks legacy automatic masks from saved OCR, discards untrusted memory and keeps hand edits', async () => {
+    const source = document('source');
+    source.privacyMode = 'automatic'; source.privacyCheck = 'complete';
+    source.pages[0].words = [
+      { id: 0, text: 'Coeliac', line: 0, hidden: true, source: 'rule', kind: 'person' },
+      { id: 1, text: 'Jane', line: 1, hidden: true, userSet: true, source: 'you' },
+      { id: 2, text: 'Doe', line: 1, hidden: false, userSet: true },
+    ];
+    const next = document('next');
+    next.pages[0].words = [{ id: 0, text: 'coeliac', line: 0, hidden: true, source: 'remembered', kind: 'person' }];
+    const state = snapshot([source, next]);
+    state.rememberedDetails = { obsolete: [{ key: 'coeliac', kind: 'person' }] };
+    const writer = new QueueRecovery(); await writer.load(); await writer.save(state);
+    const { queue, extraction, ner } = queueSetup();
+    await queue.ready;
+    await vi.waitFor(() => expect(queue.byId('source')?.status).toBe('review'));
+    expect(extraction.extract).not.toHaveBeenCalled();
+    expect(ner.predict).toHaveBeenCalledTimes(1);
+    expect(queue.byId('source')?.pages[0].words.map(w => w.hidden)).toEqual([false, true, false]);
+    expect(queue.byId('source')?.pages[0].regions).toEqual(source.pages[0].regions);
+    expect(queue.byId('source')?.privacyVersion).toBe(PRIVACY_VERSION);
+    expect(queue.byId('next')?.pages[0].words[0].hidden).toBe(false);
+    await queue.retryRecovery();
+    TestBed.resetTestingModule();
+    const restored = queueSetup(); await restored.queue.ready;
+    expect(restored.ner.predict).not.toHaveBeenCalled();
+    expect(restored.extraction.extract).not.toHaveBeenCalled();
+    expect(restored.queue.byId('source')?.pages[0].words[1]).toMatchObject({ hidden: true, userSet: true });
+    await restored.queue.retryRecovery();
+  });
+
   it('restores files and edits while keeping large images out of localStorage', async () => {
     const state = snapshot();
     state.documents[0].pages[0].image = new Blob([new Uint8Array(6 * 1024 * 1024)], { type: 'image/png' });
@@ -65,6 +97,7 @@ describe('queue recovery after refresh', () => {
     const source = { ...document('source', 'saved'), serverId: 'approved', pages: [], file: null };
     const state = snapshot([source]);
     state.rememberedDetails = { source: [{ key: 'alexandra', kind: 'person' }] };
+    state.rememberedDetailsVersion = PRIVACY_VERSION;
     const writer = new QueueRecovery(); await writer.load(); await writer.save(state);
     expect(localStorage.getItem(QUEUE_PROGRESS_KEY)).not.toContain('alexandra');
     expect((await new QueueRecovery().load())?.rememberedDetails).toEqual(state.rememberedDetails);

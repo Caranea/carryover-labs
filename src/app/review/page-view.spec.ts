@@ -17,28 +17,44 @@ describe('keyboard redaction areas', () => {
 
 describe('final mask preview', () => {
   const page = (): WorkingPage => ({ index: 0, width: 100, height: 80, image: null, imageUrl: null, ocr: true, regions: [], words: [10, 22, 34, 50].map((x, id) => ({ id, text: `word${id}`, line: 0, hidden: id === 0, box: { x, y: 10, w: 10, h: 10 } })) });
-  it('shows the expanded image masks and undo returns to the initiating word', () => {
+  it('shows bounded image masks and undo returns to the initiating word', () => {
     const fixture = TestBed.createComponent(PageView);
     fixture.componentRef.setInput('page', page());
     fixture.detectChanges();
     const masks = fixture.nativeElement.querySelectorAll('rect.redacted') as NodeListOf<SVGRectElement>;
-    expect(masks.length).toBe(3);
-    expect(masks[0].getAttribute('width')).toBe('15');
+    expect(masks.length).toBe(1);
+    expect(masks[0].getAttribute('width')).toBe('14');
     const toggled: number[] = [];
     fixture.componentInstance.toggleWord.subscribe((id) => toggled.push(id));
-    masks[2].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    masks[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(toggled).toEqual([0]);
   });
-  it('shows the same covered neighbours in the keyboard-friendly text view', () => {
+  it('keeps the same neighbours visible in the keyboard-friendly text view', () => {
     const fixture = TestBed.createComponent(TextView);
     fixture.componentRef.setInput('page', page());
     fixture.detectChanges();
     const masks = fixture.nativeElement.querySelectorAll('button.redacted') as NodeListOf<HTMLButtonElement>;
-    expect(masks.length).toBe(3);
-    expect(masks[2].getAttribute('aria-label')).toContain('original removal');
+    expect(masks.length).toBe(1);
+    expect(fixture.nativeElement.textContent).toContain('word1');
     const toggled: number[] = [];
     fixture.componentInstance.toggleWord.subscribe((id) => toggled.push(id));
-    masks[2].click();
+    masks[0].click();
     expect(toggled).toEqual([0]);
+  });
+
+  it('highlights an uncertain suggestion without hiding it in either view', () => {
+    const input = page(); input.words[1].candidate = 'person';
+    const image = TestBed.createComponent(PageView);
+    image.componentRef.setInput('page', input); image.detectChanges();
+    expect(image.nativeElement.querySelectorAll('rect.word.candidate').length).toBe(1);
+    expect(image.nativeElement.querySelector('rect.word.candidate title').textContent).toContain('Still visible');
+    const text = TestBed.createComponent(TextView);
+    text.componentRef.setInput('page', input); text.detectChanges();
+    const candidate = text.nativeElement.querySelector('button.candidate') as HTMLButtonElement;
+    expect(candidate.textContent).toContain('word1');
+    expect(candidate.classList.contains('redacted')).toBe(false);
+    const toggled: number[] = [];
+    text.componentInstance.toggleWord.subscribe(id => toggled.push(id)); candidate.click();
+    expect(toggled).toEqual([1]);
   });
 });

@@ -59,21 +59,46 @@ describe('upload contract', () => {
     expect(toStoredPage(p).words[0].t).toBeNull();
   });
 
-  it('uses the same final chain masks in the preview, payload and independent server pass', () => {
+  it('stops padding at neighbours and uses identical preview, payload and server masks', () => {
     const p = page();
     p.words = [10, 22, 34, 50].map((x, id) => ({ id, text: `word${id}`, line: 0, hidden: id === 0, box: { x, y: 10, w: 10, h: 10 } }));
     const plan = redactionPlan(p);
     const stored = toStoredPage(p);
-    expect(stored.words.map((word) => word.t)).toEqual([null, null, null, 'word3']);
+    expect(stored.words.map((word) => word.t)).toEqual([null, 'word1', 'word2', 'word3']);
     expect(plan.boxes).toEqual(boxesToBurn(p));
     expect(storedMaskGeometry(stored).boxes).toEqual(plan.boxes);
-    expect(redactionAction(p, 2, plan)).toEqual({ wordId: 0 });
+    expect(redactionAction(p, 0, plan)).toEqual({ wordId: 0 });
     p.words[0].locked = true;
-    expect(redactionAction(p, 2, plan)).toBeNull();
+    expect(redactionAction(p, 0, plan)).toBeNull();
     p.words[0].locked = false;
     p.words[0].hidden = false;
     expect(redactionPlan(p).hidden.size).toBe(0);
     expect(toStoredPage(p).words.every((word) => word.t !== null)).toBe(true);
+  });
+
+  it('keeps dates touching an ID box readable, while burning the complete ID', () => {
+    const p = page();
+    p.width = 1958; p.height = 2600;
+    p.words = [
+      { id: 0, text: '14-Jul-2012', line: 0, hidden: false, box: { x: 527, y: 2269, w: 159, h: 43 } },
+      { id: 1, text: '123123123', line: 1, hidden: true, box: { x: 523, y: 2312, w: 159, h: 27 } },
+      { id: 2, text: '14-Jul-2012', line: 2, hidden: false, box: { x: 520, y: 2391, w: 171, h: 28 } },
+    ];
+    const stored = toStoredPage(p), plan = redactionPlan(p);
+    expect(stored.words.map(w => w.t)).toEqual(['14-Jul-2012', null, '14-Jul-2012']);
+    expect(plan.boxes[0].y).toBe(2312);
+    expect(plan.boxes[0].x).toBeLessThanOrEqual(523);
+    expect(plan.boxes[0].x + plan.boxes[0].w).toBeGreaterThanOrEqual(682);
+    expect(plan.boxes[0].y + plan.boxes[0].h).toBeGreaterThanOrEqual(2339);
+    expect(storedMaskGeometry(stored).boxes).toEqual(plan.boxes);
+  });
+
+  it('still removes text that overlaps the actual identity box or a drawn region', () => {
+    const p = page();
+    p.words = [10, 18, 26].map((x, id) => ({ id, text: `private${id}`, line: 0, hidden: id === 0, box: { x, y: 10, w: 10, h: 10 } }));
+    const stored = toStoredPage(p);
+    expect(stored.words.every(w => w.t === null)).toBe(true);
+    expect(storedMaskGeometry(stored).boxes).toEqual(redactionPlan(p).boxes);
   });
 
   it('undoes a drawn area without making its covered words new hiding choices', () => {

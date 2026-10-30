@@ -20,7 +20,7 @@ describe('details remembered across documents', () => {
     const next = applyRememberedDetails([page(['jane doe', 'janex'])], { first: learnDetails(original) });
     expect(texts(next[0])).toEqual(['jane', 'doe']);
     expect(next[0].words[0].source).toBe('remembered');
-    expect(texts(applyDetections(next, [null], STRICT)[0])).toEqual(['jane', 'doe']);
+    expect(texts(applyRememberedDetails(applyDetections(next, [null], STRICT), { first: learnDetails(original) })[0])).toEqual(['jane', 'doe']);
     expect(learnDetails(next)).toEqual([]); // Matches cannot teach themselves indefinitely.
   });
 
@@ -36,8 +36,8 @@ describe('details remembered across documents', () => {
   it('learns manually drawn names, not neighbours covered only by padding', () => {
     const source = page(['Jane Doe']);
     source.regions = [{ x: 0, y: 0, w: 170, h: 20 }];
-    source.words[1].box!.x = 172; // Touched by the expanded mask, not by the drawn box.
-    expect(redactionPlan(source).hidden.size).toBe(2);
+    source.words[1].box!.x = 172; // The neighbouring word is outside the drawn box.
+    expect(redactionPlan(source).hidden.size).toBe(1);
     expect(learnDetails([source]).map(d => d.key)).toEqual(['jane']);
   });
 

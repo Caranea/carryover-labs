@@ -22,6 +22,11 @@ function source(): SavedDocument {
     ] }] };
 }
 const evidence = { name: [2], value: [3], unit: [4], date: [1], reference: [5, 6, 7] };
+const batchSnapshot = (count: number, name = 'TSH') => ({ documents: Array.from({ length: count }, (_, i) => ({
+  id: `fictional-${i}`, name: 'Synthetic report', observations: [{
+    id: `row-${i}`, documentId: `fictional-${i}`, page: 0, name, valueText: '2.4', unit: 'mIU/L', date: '2026-01-01',
+  }],
+})) });
 
 describe('stateless Meta demo API', () => {
   let app: INestApplication, base: string;
@@ -83,6 +88,72 @@ describe('stateless Meta demo API', () => {
     const calls = tasks.length;
     assert.equal((await post('recovery', { document: hidden, page: 0 })).status, 400);
     assert.equal(tasks.length, calls);
+  });
+
+  it('finishes all 41 documents after name matching instead of stopping after eight AI calls', async () => {
+    tasks.length = 0;
+    const response = await post('records', batchSnapshot(41, 'Unfamiliar thyroid label'));
+    assert.equal(response.status, 201);
+    const result = await response.json() as RecordsResponse;
+    assert.equal(result.model.state, 'ready');
+    assert.equal(result.model.waiting, 0);
+    assert.equal(result.stats.documents, 41);
+    assert.equal(result.stats.values, 41);
+    assert.equal(tasks.filter(task => task.kind === 'map-names').length, 1);
+    assert.equal(tasks.filter(task => task.kind === 'review').length, 41);
+  });
+
+  it('bounds simultaneous reviews and keeps each review flag attached to its own document', async () => {
+    let active = 0, peak = 0, calls = 0;
+    const controller = new DemoController({ name: 'Synthetic model', async ask<T>(): Promise<T> {
+      const index = calls++;
+      peak = Math.max(peak, ++active);
+      await new Promise(resolve => setTimeout(resolve, index % 3 === 0 ? 6 : 1));
+      active--;
+      return { flags: index === 17 ? [{ row: 1, reason: 'Synthetic mismatch' }] : [] } as T;
+    } });
+    const result = await controller.records(batchSnapshot(41));
+    assert.equal(calls, 41);
+    assert.equal(peak, 3);
+    assert.equal(active, 0);
+    assert.equal(result.stats.values, 40);
+    assert.deepEqual(result.warnings.filter(w => w.by === 'model').map(w => w.documentId), ['fictional-17']);
+  });
+
+  it('stops after a failed review batch without returning partial results or leaving calls running', async () => {
+    let active = 0, calls = 0;
+    const controller = new DemoController({ name: 'Synthetic model', async ask<T>(): Promise<T> {
+      const index = calls++;
+      active++;
+      try {
+        await new Promise(resolve => setTimeout(resolve, index % 3 === 0 ? 6 : 1));
+        if (index === 4) throw new Error('Synthetic provider failure');
+        return { flags: [] } as T;
+      } finally { active--; }
+    } });
+    await assert.rejects(controller.records(batchSnapshot(41)), (error: any) => error.getStatus() === 502);
+    assert.equal(active, 0);
+    assert.equal(calls, 6);
+    assert.equal((await controller.records(batchSnapshot(1))).model.state, 'ready');
+  });
+
+  it('resolves more than eight name batches before reviewing the resulting readings', async () => {
+    const snapshot = batchSnapshot(1);
+    snapshot.documents[0].observations = Array.from({ length: 321 }, (_, i) => ({
+      ...snapshot.documents[0].observations[0], id: `row-${i}`, name: `Unfamiliar thyroid label ${i}`,
+    }));
+    let mappingCalls = 0, reviewCalls = 0;
+    const controller = new DemoController({ name: 'Synthetic model', async ask<T>(task: ModelTask): Promise<T> {
+      if (task.kind === 'review') { reviewCalls++; return { flags: [] } as T; }
+      mappingCalls++;
+      return { answers: [...task.user.matchAll(/^- "([^"]+)" \| value /gm)].map(([, name]) => ({
+        name, key: 'tsh', newTest: null, notATest: false, reason: 'Synthetic name match',
+      })) } as T;
+    } });
+    const result = await controller.records(snapshot);
+    assert.equal(result.stats.values, 321);
+    assert.equal(mappingCalls, 9);
+    assert.equal(reviewCalls, 1);
   });
 
   it('rejects missing inference configuration instead of returning deterministic charts', async () => {

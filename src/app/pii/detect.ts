@@ -1,17 +1,22 @@
-import { PiiKind, WorkingPage, WorkingWord } from '../core/models';
-import { decideLabel, WordPrediction } from './labels';
-import { detectWithRules, groupLines, isProtectedResultToken, isResultLine } from './rules';
-import { isNumericValue, normalizeToken } from './text-utils';
-import { medicalWordIds } from './medical-terms';
+import { WorkingPage, WorkingWord } from '../core/models';
+import { decideLabel, LabelDecision, WordPrediction } from './labels';
+import { detectWithRules, groupLines, identityLabelWordIds, isProtectedResultToken, isResultLine, Hit } from './rules';
+import { isDateToken, normalizeToken } from './text-utils';
+import { medicalWords } from './medical-terms';
+import { applyRememberedDetails, learnDetails } from './remembered-details';
 
 export interface DetectionSettings {
   strict: boolean;
   /** Minimum model probability to hide a word. */
   threshold: number;
+  reviewThreshold: number;
 }
 
-export const NORMAL: DetectionSettings = { strict: false, threshold: 0.5 };
-export const STRICT: DetectionSettings = { strict: true, threshold: 0.25 };
+export const PRIVACY_VERSION = 3;
+// Scores are evidence, not calibrated guarantees. Lower-confidence candidates
+// remain readable; a more thorough pass highlights more, rather than erasing more.
+export const NORMAL: DetectionSettings = { strict: false, threshold: 0.9, reviewThreshold: 0.25 };
+export const STRICT: DetectionSettings = { strict: true, threshold: 0.9, reviewThreshold: 0.15 };
 
 /** Model output for one page, keyed by word id. Null when the model is unavailable. */
 export type PagePredictions = Map<number, WordPrediction> | null;
@@ -36,35 +41,38 @@ export function applyDetections(
     hints = new Set([...hints].filter((h) => !inResults.has(h)));
   }
   const updated = pages.map((page, p) => {
-    const hits = detectWithRules(page.words, { strict: settings.strict });
+    const hits = detectWithRules(page.words, { strict: false });
     const resultLines = new Set<number>();
-    const medical = new Set<number>();
-    for (const line of groupLines(page.words)) {
+    const medical = medicalWords(page.words);
+    const lines = groupLines(page.words);
+    const labels = new Set(lines.flatMap(line => [...identityLabelWordIds(line)]));
+    for (const line of lines) {
       const result = isResultLine(line);
       if (result) resultLines.add(line[0].line);
-      medicalWordIds(line, result).forEach(id => medical.add(id));
     }
     const preds = predictions[p] ?? null;
 
     const words = page.words.map((w): WorkingWord => {
       if (w.locked || w.userSet || w.text === null) return w;
+      const pred = preds?.get(w.id);
+      w = { ...w, hidden: false, kind: undefined, source: undefined, score: undefined, candidate: undefined, prediction: pred };
       // Explicit identity fields still win when OCR merges them with result cells.
+      if (labels.has(w.id)) return w;
       const hit = hits.get(w.id);
       if (hit) return { ...w, hidden: true, kind: hit.kind, source: hit.source, score: 1 };
-      if (medical.has(w.id)) return { ...w, hidden: false, kind: undefined, source: undefined, score: undefined };
-      if (w.hidden && w.source === 'remembered') return w;
-      if (hints.size && !resultLines.has(w.line) && hints.has(normalizeToken(w.text))) {
-        return { ...w, hidden: true, kind: 'person', source: 'rule', score: 1 };
-      }
+      if (medical.has(w.id) || isProtectedResultToken(w.text!, resultLines.has(w.line))) return w;
 
-      const pred = preds?.get(w.id);
-      if (pred && pred.score >= settings.threshold) {
+      if (pred) {
         const decision = decideLabel(pred.label);
-        if (decision.hide && !isProtectedResultToken(w.text, resultLines.has(w.line))) {
+        if (decision.hide && pred.score >= settings.threshold && supportsIdentity(w, decision, lines.find(line => line[0].line === w.line) ?? [], hits)) {
           return { ...w, hidden: true, kind: decision.kind, source: 'model', score: pred.score };
         }
+        if ((decision.hide || decision.review) && pred.score >= settings.reviewThreshold) {
+          return { ...w, candidate: decision.kind };
+        }
       }
-      return { ...w, hidden: false, kind: undefined, source: undefined, score: undefined };
+      // A filename can describe a test. It is a hint to inspect, never identity evidence by itself.
+      return hints.has(normalizeToken(w.text!)) ? { ...w, candidate: 'person' } : w;
     });
     return { ...page, words };
   });
@@ -72,31 +80,45 @@ export function applyDetections(
   return propagate(updated);
 }
 
-const PROPAGATING: PiiKind[] = ['person', 'address', 'id-number', 'national-id'];
+/** A confident category must agree with the text's shape and its field context. */
+function supportsIdentity(word: WorkingWord, decision: LabelDecision, line: WorkingWord[], hits: Map<number, Hit>): boolean {
+  const text = (word.text ?? '').replace(/^[\s:;,(\[]+|[\s,;)\]]+$/g, '');
+  if (decision.kind === 'person') return /^\p{Lu}[\p{L} .,'’-]*$/u.test(text);
+  if (decision.kind === 'id-number' || decision.kind === 'national-id') {
+    return /\d/.test(text) && text.replace(/[^\p{L}\p{N}]/gu, '').length >= 7 && !isDateToken(text);
+  }
+  if (decision.kind === 'birth-date' || decision.kind === 'age') {
+    return line.some(w => ['person', 'birth-date', 'age'].includes(hits.get(w.id)?.kind ?? ''))
+      && !/\b(requested|collected|reported|performed|collection)\b/i.test(line.map(w => w.text).join(' '));
+  }
+  if (decision.kind === 'contact') return /@|https?:\/\/|www\./i.test(text)
+    || text.replace(/\D/g, '').length >= 7 || /^(?:\d{1,3}\.){3}\d{1,3}$/.test(text);
+  return true;
+}
 
 /**
  * A name found once is hidden everywhere in the document: if "Kowalska" is
  * hidden on page 1 (by any detector or by the user), it is hidden on page 3 too.
  */
 export function propagate(pages: WorkingPage[]): WorkingPage[] {
-  const known = new Map<string, PiiKind>();
-  for (const page of pages) {
-    for (const w of page.words) {
-      if (!w.hidden || w.text === null || !w.kind || w.source === 'remembered' || !PROPAGATING.includes(w.kind)) continue;
-      const n = normalizeToken(w.text);
-      if (n.length >= 3 && !isNumericValue(w.text)) known.set(n, w.kind);
-    }
-  }
-  if (!known.size) return pages;
+  return applyRememberedDetails(pages, { self: learnDetails(pages) });
+}
 
-  return pages.map((page) => {
-    const medical = new Set(groupLines(page.words).flatMap(line => [...medicalWordIds(line, isResultLine(line))]));
-    return { ...page, words: page.words.map((w) => {
-      if (w.hidden || w.userSet || w.text === null || medical.has(w.id)) return w;
-      const kind = known.get(normalizeToken(w.text));
-      return kind ? { ...w, hidden: true, kind, source: w.source ?? 'rule', score: 1 } : w;
-    }) };
+/** Drop obsolete automatic masks, leaving every explicit user choice and drawn region intact. */
+export function clearAutomaticDetections(pages: WorkingPage[]): WorkingPage[] {
+  let changed = false;
+  const updated = pages.map(page => {
+    let pageChanged = false;
+    const words = page.words.map(word => {
+      if (word.locked || word.userSet || word.text === null || !(word.hidden || word.source || word.kind || word.prediction || word.candidate)) return word;
+      pageChanged = true;
+      return { ...word, hidden: false, source: undefined, kind: undefined, score: undefined, candidate: undefined, prediction: undefined };
+    });
+    if (!pageChanged) return page;
+    changed = true;
+    return { ...page, words };
   });
+  return changed ? updated : pages;
 }
 
 /** Text of every hidden word, used to clean the file name. Stays on the device. */

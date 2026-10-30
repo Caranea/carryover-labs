@@ -1,7 +1,7 @@
 import { CATALOGUE } from '../../../api/src/records/catalogue';
 import type { WorkingPage, WorkingWord } from '../core/models';
-import { isNumericValue, isRangeToken, isResultFlag, normalizeToken, unitTokenIndices } from './text-utils';
-import { detectWithRules, groupLines, isResultLine } from './rules';
+import { isNumericValue, isRangeToken, normalizeToken } from './text-utils';
+import { clinicalFieldWordIds, detectWithRules, groupLines, isResultLine } from './rules';
 
 const parts = (text: string): string[] => Array.from(normalizeToken(text).match(/[\p{L}\p{N}]+/gu) ?? []);
 const aliases = new Map<string, string[][]>();
@@ -12,10 +12,15 @@ for (const test of CATALOGUE) for (const name of [...test.aliases, test.label]) 
 const HEADING_WORDS = new Set(['serum', 'plasma', 'urine', 'blood', 'test', 'tests', 'result', 'results', 'and', 'surowica', 'krew']);
 const PERSONAL_FIELD = /\b(?:patient|pacjent\w*|patientenname|name|surname|nazwisko|doctor|lekarz|arzt|address|adres|anschrift|street|road|strasse|phone|telefon|email|dob|birth\w*|geburts\w*|pesel|ssn|mrn|medicare|id|identifier|authorized|authorised|autoryzowal)\b/;
 
-/** Exact test names plus their result values/flags/units, never arbitrary prose or personal fields. */
+/** Protect the complete result row, including imperfect OCR, rather than individual spellings. */
 export function medicalWordIds(line: WorkingWord[], resultLine: boolean): Set<number> {
+  const clinical = clinicalFieldWordIds(line);
+  if (clinical.size) return clinical;
   const text = line.map(word => word.text ?? '').join(' ');
   if (PERSONAL_FIELD.test(parts(text).join(' '))) return new Set();
+  if (resultLine && line.some(word => isNumericValue(word.text ?? '') || isRangeToken(word.text ?? ''))) {
+    return new Set(line.map(word => word.id));
+  }
   const tokens = line.flatMap(word => parts(word.text ?? '').map(key => ({ key, word })));
   const matched = new Set<number>();
   for (let i = 0; i < tokens.length; i++) {
@@ -37,24 +42,23 @@ export function medicalWordIds(line: WorkingWord[], resultLine: boolean): Set<nu
   const first = line.findIndex(word => names.has(word.id));
   let after = first;
   while (after >= 0 && after < line.length && (names.has(line[after].id) || /^[:=]$/.test(line[after].text ?? ''))) after++;
-  const namedResult = first >= 0 && isNumericValue(line[after]?.text ?? '');
-  if (!heading && !resultLine && !namedResult) return new Set();
-  if (heading && !resultLine && !namedResult) return names;
+  const startsWithTest = first >= 0 && line.slice(0, first).every(word =>
+    parts(word.text ?? '').every(part => HEADING_WORDS.has(part)));
+  const namedResult = startsWithTest && isNumericValue(line[after]?.text ?? '');
+  if (namedResult) return new Set(line.map(word => word.id));
+  return heading ? names : new Set();
+}
 
-  const units = unitTokenIndices(line.map(word => word.text ?? ''));
-  const safe = new Set(names);
-  line.forEach((word, index) => {
-    const text = word.text ?? '';
-    if (units.has(index) || isNumericValue(text) || isRangeToken(text) || isResultFlag(text) || /^[-–—<>=]$/.test(text)) safe.add(word.id);
-  });
-  return safe;
+/** Shared by detection, saved-review repair, and cross-document matching. */
+export function medicalWords(words: WorkingWord[]): Set<number> {
+  return new Set(groupLines(words).flatMap(line => [...medicalWordIds(line, isResultLine(line))]));
 }
 
 /** Also repair automatic false positives in unfinished, restored reviews. Hand-drawn masks stay intact. */
 export function protectMedicalTerms(pages: WorkingPage[]): WorkingPage[] {
   let changed = false;
   const updated = pages.map(page => {
-    const medical = new Set(groupLines(page.words).flatMap(line => [...medicalWordIds(line, isResultLine(line))]));
+    const medical = medicalWords(page.words);
     const identity = detectWithRules(page.words, { strict: false });
     let pageChanged = false;
     const words = page.words.map(word => {

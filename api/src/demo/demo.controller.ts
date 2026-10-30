@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, HttpException, Inject, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, HttpException, Inject, Logger, Post } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { SavedDocument } from '../documents/contract.js';
 import { parseManifest } from '../documents/validate.js';
@@ -26,6 +26,7 @@ export class DemoHealthController {
 @Controller('demo')
 export class DemoController {
   private active = 0;
+  private readonly log = new Logger('DemoRecords');
   constructor(@Inject(DEMO_MODEL) private readonly model: JsonModel | null) {}
 
   @Get('config')
@@ -38,41 +39,57 @@ export class DemoController {
     const knowledge: Knowledge = { version: 1, names: {}, tests: [], conversions: {} };
     const build = () => buildRecords(docs, knowledge, true);
     return this.bounded(async () => {
+      const started = Date.now();
+      let stage = 'name matching', mappingCalls = 0, reviewed = 0;
       try {
-        for (let call = 0; call < 8; call++) {
-          const { pending } = build();
-          if (!pending.names.length && !pending.reviews.length) break;
-          if (pending.names.length) {
-            const seen = new Set<string>();
-            const names = pending.names.filter((row) => {
-              if (seen.has(row.printedName) || seen.size >= 40) return false;
-              seen.add(row.printedName); return true;
-            });
-            const task = mapNamesTask(names, [...CATALOGUE, ...knowledge.tests]);
-            const answer = validateAnswer<{ answers: NameAnswer[] }>(task, await this.model!.ask(task));
-            const mapped = new Map(answer.answers.map((row) => [row.name, row]));
-            if (mapped.size !== names.length) throw new Error('Mismatched names');
-            for (const row of names) {
-              const answer = mapped.get(row.printedName);
-              const decision = answer && decideName(answer, [...CATALOGUE, ...knowledge.tests]);
-              if (!decision) throw new Error('Invalid mapping');
-              if (decision.newTest) knowledge.tests.push(decision.newTest);
-              knowledge.names[row.name] = { key: decision.key, reason: decision.reason };
-            }
-          } else {
-            const review = pending.reviews[0];
+        let { pending } = build();
+        // Every successful batch must resolve names. The input limits bound
+        // the work; an arbitrary call cap otherwise rejects healthy batches.
+        while (pending.names.length) {
+          const seen = new Set<string>();
+          const names = pending.names.filter((row) => {
+            if (seen.has(row.printedName) || seen.size >= 40) return false;
+            seen.add(row.printedName); return true;
+          });
+          const task = mapNamesTask(names, [...CATALOGUE, ...knowledge.tests]);
+          mappingCalls++;
+          const answer = validateAnswer<{ answers: NameAnswer[] }>(task, await this.model!.ask(task));
+          const mapped = new Map(answer.answers.map((row) => [row.name, row]));
+          if (mapped.size !== names.length) throw new Error('Mismatched names');
+          for (const row of names) {
+            const answer = mapped.get(row.printedName);
+            const decision = answer && decideName(answer, [...CATALOGUE, ...knowledge.tests]);
+            if (!decision) throw new Error('Invalid mapping');
+            if (decision.newTest) knowledge.tests.push(decision.newTest);
+            knowledge.names[row.name] = { key: decision.key, reason: decision.reason };
+          }
+          const next = build().pending;
+          if (next.names.length >= pending.names.length) throw new Error('Name matching made no progress');
+          pending = next;
+        }
+        stage = 'document review';
+        // Reviews are independent once names are resolved. Keep concurrency
+        // small while allowing a large batch to finish without serial waits.
+        for (let offset = 0; offset < pending.reviews.length; offset += 3) {
+          const outcomes = await Promise.allSettled(pending.reviews.slice(offset, offset + 3).map(async review => {
             const task = reviewTask(review.rows);
             const answer = validateAnswer<{ flags: { row: number; reason: string }[] }>(task, await this.model!.ask(task));
             docs.find((doc) => doc.id === review.documentId)!.review = { hash: review.hash, flags: answer.flags
               .filter((flag) => Number.isInteger(flag.row) && flag.row >= 1 && flag.row <= review.rows.length)
               .map((flag) => ({ id: review.rows[flag.row - 1].id, reason: flag.reason.slice(0, 300) })) };
-          }
+            reviewed++;
+          }));
+          const failed = outcomes.find(outcome => outcome.status === 'rejected');
+          if (failed?.status === 'rejected') throw failed.reason;
         }
+        stage = 'completion';
         const result = build();
         const waiting = result.pending.names.length + result.pending.reviews.length;
         if (waiting) throw new Error('Processing is incomplete');
         return { ...result.records, model: { state: 'ready', name: this.model!.name, waiting: 0, message: null } };
       } catch {
+        // Log progress, never report text or provider bodies that may echo it.
+        this.log.warn(`Processing failed during ${stage}: documents=${docs.length}, mappingCalls=${mappingCalls}, reviewed=${reviewed}, elapsedMs=${Date.now() - started}`);
         throw new HttpException('Results processing did not finish. Please try again.', 502);
       }
     });

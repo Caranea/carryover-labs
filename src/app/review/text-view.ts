@@ -32,7 +32,7 @@ type PreviewWord = WorkingWord & { derived?: boolean };
                 }
               </button>
             } @else {
-              <button type="button" class="w" [title]="'Click to remove'" (click)="toggleWord.emit(w.id)">
+              <button type="button" class="w" [class.candidate]="!!w.candidate && !w.userSet" [title]="w.candidate && !w.userSet ? 'Possible personal detail. Still visible; click to hide.' : 'Click to hide'" (click)="toggleWord.emit(w.id)">
                 {{ w.text }}
               </button>
             }
@@ -68,6 +68,7 @@ type PreviewWord = WorkingWord & { derived?: boolean };
     .w:hover {
       background: color-mix(in oklab, var(--color-accent) 45%, transparent);
     }
+    .w.candidate { background: #fff2bc; border-bottom: 1px dashed #ad7100; }
     .w:focus-visible {
       outline: 2px solid var(--color-primary);
       outline-offset: 1px;

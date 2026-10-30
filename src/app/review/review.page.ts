@@ -49,6 +49,8 @@ export class ReviewPage {
   protected readonly hasImages = computed(() => this.doc()?.pages.some((p) => p.image) ?? false);
   private readonly plannedPages = computed(() => (this.doc()?.pages ?? []).map((page) => ({ page, plan: redactionPlan(page) })));
   protected readonly hiddenCount = computed(() => this.plannedPages().reduce((count, { page, plan }) => count + plan.hidden.size + page.regions.length, 0));
+  protected readonly candidateCount = computed(() => this.plannedPages().reduce((count, { page, plan }) => count
+    + page.words.filter((word, index) => word.candidate && !word.userSet && !plan.hidden.has(index)).length, 0));
   protected readonly nearbyCount = computed(() => this.plannedPages().reduce((count, { page, plan }) => count + [...plan.hidden].filter((index) => !page.words[index].hidden).length, 0));
   protected readonly lockedCount = computed(
     () =>

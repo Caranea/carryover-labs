@@ -65,9 +65,24 @@ describe('document privacy boundary', () => {
     expect(queue.byId(ids[1])?.pages[0].words[0].hidden).toBe(true);
     queue.removeRegion(ids[0], 0, 0);
     expect(toStoredPage(queue.byId(ids[0])!.pages[0]).words[0].t).toBe('Jane');
+    expect(queue.byId(ids[1])?.pages[0].words[0].hidden).toBe(false);
     const [third] = queue.add([new File(['fictional'], 'three.txt')], 'lightweight');
     await vi.waitFor(() => expect(queue.byId(third)?.status).toBe('review'));
     expect(queue.byId(third)?.pages[0].words[0].hidden).toBe(false);
+  });
+
+  it('undoes learned matches when the original click or source document is removed', async () => {
+    const { queue, extraction } = setup();
+    extraction.extract.mockImplementation(async () => [{ ...page(), words: [{ id: 0, text: 'Alexandra', line: 0, hidden: false }] }]);
+    const ids = queue.add(['one.txt', 'two.txt'].map(name => new File(['fictional'], name)), 'lightweight');
+    await vi.waitFor(() => expect(ids.every(id => queue.byId(id)?.status === 'review')).toBe(true));
+    queue.toggleWord(ids[0], 0, 0);
+    expect(queue.byId(ids[1])?.pages[0].words[0].hidden).toBe(true);
+    queue.toggleWord(ids[0], 0, 0);
+    expect(queue.byId(ids[1])?.pages[0].words[0].hidden).toBe(false);
+    queue.toggleWord(ids[0], 0, 0);
+    queue.remove(ids[0]);
+    expect(queue.byId(ids[1])?.pages[0].words[0].hidden).toBe(false);
   });
 
   it('suggests a date and content title and accepts an edited description retaining the report date', async () => {

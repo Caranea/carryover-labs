@@ -1,10 +1,9 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { computed, DestroyRef, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { ExtractionService, sourceKindOf } from '../extraction/extraction.service';
-import { applyDetections, NORMAL, PagePredictions, STRICT } from '../pii/detect';
+import { applyDetections, clearAutomaticDetections, NORMAL, PagePredictions, PRIVACY_VERSION, STRICT } from '../pii/detect';
 import { NerService } from '../pii/ner.service';
 import { fileNameHints, sanitizeFileName } from '../pii/rules';
-import { isNumericValue, normalizeToken } from '../pii/text-utils';
 import { applyRegion, buildManifest, burnPage, fromTuple, redactionPlan, removeRegion } from '../redaction/burn';
 import { intersects } from '../redaction/geometry';
 import { DocumentsApi } from './documents-api';
@@ -106,7 +105,7 @@ export class DocumentQueueService {
   private snapshot(): QueueSnapshot {
     return { documents: this.documents(), batchIds: this.batchIds(), reviewId: this.reviewId(), reviewOpened: this.reviewOpened(),
       privacyMode: this.privacyMode(), privacyModeChosen: this.privacyModeChosen(), counter: this.counter,
-      rememberedDetails: this.rememberedDetails() };
+      rememberedDetails: this.rememberedDetails(), rememberedDetailsVersion: PRIVACY_VERSION };
   }
 
   async retryRecovery() {
@@ -123,13 +122,24 @@ export class DocumentQueueService {
         const documents = snapshot.documents.map((doc): LocalDocument => {
           const saved = !doc.serverId ? approved.get(doc.localId) : undefined;
           if (saved) return { ...doc, status: 'saved', serverId: saved.id, pages: [], file: null, error: undefined };
-          const pages = doc.pages.map(page => ({ ...page, imageUrl: page.image ? URL.createObjectURL(page.image) : null }));
+          let pages = doc.pages.map(page => ({ ...page, imageUrl: page.image ? URL.createObjectURL(page.image) : null }));
           const file = doc.file ? new File([doc.file], doc.fileName, { type: doc.file.type }) : null;
+          if (!doc.serverId && doc.status !== 'saved' && doc.privacyVersion !== PRIVACY_VERSION && pages.length) {
+            if (doc.privacyMode === 'lightweight') {
+              const clean = clearAutomaticDetections(pages);
+              return { ...doc, file, pages: clean, privacyVersion: PRIVACY_VERSION, status: 'review', privacyAcknowledged: clean === pages && doc.privacyAcknowledged, message: '' };
+            }
+            // Recheck saved OCR, never reread the photo. Existing masks and hand
+            // edits stay in the checkpoint while this queued check is running.
+            return { ...doc, file, pages, status: 'queued', progress: 0.7, privacyAcknowledged: false, message: 'Updating privacy check' };
+          }
           if (['queued', 'reading', 'detecting'].includes(doc.status)) return { ...doc, file, pages, status: 'queued', progress: 0, message: 'Waiting to resume' };
           return { ...doc, file, pages, status: doc.status === 'saving' ? 'review' : doc.status, message: '' };
         });
         this.documents.set(documents); this.batchIds.set(snapshot.batchIds); this.counter = snapshot.counter;
-        const memory = { ...snapshot.rememberedDetails };
+        // Legacy memory contains guesses with no evidence/provenance. Rebuild it
+        // from rechecked originals; never reuse those guesses as confirmed PII.
+        const memory = snapshot.rememberedDetailsVersion === PRIVACY_VERSION ? { ...snapshot.rememberedDetails } : {};
         for (const doc of documents) if (doc.status === 'review') memory[doc.localId] = learnDetails(doc.pages);
         this.rememberedDetails.set(memory);
         this.refreshReviewDetails();
@@ -228,6 +238,7 @@ export class DocumentQueueService {
         : applyDetections(current.pages, predictions, current.strict ? STRICT : NORMAL, fileNameHints(current.fileName));
       this.patch(id, {
         status: 'review',
+        privacyVersion: PRIVACY_VERSION,
         progress: 1,
         message: '',
         pages: detected,
@@ -242,7 +253,7 @@ export class DocumentQueueService {
     }
   }
 
-  /** Run detection again with a lower model threshold and wider rules. Hand edits are kept. */
+  /** A thorough pass highlights more uncertain candidates. Hand edits are kept. */
   async rescan(localId: string, strict = true) {
     const doc = this.byId(localId);
     if (!doc || doc.status !== 'review' || doc.privacyMode === 'lightweight') return;
@@ -260,7 +271,7 @@ export class DocumentQueueService {
       if (!current) return;
       const manual = current.privacyMode === 'lightweight';
       const pages = manual ? current.pages : applyDetections(current.pages, predictions, strict ? STRICT : NORMAL, fileNameHints(current.fileName));
-      this.patch(localId, { status: 'review', message: '', pages, strict: !manual && strict, ...privacyStatus(pages, predictions, current.privacyMode, this.ner.error()) });
+      this.patch(localId, { status: 'review', privacyVersion: PRIVACY_VERSION, message: '', pages, strict: !manual && strict, ...privacyStatus(pages, predictions, current.privacyMode, this.ner.error()) });
       this.refreshReviewDetails(localId);
     } catch (e) {
       this.patch(localId, { status: 'review', message: '', error: e instanceof Error ? e.message : String(e) });
@@ -307,19 +318,13 @@ export class DocumentQueueService {
       // A region remains opaque until removed. Keeping its text must not change the upload.
       if (word.box && pages[pageIndex].regions.some((r) => intersects(word.box!, r))) return pages;
       const hide = !word.hidden;
-      const target = normalizeToken(word.text);
-      const spread = hide && target.length >= 3 && !isNumericValue(word.text);
-
       return pages.map((page, p) => ({
         ...page,
         words: page.words.map((w): WorkingWord => {
           if (p === pageIndex && w.id === wordId) {
             return hide
-              ? { ...w, hidden: true, userSet: true, source: 'you', kind: w.kind ?? 'other' }
-              : { ...w, hidden: false, userSet: true, source: undefined, kind: undefined };
-          }
-          if (spread && !w.hidden && !w.userSet && w.text !== null && normalizeToken(w.text) === target) {
-            return { ...w, hidden: true, source: 'you', kind: word.kind ?? 'other' };
+              ? { ...w, hidden: true, userSet: true, source: 'you', kind: w.kind ?? w.candidate ?? 'other', candidate: undefined }
+              : { ...w, hidden: false, userSet: true, source: undefined, kind: undefined, candidate: undefined };
           }
           return w;
         }),
@@ -352,6 +357,7 @@ export class DocumentQueueService {
     this.predictions.delete(localId);
     this.documents.update((docs) => docs.filter((d) => d.localId !== localId));
     this.rememberedDetails.update(memory => { const { [localId]: _removed, ...rest } = memory; return rest; });
+    this.refreshReviewDetails();
   }
 
   // ---------------------------------------------------------------------------
@@ -502,9 +508,9 @@ export class DocumentQueueService {
     const memory = this.rememberedDetails();
     this.documents.update(docs => docs.map(doc => {
       if (!['review', 'detecting'].includes(doc.status) || !doc.pages.length) return doc;
-      // Never turn a source's own drawn region into independent sticky word masks.
-      const { [doc.localId]: _ownDetails, ...otherDocuments } = memory;
-      const pages = applyRememberedDetails(protectMedicalTerms(doc.pages), otherDocuments);
+      if (doc.privacyMode !== 'lightweight' && !doc.serverId && doc.privacyVersion !== PRIVACY_VERSION) return doc;
+      // Same-document and cross-document matches follow the same reversible rule.
+      const pages = applyRememberedDetails(protectMedicalTerms(doc.pages), memory);
       return withSuggestedName(pages === doc.pages ? doc : { ...doc, pages, privacyAcknowledged: false });
     }));
   }

@@ -39,6 +39,10 @@ export interface WorkingWord {
   kind?: PiiKind;
   source?: DetectionSource;
   score?: number;
+  /** Local model evidence, retained for review/re-evaluation; never in the saved manifest. */
+  prediction?: { label: string; score: number };
+  /** An uncertain suggestion stays visible, highlighted in the review only. */
+  candidate?: PiiKind;
 }
 
 export interface WorkingPage {
@@ -88,6 +92,8 @@ export interface LocalDocument {
   privacyMode?: PrivacyMode;
   /** Explicit acknowledgement is required for manual or incomplete automatic checks. */
   privacyAcknowledged?: boolean;
+  /** Version of the rules and model interpretation used for these OCR words. */
+  privacyVersion?: number;
   pages: WorkingPage[];
   file: File | null;
   addedAt: number;

@@ -3,7 +3,7 @@ import type Tesseract from 'tesseract.js';
 import { ASSETS, assetUrl, OCR_LANGUAGES } from '../core/assets';
 import { WorkingWord } from '../core/models';
 import { pageToWords, readingScore, readsWell } from './ocr-layout';
-import { orientationTurns } from './orientation';
+import { orientationHint, OrientationHint } from './orientation';
 export { pageToWords, readingScore } from './ocr-layout';
 
 export type OcrSource = HTMLCanvasElement | OffscreenCanvas | Blob | ImageBitmap;
@@ -30,8 +30,8 @@ export class OcrService {
 
   /**
    * OCR a page that may have been photographed sideways or upside down.
-   * Detect orientation before recognising text. Retain the reading-quality
-   * fallback when orientation is uncertain or the corrected text reads poorly.
+   * Try the orientation hint first and validate it with readable text. Only
+   * search other angles when necessary, stopping at a verified good reading.
    * Returns the canvas actually used, so word boxes match the page image.
    */
   async recognizeUpright(
@@ -50,33 +50,82 @@ export class OcrService {
     startId: number,
     onProgress?: (p: number, message?: string) => void,
   ): Promise<{ words: WorkingWord[]; canvas: HTMLCanvasElement }> {
-    onProgress?.(0, 'Checking which way up the page is');
-    const turns = await this.detectOrientation(canvas);
-    if (turns) canvas = rotated(canvas, turns);
-    const first = await this.run(canvas, (p) => onProgress?.(0.05 + p * 0.55, 'Recognising text'));
-    if (readsWell(first)) {
-      onProgress?.(1);
-      return { words: pageToWords(first, startId), canvas };
-    }
+    let fraction = 0;
+    const progress = (value: number, message?: string) => {
+      fraction = Math.max(fraction, value);
+      onProgress?.(fraction, message);
+    };
+    progress(0, 'Checking which way up the page is');
+    const hint = await this.detectOrientation(canvas);
+    type Turns = OrientationHint['turns'];
+    type Reading = { data: Tesseract.Page; canvas: HTMLCanvasElement };
+    const temporary = new Set<HTMLCanvasElement>();
+    const full = new Map<Turns, Reading>();
+    let kept = canvas;
+    const turned = (source: HTMLCanvasElement, turn: Turns) => {
+      if (!turn) return source;
+      const image = rotated(source, turn); temporary.add(image); return image;
+    };
+    const readFull = async (turn: Turns): Promise<Reading> => {
+      const cached = full.get(turn);
+      if (cached) return cached;
+      const image = turned(canvas, turn);
+      const data = await this.run(image, (p) => progress(0.05 + p * 0.55, 'Recognising text'));
+      const reading = { data, canvas: image }; full.set(turn, reading); return reading;
+    };
+    const finish = (reading: Reading) => {
+      const words = pageToWords(reading.data, startId);
+      progress(1);
+      kept = reading.canvas;
+      return { words, canvas: kept };
+    };
+    const improves = (candidate: Tesseract.Page, baseline: Tesseract.Page) =>
+      (readsWell(candidate) && !readsWell(baseline)) || readingScore(candidate) >= readingScore(baseline) * 1.3 + 5;
+    try {
+      const initialTurn = hint?.turns ?? 0;
+      const first = await readFull(initialTurn);
+      if (readsWell(first.data)) return finish(first);
 
-    onProgress?.(0.6, 'Checking which way up the page is');
-    const small = scaled(canvas, 1600);
-    const scores: number[] = [];
-    for (const turn of [0, 1, 2, 3] as const) {
-      const probe = turn === 0 ? small : rotated(small, turn);
-      scores.push(readingScore(await this.run(probe)));
-      onProgress?.(0.6 + (turn + 1) * 0.06, 'Checking which way up the page is');
+      // All angle comparisons use the same resolution. Small pages reuse the
+      // full reading, and an upright small reading avoids needless angle scans.
+      const small = Math.max(canvas.width, canvas.height) <= 1600 ? canvas : scaled(canvas, 1600);
+      if (small !== canvas) temporary.add(small);
+      const probe = async (turn: Turns): Promise<Tesseract.Page> => {
+        if (small === canvas) return (await readFull(turn)).data;
+        const image = turned(small, turn);
+        try { return await this.run(image); }
+        finally {
+          if (image !== small) { image.width = image.height = 0; temporary.delete(image); }
+        }
+      };
+      const baseline = await probe(initialTurn);
+      // A weak OSD hint must also be confirmed at full resolution; it cannot
+      // rotate a sparse/unreadable page solely on its orientation score.
+      if (readsWell(baseline) && (!initialTurn || hint?.confident)) return finish(first);
+      let bestTurn = initialTurn;
+      let bestData = baseline;
+      for (const turn of [0, 1, 3, 2] as const) {
+        if (turn === initialTurn) continue;
+        progress(0.6, 'Checking which way up the page is');
+        const data = await probe(turn);
+        if (readingScore(data) > readingScore(bestData)) { bestData = data; bestTurn = turn; }
+        if (readsWell(data) && improves(data, baseline)) {
+          const candidate = await readFull(turn);
+          if (readsWell(candidate.data) && improves(candidate.data, first.data)) return finish(candidate);
+        }
+      }
+      // Keep the original angle when an uncertain hint could not be validated.
+      const fallback = initialTurn && !hint?.confident ? await readFull(0) : first;
+      // The hinted angle can still be the clear winner on a blurry page even
+      // when no angle passes readsWell(). Compare it too; otherwise a weak but
+      // correct hint is discarded solely because it was tried first.
+      const candidate = await readFull(bestTurn);
+      if (improves(candidate.data, fallback.data)) return finish(candidate);
+      return finish(fallback);
+    } finally {
+      // Large rotated canvases otherwise accumulate until the browser runs GC.
+      for (const image of temporary) if (image !== kept) image.width = image.height = 0;
     }
-    const best = scores.indexOf(Math.max(...scores)) as 0 | 1 | 2 | 3;
-    if (best === 0 || scores[best] < scores[0] * 1.3 + 5) {
-      onProgress?.(1);
-      return { words: pageToWords(first, startId), canvas };
-    }
-
-    const upright = rotated(canvas, best);
-    const label = 'Recognising text';
-    const data = await this.run(upright, (p) => onProgress?.(0.85 + p * 0.15, label));
-    return { words: pageToWords(data, startId), canvas: upright };
   }
 
   private async run(image: OcrSource, onProgress?: (p: number) => void): Promise<Tesseract.Page> {
@@ -84,8 +133,12 @@ export class OcrService {
     this.onProgress = onProgress ?? null;
     try {
       const input = typeof ImageBitmap !== 'undefined' && image instanceof ImageBitmap ? bitmapToCanvas(image) : image;
-      const { data } = await worker.recognize(input as Tesseract.ImageLike, {}, { blocks: true, text: false });
-      return data;
+      try {
+        const { data } = await worker.recognize(input as Tesseract.ImageLike, {}, { blocks: true, text: false });
+        return data;
+      } finally {
+        if (input !== image) (input as HTMLCanvasElement).width = (input as HTMLCanvasElement).height = 0;
+      }
     } finally {
       this.onProgress = null;
     }
@@ -100,7 +153,7 @@ export class OcrService {
     if (orientationWorker) await (await orientationWorker)?.terminate();
   }
 
-  private async detectOrientation(canvas: HTMLCanvasElement): Promise<0 | 1 | 2 | 3 | null> {
+  private async detectOrientation(canvas: HTMLCanvasElement): Promise<OrientationHint | null> {
     this.orientationWorker ??= import('tesseract.js').then((mod) => {
       const { createWorker } = (mod.default ?? mod) as typeof Tesseract;
       // OSD needs the legacy core and its own small language data. The actual
@@ -115,7 +168,7 @@ export class OcrService {
     try {
       const worker = await this.orientationWorker;
       if (!worker) return null;
-      return orientationTurns((await worker.detect(canvas)).data);
+      return orientationHint((await worker.detect(canvas)).data);
     } catch {
       // A blank/sparse page or unavailable orientation data must not block OCR.
       return null;

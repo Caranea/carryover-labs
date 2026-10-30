@@ -19,13 +19,8 @@
     </div>
   }
   @if (data() === null && !error()) {
-    <div class="flex flex-col gap-3" aria-label="Processing results" aria-busy="true">
+    <div aria-label="Processing results" aria-busy="true">
       <p role="status" class="flex items-center gap-3"><span class="loading loading-spinner loading-sm text-primary" aria-hidden="true"></span>Processing your approved lab data…</p>
-      <div class="skeleton h-24 w-full"></div>
-      <div class="grid md:grid-cols-2 gap-4">
-        <div class="skeleton h-72 w-full"></div>
-        <div class="skeleton h-72 w-full"></div>
-      </div>
     </div>
   } @else if (data() && !data()!.stats.values && !data()!.warnings.length && !data()!.textResults.length && !data()!.issues?.length) {
     <div class="card bg-base-200">

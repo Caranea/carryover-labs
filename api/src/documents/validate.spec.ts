@@ -31,12 +31,18 @@ describe('parseManifest', () => {
     assert.throws(() => parseManifest(manifest([page([{ t: null, h: true, l: 0 }])])), /position/);
   });
 
-  it('rejects text reached through neighbouring word masks, including the final edge pixel', () => {
+  it('rejects text overlapping the actual identity masks', () => {
     assert.throws(() => parseManifest(manifest([page([
       { t: null, h: true, l: 0, b: [10, 10, 10, 10] },
-      { t: null, h: true, l: 0, b: [22, 10, 10, 10] },
-      { t: 'must also be removed', l: 0, b: [34, 10, 10, 10] },
+      { t: null, h: true, l: 0, b: [18, 10, 10, 10] },
+      { t: 'must also be removed', l: 0, b: [26, 10, 10, 10] },
     ])])), /underneath/);
+  });
+  it('accepts a visible result beside a bounded identity mask', () => {
+    assert.doesNotThrow(() => parseManifest(manifest([page([
+      { t: null, h: true, l: 0, b: [10, 10, 10, 10] },
+      { t: '1.4', l: 1, b: [10, 20, 10, 10] },
+    ])])));
   });
 });
 

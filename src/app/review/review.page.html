@@ -44,6 +44,9 @@
             </label>
           }
           <span class="badge badge-ghost ml-auto">{{ doc.pages.length }} {{ doc.pages.length === 1 ? 'page' : 'pages' }}</span>
+          @if (candidateCount()) {
+            <span class="basis-full text-sm text-base-content/80">Yellow outlines are uncertain suggestions and stay visible. Click one to hide it.</span>
+          }
         </div>
 
         @if (mode() === 'draw' && !textView()) {
@@ -170,12 +173,6 @@
               <li class="flex gap-2"><span class="text-primary"><app-icon name="check" size="1.05rem" /></span>Addresses, phone numbers, stamps, signatures</li>
               <li class="flex gap-2"><span class="text-primary"><app-icon name="check" size="1.05rem" /></span>PESEL, insurance, card or order numbers</li>
             </ul>
-            @if (doc.privacyMode !== 'lightweight') {
-            <button type="button" class="btn btn-sm btn-outline rounded-full border-base-300 self-start" [disabled]="busy() || doc.strict" (click)="rescan()">
-              <app-icon name="scan" size="1rem" />
-              {{ doc.strict ? 'Checked strictly' : 'Check again, more strictly' }}
-            </button>
-            }
           </div>
 
           <div class="sticky bottom-0 -mx-5 -mb-5 flex flex-col gap-2 border-t border-base-300 bg-base-100 p-5">

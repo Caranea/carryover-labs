@@ -25,8 +25,14 @@ describe('buildSequences', () => {
 });
 
 describe('aggregateWord', () => {
-  it('takes the most likely non-O label across sub-tokens', () => {
+  it('lets O win instead of taking one misleading sub-token', () => {
     const labels = { 0: 'O', 1: 'B-PERSON', 2: 'I-PERSON' };
-    expect(aggregateWord([[0.9, 0.05, 0.05], [0.4, 0.1, 0.5]], labels)).toEqual({ label: 'I-PERSON', score: 0.5 });
+    expect(aggregateWord([[0.9, 0.05, 0.05], [0.4, 0.1, 0.5]], labels)).toEqual({ label: 'O', score: 0.65 });
+  });
+  it('combines beginning and continuation probabilities before averaging a whole name', () => {
+    const prediction = aggregateWord([[0.05, 0.85, 0.1], [0.03, 0.12, 0.85]], { 0: 'O', 1: 'B-PERSON_NAME', 2: 'I-PERSON_NAME' });
+    expect(prediction.label).toBe('PERSON_NAME');
+    expect(prediction.score).toBeCloseTo(0.96);
+    expect(aggregateWord([], { 0: 'O' })).toEqual({ label: 'O', score: 0 });
   });
 });

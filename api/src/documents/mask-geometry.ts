@@ -25,7 +25,8 @@ function intersects(a: PixelBox, b: PixelBox) {
 }
 
 /**
- * Any word touched by a mask is removed in full, including its padded pixels.
+ * Real overlaps are removed in full. Padding stops at neighbouring OCR boxes
+ * so a safety margin cannot grow into an unrelated row of clinical text.
  * A work queue reaches a fixed point. The grid indexes only remaining words,
  * so long/reversed chains do not require repeated scans of the whole page.
  * Origins refer to the initiating word index, or -(region index + 1), for Undo.
@@ -39,6 +40,25 @@ export function maskGeometry(width: number, height: number, words: readonly Mask
   const queue: { box: PixelBox; origin: number }[] = [];
   const remaining = new Set<number>();
   const normalized = words.map((word) => word.box ? pixelBox(width, height, word.box) : undefined);
+  const wordFootprint = (index: number): PixelBox => {
+    const core = normalized[index]!;
+    const padded = footprint(width, height, core, redactionPadding(core));
+    let left = padded.x, top = padded.y, right = padded.x + padded.w, bottom = padded.y + padded.h;
+    // Use all boxes, independent of their hidden flags, so the browser and the
+    // server produce identical geometry from the final manifest too.
+    const keys = cells(padded);
+    const candidates = keys ? new Set(wideNeighbours) : new Set(normalized.keys());
+    if (keys) for (const key of keys) for (const neighbour of neighbours.get(key) ?? []) candidates.add(neighbour);
+    for (const neighbour of candidates) {
+      const other = normalized[neighbour];
+      if (!other || other === core || intersects(core, other) || !intersects(padded, other)) continue;
+      if (other.y + other.h <= core.y) top = Math.max(top, other.y + other.h);
+      else if (other.y >= core.y + core.h) bottom = Math.min(bottom, other.y);
+      else if (other.x + other.w <= core.x) left = Math.max(left, other.x + other.w);
+      else if (other.x >= core.x + core.w) right = Math.min(right, other.x);
+    }
+    return { x: left, y: top, w: right - left, h: bottom - top };
+  };
   const buckets = new Map<number, Set<number>>();
   const membership = new Map<number, number[]>();
   const wide = new Set<number>();
@@ -53,13 +73,24 @@ export function maskGeometry(width: number, height: number, words: readonly Mask
     for (let y = y1; y <= y2; y++) for (let x = x1; x <= x2; x++) keys.push(y * columns + x);
     return keys;
   };
+  const neighbours = new Map<number, number[]>();
+  const wideNeighbours = new Set<number>();
+  normalized.forEach((box, index) => {
+    if (!box) return;
+    const keys = cells(box);
+    if (!keys) { wideNeighbours.add(index); return; }
+    for (const key of keys) {
+      const list = neighbours.get(key) ?? [];
+      list.push(index); neighbours.set(key, list);
+    }
+  });
   const hide = (index: number, origin: number) => {
     if (hidden.has(index)) return;
     hidden.add(index); origins.set(index, origin); remaining.delete(index); wide.delete(index);
     for (const key of membership.get(index) ?? []) buckets.get(key)?.delete(index);
     const box = normalized[index];
     if (box) {
-      const mask = footprint(width, height, box, redactionPadding(box));
+      const mask = wordFootprint(index);
       wordBoxes.set(index, mask); boxes.push(mask); queue.push({ box: mask, origin });
     }
   };
