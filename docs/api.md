@@ -32,7 +32,7 @@ Copy `api/.env.example` to `api/.env` if the latter does not already exist. Keep
 | `PORT`, `WEB_ROOT` | API port and built frontend directory |
 | `HOST`, `TRUST_LOOPBACK_PROXY` | Loopback binding and optional trust of a local gateway |
 
-Without a model key, local extraction and deterministic charts remain available and the UI explains that AI is unavailable. Storage encryption settings apply only to the retained offline legacy tools. The demo API does not require or use a document store.
+The demo requires a configured model for results processing. Missing configuration returns HTTP 503; failed or incomplete processing returns HTTP 502 without partial charts. The frontend waits for the server and offers a retry on failure. It caches only completed server results. Storage encryption settings apply only to the retained offline legacy tools. The demo API does not require or use a document store.
 
 Keep model keys on the server and serve the app/API on the same HTTPS origin for hosting. Provider retention is governed by the configured inference provider.
 

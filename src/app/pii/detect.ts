@@ -2,6 +2,7 @@ import { PiiKind, WorkingPage, WorkingWord } from '../core/models';
 import { decideLabel, WordPrediction } from './labels';
 import { detectWithRules, groupLines, isProtectedResultToken, isResultLine } from './rules';
 import { isNumericValue, normalizeToken } from './text-utils';
+import { medicalWordIds } from './medical-terms';
 
 export interface DetectionSettings {
   strict: boolean;
@@ -37,13 +38,21 @@ export function applyDetections(
   const updated = pages.map((page, p) => {
     const hits = detectWithRules(page.words, { strict: settings.strict });
     const resultLines = new Set<number>();
-    for (const line of groupLines(page.words)) if (isResultLine(line)) resultLines.add(line[0].line);
+    const medical = new Set<number>();
+    for (const line of groupLines(page.words)) {
+      const result = isResultLine(line);
+      if (result) resultLines.add(line[0].line);
+      medicalWordIds(line, result).forEach(id => medical.add(id));
+    }
     const preds = predictions[p] ?? null;
 
     const words = page.words.map((w): WorkingWord => {
       if (w.locked || w.userSet || w.text === null) return w;
+      // Explicit identity fields still win when OCR merges them with result cells.
       const hit = hits.get(w.id);
       if (hit) return { ...w, hidden: true, kind: hit.kind, source: hit.source, score: 1 };
+      if (medical.has(w.id)) return { ...w, hidden: false, kind: undefined, source: undefined, score: undefined };
+      if (w.hidden && w.source === 'remembered') return w;
       if (hints.size && !resultLines.has(w.line) && hints.has(normalizeToken(w.text))) {
         return { ...w, hidden: true, kind: 'person', source: 'rule', score: 1 };
       }
@@ -73,21 +82,21 @@ export function propagate(pages: WorkingPage[]): WorkingPage[] {
   const known = new Map<string, PiiKind>();
   for (const page of pages) {
     for (const w of page.words) {
-      if (!w.hidden || w.text === null || !w.kind || !PROPAGATING.includes(w.kind)) continue;
+      if (!w.hidden || w.text === null || !w.kind || w.source === 'remembered' || !PROPAGATING.includes(w.kind)) continue;
       const n = normalizeToken(w.text);
       if (n.length >= 3 && !isNumericValue(w.text)) known.set(n, w.kind);
     }
   }
   if (!known.size) return pages;
 
-  return pages.map((page) => ({
-    ...page,
-    words: page.words.map((w) => {
-      if (w.hidden || w.userSet || w.text === null) return w;
+  return pages.map((page) => {
+    const medical = new Set(groupLines(page.words).flatMap(line => [...medicalWordIds(line, isResultLine(line))]));
+    return { ...page, words: page.words.map((w) => {
+      if (w.hidden || w.userSet || w.text === null || medical.has(w.id)) return w;
       const kind = known.get(normalizeToken(w.text));
       return kind ? { ...w, hidden: true, kind, source: w.source ?? 'rule', score: 1 } : w;
-    }),
-  }));
+    }) };
+  });
 }
 
 /** Text of every hidden word, used to clean the file name. Stays on the device. */

@@ -7,6 +7,7 @@ export interface Box {
 }
 
 export type SourceKind = 'pdf' | 'image' | 'docx' | 'text';
+/** Lightweight is manual review: neither the model nor pattern rules run. */
 export type PrivacyMode = 'automatic' | 'lightweight';
 
 /** What kind of personal data a hidden word was. Never the data itself. */
@@ -21,7 +22,7 @@ export type PiiKind =
   | 'other';
 
 /** Who decided a word is hidden. */
-export type DetectionSource = 'model' | 'rule' | 'you';
+export type DetectionSource = 'model' | 'rule' | 'you' | 'remembered';
 
 export interface WorkingWord {
   id: number;
@@ -70,6 +71,8 @@ export interface LocalDocument {
   serverId?: string;
   /** Title stored with the document; defaults to a neutral title independent of the filename. */
   name: string;
+  /** App-generated title: fixed test labels and a visible, explicitly labelled report date. */
+  generatedName?: string;
   /** Original file name, shown on this device only. */
   fileName: string;
   sourceKind: SourceKind;
@@ -80,10 +83,10 @@ export interface LocalDocument {
   message: string;
   error?: string;
   /** Per-document result: global model readiness does not prove this document was checked. */
-  privacyCheck?: 'complete' | 'incomplete';
+  privacyCheck?: 'complete' | 'incomplete' | 'manual';
   privacyMessage?: string;
   privacyMode?: PrivacyMode;
-  /** Explicit acknowledgement is required whenever the automatic check was incomplete. */
+  /** Explicit acknowledgement is required for manual or incomplete automatic checks. */
   privacyAcknowledged?: boolean;
   pages: WorkingPage[];
   file: File | null;
@@ -124,6 +127,8 @@ export interface DocumentManifest {
 export interface SavedDocumentSummary {
   id: string;
   name: string;
+  /** Browser-only display metadata; never part of an uploaded document or AI request. */
+  originalFileName?: string;
   sourceKind: SourceKind;
   pageCount: number;
   hiddenCount: number;

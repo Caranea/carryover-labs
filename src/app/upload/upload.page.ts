@@ -1,8 +1,9 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, ElementRef, inject, OnInit, signal, viewChild } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Component, computed, effect, ElementRef, inject, OnInit, signal, viewChild } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { DocumentQueueService } from '../core/document-queue.service';
 import { LocalDocument, PrivacyMode, SavedDocumentSummary, SourceKind } from '../core/models';
+import { DeviceCheckService } from '../pii/device-check.service';
 import { ACCEPT } from '../extraction/extraction.service';
 import { countHidden } from '../pii/detect';
 import { StepRail } from '../shell/step-rail';
@@ -19,7 +20,7 @@ const KIND_ICON: Record<SourceKind, IconName> = { pdf: 'file-text', image: 'file
 })
 export class UploadPage implements OnInit {
   protected readonly queue = inject(DocumentQueueService);
-  private readonly router = inject(Router);
+  protected readonly device = inject(DeviceCheckService);
 
   protected readonly accept = ACCEPT;
   protected readonly formats = ['PDF', 'JPG', 'PNG', 'HEIC', 'DOCX', 'TXT', 'CSV'];
@@ -29,11 +30,25 @@ export class UploadPage implements OnInit {
   private readonly deleteDialog = viewChild<ElementRef<HTMLDialogElement>>('deleteDialog');
   protected readonly dragging = signal(false);
   protected readonly deleteError = signal<string | null>(null);
-  protected readonly privacyMode = signal<PrivacyMode>('automatic');
+  protected readonly privacyMode = this.queue.privacyMode;
   private dragDepth = 0;
 
   protected readonly local = computed(() => this.queue.documents().filter((d) => d.status !== 'saved'));
   protected readonly readyCount = computed(() => this.local().filter((d) => d.status === 'review').length);
+
+  constructor() {
+    effect(() => {
+      const advice = this.device.assessment();
+      // Apply a default only before the user has chosen or added any documents.
+      if (!this.queue.privacyModeChosen() && advice.recommendation) {
+        this.queue.privacyMode.set(advice.recommendation === 'manual' ? 'lightweight' : 'automatic');
+      }
+    });
+  }
+
+  protected chooseMode(mode: PrivacyMode) {
+    this.queue.choosePrivacyMode(mode);
+  }
 
   ngOnInit() {
     void this.queue.refreshSaved();
@@ -72,7 +87,7 @@ export class UploadPage implements OnInit {
   }
 
   protected review(doc: LocalDocument) {
-    void this.router.navigate(['/review', doc.localId]);
+    this.queue.openReview(doc.localId);
   }
 
   protected askDelete(doc: SavedDocumentSummary) {
@@ -117,6 +132,7 @@ export class UploadPage implements OnInit {
       case 'queued':
         return 'Waits for the file before it';
       case 'review': {
+        if (doc.privacyCheck === 'manual') return 'Ready for you to click or tap personal details to hide them';
         const n = this.hidden(doc);
         return `${n} ${n === 1 ? 'detail' : 'details'} blacked out across ${doc.pages.length} ${doc.pages.length === 1 ? 'page' : 'pages'}`;
       }

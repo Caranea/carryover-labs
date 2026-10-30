@@ -58,7 +58,7 @@
                 "output": "vendor/tesseract"
               },
               {
-                "glob": "*lstm.wasm.js",
+                "glob": "*.wasm.js",
                 "input": "node_modules/tesseract.js-core",
                 "output": "vendor/tesseract-core"
               },

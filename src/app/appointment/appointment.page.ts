@@ -60,8 +60,11 @@ export class AppointmentPage implements OnInit, OnDestroy {
     if (this.exporting()) { this.clearDownloads(); this.exporting.set(false); }
     const request = ++this.request;
     this.error.set(null);
+    this.data.set(null); this.raw.set(null);
     try {
-      const [data, raw] = this.demo ? [DEMO_RECORDS, DEMO_RESULTS] : await Promise.all([this.api.records(), this.api.results()]);
+      const data = this.demo ? DEMO_RECORDS : await this.api.records();
+      if (!this.current(request)) return;
+      const raw = this.demo ? DEMO_RESULTS : await this.api.results();
       if (!this.current(request)) return;
       this.data.set(data); this.raw.set(raw);
       if (!preserveSelection) this.keys.set(new Set(data.domains.map((d) => d.key)));

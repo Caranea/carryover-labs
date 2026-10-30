@@ -4,10 +4,12 @@ import {
   isDateToken,
   isNumericValue,
   isRangeToken,
+  isResultFlag,
   isUnitToken,
   isValidPesel,
   levenshtein,
   normalizeToken,
+  unitTokenIndices,
 } from './text-utils';
 
 export interface Hit {
@@ -293,17 +295,17 @@ function hideNamesInColumn(line: LineWord[], below: LineWord[][], first: number,
 /** A result row: has a unit, or a range next to a value, and no address cue. */
 export function isResultLine(line: { text: string | null }[]): boolean {
   const texts = line.map((w) => w.text ?? '');
-  if (texts.some(isUnitToken)) return true;
-  const hasRange = texts.some(isRangeToken) || texts.some((t, i) => t === '-' && isNumericValue(texts[i - 1] ?? '') && isNumericValue(texts[i + 1] ?? ''));
+  if (unitTokenIndices(texts).size) return true;
+  const hasRange = texts.some(isRangeToken) || texts.some((t, i) => /^[-–—]$/.test(t) && isNumericValue(texts[i - 1] ?? '') && isNumericValue(texts[i + 1] ?? ''));
   const hasValue = texts.some(isNumericValue);
   const hasCue = texts.some((t) => STREET_CUES.has(normalizeToken(t)) || /^\d{2}-\d{3}$/.test(t));
   return hasRange && hasValue && !hasCue;
 }
 
-/** Tokens that must not be hidden by the model: values, units and ranges in result rows. */
+/** Tokens that must not be hidden by the model: values, units, flags and ranges in result rows. */
 export function isProtectedResultToken(text: string, lineIsResult: boolean): boolean {
   if (!lineIsResult) return false;
-  return isNumericValue(text) || isUnitToken(text) || isRangeToken(text) || /^[-–<>=]$/.test(text);
+  return isNumericValue(text) || isUnitToken(text) || isRangeToken(text) || isResultFlag(text) || /^[-–—<>=]$/.test(text);
 }
 
 export function groupLines(words: WorkingWord[]): LineWord[][] {

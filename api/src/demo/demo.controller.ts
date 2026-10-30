@@ -34,9 +34,9 @@ export class DemoController {
   @Post('records')
   async records(@Body() body: unknown) {
     const docs = parseRecords(body);
+    if (!this.model) throw new HttpException('Results processing is unavailable. Please try again.', 503);
     const knowledge: Knowledge = { version: 1, names: {}, tests: [], conversions: {} };
-    const build = () => buildRecords(docs, knowledge, !!this.model);
-    if (!this.model) return { ...build().records, model: { state: 'off', name: null, waiting: 0, message: null } };
+    const build = () => buildRecords(docs, knowledge, true);
     return this.bounded(async () => {
       try {
         for (let call = 0; call < 8; call++) {
@@ -70,11 +70,10 @@ export class DemoController {
         }
         const result = build();
         const waiting = result.pending.names.length + result.pending.reviews.length;
-        return { ...result.records, model: { state: waiting ? 'error' : 'ready', name: this.model!.name, waiting,
-          message: waiting ? 'Some checks are still waiting. Retry matching to check this history again.' : null } };
+        if (waiting) throw new Error('Processing is incomplete');
+        return { ...result.records, model: { state: 'ready', name: this.model!.name, waiting: 0, message: null } };
       } catch {
-        return { ...build().records, model: { state: 'error', name: this.model!.name, waiting: 0,
-          message: 'The Meta AI check could not finish. Your saved results are unchanged; retry when ready.' } };
+        throw new HttpException('Results processing did not finish. Please try again.', 502);
       }
     });
   }

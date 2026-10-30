@@ -123,7 +123,7 @@ label.btn:focus-within { outline: 3px solid #0d7a68; outline-offset: 3px; }
 }
 @media print {
   @page { size: A4; margin: 14mm; }
-  .app-header, .app-footer, .no-print, app-toasts, app-source-dialog, .skip-link { display: none !important; }
+  .app-header, .app-footer, app-step-rail, .no-print, app-toasts, app-source-dialog, .skip-link { display: none !important; }
   html, body, app-root, main { display: block !important; background: white !important; color: #16302c !important; }
   .appointment { max-width: none; padding: 0; display: block; font-size: 10pt; }
   .appointment > * { margin-bottom: 6mm; }

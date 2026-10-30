@@ -16,6 +16,7 @@ export const ASSETS = {
   tesseractCore: 'vendor/tesseract-core',
   tessdata: 'vendor/tessdata',
   ortWasm: 'vendor/ort/',
+  piiGpuModel: 'models/pii-fp16-62ca5712-v1/',
 } as const;
 
 export function assetUrl(path: string): string {

@@ -22,6 +22,69 @@ describe('bounded local privacy detection', () => {
   beforeEach(() => { vi.useFakeTimers(); vi.stubGlobal('Worker', FakeWorker); });
   afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
+  it('restarts in a fresh CPU worker after GPU setup fails', async () => {
+    const service = new NerService(); const loading = service.load();
+    const gpu = FakeWorker.latest;
+    gpu.respond({ type: 'backend', variant: 'gpu-fp16' });
+    gpu.respond({ type: 'gpu-load-error', message: 'GPU session failed' });
+    const cpu = FakeWorker.latest;
+    expect(cpu).not.toBe(gpu); expect(gpu.terminated).toBe(true);
+    expect(cpu.requests[0]).toMatchObject({ type: 'load', forceCpu: true });
+    gpu.respond({ type: 'ready' }); expect(service.state()).toBe('loading');
+    cpu.respond({ type: 'backend', variant: 'cpu-q8' }); cpu.respond({ type: 'ready' });
+    expect(await loading).toBe(true); expect(service.variant()).toBe('cpu-q8');
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('uses actual download speed for estimates and stops cleanly when the user switches modes', async () => {
+    const service = new NerService();
+    const prediction = service.predict(pages());
+    const worker = FakeWorker.latest;
+    worker.respond({ type: 'load-stage', stage: 'downloading' });
+    worker.respond({ type: 'progress', fraction: 0.1, loaded: 10, total: 100 });
+    expect(service.remainingSeconds()).toBeNull();
+    await vi.advanceTimersByTimeAsync(4000);
+    worker.respond({ type: 'progress', fraction: 0.3, loaded: 30, total: 100 });
+    expect(service.remainingSeconds()).toBe(14);
+    worker.respond({ type: 'load-stage', stage: 'starting' });
+    expect(service.phase()).toBe('starting');
+    expect(service.remainingSeconds()).toBeNull();
+    service.cancel();
+    expect(await prediction).toEqual([null]);
+    worker.respond({ type: 'ready' });
+    expect(service.state()).toBe('idle');
+    expect(service.error()).toBeNull();
+    expect(worker.terminated).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('lets an actively progressing download continue past the idle timeout', async () => {
+    const service = new NerService(); const loading = service.load();
+    await vi.advanceTimersByTimeAsync(100_000);
+    FakeWorker.latest.respond({ type: 'progress', fraction: 0.1, loaded: 10, total: 100 });
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(service.state()).toBe('loading');
+    FakeWorker.latest.respond({ type: 'ready' });
+    expect(await loading).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('tracks page checking separately from the download and clears estimates on completion', async () => {
+    const service = new NerService(); const prediction = service.predict(pages());
+    FakeWorker.latest.respond({ type: 'ready' });
+    await vi.advanceTimersByTimeAsync(4000);
+    FakeWorker.latest.respond({ type: 'predict-progress', id: 0, completed: 1, total: 2 });
+    expect(service.phase()).toBe('checking');
+    expect(service.pageNumber()).toBe(1);
+    expect(service.checkProgress()).toBe(0.5);
+    expect(service.remainingSeconds()).toBe(4);
+    FakeWorker.latest.respond({ type: 'result', id: 0, predictions: [['O', 1]] });
+    await prediction;
+    expect(service.phase()).toBe('complete');
+    expect(service.remainingSeconds()).toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it('settles a silent model load and allows an explicit retry', async () => {
     const service = new NerService();
     const load = service.load();

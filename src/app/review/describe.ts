@@ -26,6 +26,7 @@ const SOURCE_LABEL: Record<DetectionSource, string> = {
   model: 'found by the on-device detector',
   rule: 'found by a pattern',
   you: 'hidden by you',
+  remembered: 'matched a detail hidden in another document',
 };
 
 /** Tooltip text for a hidden word. Includes the word itself: this never leaves the device. */

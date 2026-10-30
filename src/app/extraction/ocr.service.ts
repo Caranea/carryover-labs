@@ -1,8 +1,9 @@
-import { Injectable } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 import type Tesseract from 'tesseract.js';
 import { ASSETS, assetUrl, OCR_LANGUAGES } from '../core/assets';
 import { WorkingWord } from '../core/models';
 import { pageToWords, readingScore, readsWell } from './ocr-layout';
+import { orientationTurns } from './orientation';
 export { pageToWords, readingScore } from './ocr-layout';
 
 export type OcrSource = HTMLCanvasElement | OffscreenCanvas | Blob | ImageBitmap;
@@ -13,7 +14,9 @@ export type OcrSource = HTMLCanvasElement | OffscreenCanvas | Blob | ImageBitmap
  */
 @Injectable({ providedIn: 'root' })
 export class OcrService {
+  readonly timings = signal<number[]>([]);
   private worker: Promise<Tesseract.Worker> | null = null;
+  private orientationWorker: Promise<Tesseract.Worker | null> | null = null;
   private onProgress: ((p: number) => void) | null = null;
 
   async recognize(
@@ -27,8 +30,8 @@ export class OcrService {
 
   /**
    * OCR a page that may have been photographed sideways or upside down.
-   * When the first pass reads poorly, a quick low-resolution pass is made in
-   * each orientation and the page is turned to the one that reads best.
+   * Detect orientation before recognising text. Retain the reading-quality
+   * fallback when orientation is uncertain or the corrected text reads poorly.
    * Returns the canvas actually used, so word boxes match the page image.
    */
   async recognizeUpright(
@@ -36,7 +39,21 @@ export class OcrService {
     startId: number,
     onProgress?: (p: number, message?: string) => void,
   ): Promise<{ words: WorkingWord[]; canvas: HTMLCanvasElement }> {
-    const first = await this.run(canvas, (p) => onProgress?.(p * 0.6));
+    const started = performance.now();
+    const result = await this.recognizeOriented(canvas, startId, onProgress);
+    if (result.words.length >= 100) this.timings.update(values => [...values.slice(-5), performance.now() - started]);
+    return result;
+  }
+
+  private async recognizeOriented(
+    canvas: HTMLCanvasElement,
+    startId: number,
+    onProgress?: (p: number, message?: string) => void,
+  ): Promise<{ words: WorkingWord[]; canvas: HTMLCanvasElement }> {
+    onProgress?.(0, 'Checking which way up the page is');
+    const turns = await this.detectOrientation(canvas);
+    if (turns) canvas = rotated(canvas, turns);
+    const first = await this.run(canvas, (p) => onProgress?.(0.05 + p * 0.55, 'Recognising text'));
     if (readsWell(first)) {
       onProgress?.(1);
       return { words: pageToWords(first, startId), canvas };
@@ -66,7 +83,7 @@ export class OcrService {
     const worker = await this.getWorker();
     this.onProgress = onProgress ?? null;
     try {
-      const input = image instanceof ImageBitmap ? bitmapToCanvas(image) : image;
+      const input = typeof ImageBitmap !== 'undefined' && image instanceof ImageBitmap ? bitmapToCanvas(image) : image;
       const { data } = await worker.recognize(input as Tesseract.ImageLike, {}, { blocks: true, text: false });
       return data;
     } finally {
@@ -76,8 +93,33 @@ export class OcrService {
 
   async terminate(): Promise<void> {
     const worker = this.worker;
+    const orientationWorker = this.orientationWorker;
     this.worker = null;
+    this.orientationWorker = null;
     if (worker) await (await worker).terminate();
+    if (orientationWorker) await (await orientationWorker)?.terminate();
+  }
+
+  private async detectOrientation(canvas: HTMLCanvasElement): Promise<0 | 1 | 2 | 3 | null> {
+    this.orientationWorker ??= import('tesseract.js').then((mod) => {
+      const { createWorker } = (mod.default ?? mod) as typeof Tesseract;
+      // OSD needs the legacy core and its own small language data. The actual
+      // multilingual recogniser remains LSTM-only and keeps its existing data.
+      return createWorker('osd', 0 as Tesseract.OEM, {
+        workerPath: assetUrl(ASSETS.tesseractWorker),
+        corePath: assetUrl(ASSETS.tesseractCore),
+        langPath: assetUrl(ASSETS.tessdata),
+        workerBlobURL: false, gzip: true,
+      });
+    }).catch(() => null);
+    try {
+      const worker = await this.orientationWorker;
+      if (!worker) return null;
+      return orientationTurns((await worker.detect(canvas)).data);
+    } catch {
+      // A blank/sparse page or unavailable orientation data must not block OCR.
+      return null;
+    }
   }
 
   private getWorker(): Promise<Tesseract.Worker> {

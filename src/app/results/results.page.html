@@ -1,26 +1,26 @@
 <div class="mx-auto max-w-7xl px-5 sm:px-8 py-6 sm:py-12 flex flex-col gap-8">
   <header class="flex flex-col gap-3">
-    <app-step-rail class="hidden sm:block -ml-6 mb-4" />
+    <app-step-rail />
     <h1 class="text-4xl sm:text-5xl tracking-tight"><span class="font-bold">{{ demo ? 'Explore sample results' : 'Your results' }}</span></h1>
     <p class="text-lg text-base-content/80 max-w-3xl leading-relaxed">
       Your lab results, organized by test and date. Tap a value to check its source.
     </p>
     <div class="flex flex-wrap gap-2 mt-2">
-      <a routerLink="/appointment" [queryParams]="demo ? { demo: 'true' } : {}" class="btn btn-primary rounded-full">Prepare for my appointment</a>
+      @if (data()?.stats?.documents) { <a routerLink="/appointment" [queryParams]="demo ? { demo: 'true' } : {}" class="btn btn-primary rounded-full">Prepare for my appointment</a> }
       @if (demo) { <a routerLink="/documents" class="btn btn-outline rounded-full">Use my own documents</a> }
     </div>
     @if (demo) { <p class="p-3 rounded-box bg-base-200 text-sm"><strong>Fictional sample:</strong> these invented results show how Carryover works. No upload is needed.</p> }
-    @if (!demo) { <p class="p-3 rounded-box bg-base-200 text-sm">Previous results are saved in this browser. Clearing site data removes them.</p> }
   </header>
 
   @if (error()) {
     <div role="alert" class="alert alert-error alert-soft">
       <app-icon name="alert" />
-      <span>{{ error() }} Your saved results have not been changed.</span><button type="button" class="btn btn-sm" [disabled]="refreshing()" (click)="refresh()">Try again</button>
+      <span>{{ error() }} Your approved documents are saved.</span><button type="button" class="btn btn-sm" [disabled]="refreshing()" (click)="refresh(true)">Try again</button>
     </div>
   }
   @if (data() === null && !error()) {
-    <div class="flex flex-col gap-3" aria-label="Loading results">
+    <div class="flex flex-col gap-3" aria-label="Processing results" aria-busy="true">
+      <p role="status" class="flex items-center gap-3"><span class="loading loading-spinner loading-sm text-primary" aria-hidden="true"></span>Processing your approved lab data…</p>
       <div class="skeleton h-24 w-full"></div>
       <div class="grid md:grid-cols-2 gap-4">
         <div class="skeleton h-72 w-full"></div>
@@ -39,25 +39,6 @@
   } @else if (data()) {
     @let d = data()!;
 
-    @if (d.model.state === 'working') {
-      <div role="status" class="alert alert-info alert-soft">
-        <span class="loading loading-spinner loading-sm"></span>
-        <span>
-          Muse Spark is checking {{ d.model.waiting }} {{ d.model.waiting === 1 ? 'name, unit or document' : 'names, units and documents' }}
-          the built-in list doesn't cover. The charts update when it's done.
-        </span>
-      </div>
-    } @else if (d.model.state === 'error') {
-      <div role="alert" class="alert alert-warning alert-soft">
-        <app-icon name="alert" />
-        <span>{{ d.model.message }} Readings that need checking are listed below.</span><button type="button" class="btn btn-sm" [disabled]="refreshing()" (click)="refresh(true)">Retry matching</button>
-      </div>
-    }
-    @if (d.model.state === 'off' && d.model.message) { <p role="status" class="alert alert-info alert-soft">{{ d.model.message }}</p> }
-
-    @if (paused()) {
-      <p role="status" class="alert alert-info alert-soft">Matching is taking longer than expected. Your saved readings remain available.<button type="button" class="btn btn-sm" (click)="refresh()">Check progress</button></p>
-    }
     @if (d.issues?.length) {
       <section role="alert" class="rounded-box border border-warning p-4">
         <h2 class="font-semibold">Some documents need attention</h2>

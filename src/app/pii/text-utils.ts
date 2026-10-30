@@ -68,12 +68,30 @@ const UNIT_RE =
   /^(?:[a-zµμ]{0,3}g\/[dm]?l|[mµμnp]?mol\/l|[mµμ]?u\/m?l|[mµμ]?iu\/m?l|i?u\/l|tys\.?\/[µμu]l|mln\.?\/[µμu]l|tsd\.?\/[µμu]l|mio\.?\/[µμu]l|(?:x?10\^?\d{1,2}|g|t)\/l|\/[µμu]l|fl|pg|sek|s|mm\/h|mm\/godz|%|‰|inr|ratio|g\/l|mg\/l|ng\/ml|pg\/ml|µg\/l|ug\/l|mmhg|mosm\/kg|e\/l|kU\/l)$/i;
 
 export function isUnitToken(raw: string): boolean {
-  return UNIT_RE.test(raw.replace(/[()[\],;]/g, ''));
+  // OCR and PDF text may use superscripts, a multiplication sign, or separate
+  // words for the exponent and slash: "× 10⁹ / L" is the same unit as "x10^9/L".
+  return UNIT_RE.test(raw.normalize('NFKC').replace(/[×·]/g, 'x').replace(/[\s()[\],;]/g, ''));
+}
+
+/** Word indices belonging to a complete unit, including units split by OCR. */
+export function unitTokenIndices(texts: readonly string[]): Set<number> {
+  const found = new Set<number>();
+  for (let i = 0; i < texts.length; i++) {
+    for (let end = i + 1; end <= Math.min(texts.length, i + 7); end++) {
+      if (isUnitToken(texts.slice(i, end).join(' '))) for (let j = i; j < end; j++) found.add(j);
+    }
+  }
+  return found;
+}
+
+/** Lab flags only make a word safe when it belongs to a recognised result row. */
+export function isResultFlag(raw: string): boolean {
+  return /^(?:H{1,2}|L{1,2}|N|A|ABN|↑{1,2}|↓{1,2})$/i.test(raw.replace(/[()[\]*]/g, ''));
 }
 
 /** A lab value: optional comparator, number with . or , decimals. */
 export function isNumericValue(raw: string): boolean {
-  return /^[<>≤≥]?\d{1,5}(?:[.,]\d+)?[*!HLhl↑↓]?$/.test(raw.replace(/[()[\],;]$/g, ''));
+  return /^[<>≤≥]?\d{1,5}(?:[.,]\d+)?(?:[*!]|H{1,2}|L{1,2}|↑{1,2}|↓{1,2})?$/i.test(raw.replace(/[()[\],;]$/g, ''));
 }
 
 /** A reference range written in one token, e.g. 150-400 or 4,0-10,0. */

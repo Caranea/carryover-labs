@@ -20,12 +20,16 @@ All routes are public. All pages are lazy-loaded. Unknown paths redirect to `/`.
 
 | Service | File | Responsibility |
 | --- | --- | --- |
-| `LocalHistory` | `core/local-history.ts` | Atomic localStorage history, corrections, source images and revision checks |
+| `LocalHistory` | `core/local-history.ts` | Atomic localStorage history and corrections; IndexedDB page images; idempotent approvals and revision checks |
+| `QueueRecovery` | `core/queue-recovery.ts` | Atomic IndexedDB file/edit checkpoints with small localStorage progress markers; refresh recovery and stale-tab protection |
+| Name suggestions | `core/document-name.ts` | Editable fixed test-category labels and an unambiguous, visible report date; no free-form patient text |
+| Repeated personal details | `pii/remembered-details.ts` | Local, source-attributed matches across automatic/manual reviews; persisted in IndexedDB, excluded from progress markers and manifests |
+| Clinical term protection | `pii/medical-terms.ts` | Exact catalogue spans in result rows or standalone headings survive automatic false positives; explicit hides and drawn regions remain |
 | `DocumentQueueService` | `core/document-queue.service.ts` | All document state and the workflow: add, process, rescan, toggle, regions, rename, approve, open saved, delete |
 | `DocumentsApi` | `core/documents-api.ts` | Local history plus stateless Meta requests |
 | `ExtractionService` | `extraction/extraction.service.ts` | File type detection and limits, dispatch to readers |
-| `OcrService` | `extraction/ocr.service.ts` | One reusable tesseract.js worker, language switching, progress |
-| `NerService` | `pii/ner.service.ts` | Starts the model worker, reports download progress, predictions per word, fallback |
+| `OcrService` | `extraction/ocr.service.ts` | Reusable orientation and multilingual OCR workers, corrected page coordinates, progress and session timings |
+| `NerService` | `pii/ner.service.ts` | Starts the model worker, reports download/startup/page progress and measured estimates, supports cancellation and explicit retry |
 
 ## Readers
 
@@ -37,7 +41,7 @@ All routes are public. All pages are lazy-loaded. Unknown paths redirect to `/`.
   downscaled to 2600 px on the longest side; redrawn on a canvas (drops metadata).
 - **OCR** (`ocr.service.ts`): tesseract.js 7, LSTM engine, always `pol+deu+eng`. Tesseract's lines
   are merged into visual rows (`assignLines`) so a table row split into column blocks stays one line.
-  `recognizeUpright` detects sideways or upside-down photos and turns the page before reading.
+  `recognizeUpright` runs the separate Tesseract OSD worker before reading. Confident 0°/90°/180°/270° corrections rotate the canvas before full OCR. Uncertain/failed orientation and poor text retain the reading-quality fallback. Word boxes always refer to the returned corrected canvas.
 - **DOCX** (mammoth, raw text) and **TXT/CSV**: one text-only page, no image. CSV separators become
   word breaks; decimal commas are kept.
 - Limits: 40 MB per file, 40 pages per PDF. `.doc` (old Word) is rejected with a message.
@@ -48,7 +52,8 @@ order lines.
 ## Components
 
 - `App` (`app.ts`): header with wordmark and public navigation.
-- `UploadPage`: model status banner, drop zone ("Choose files", "Take a photo" on
+- `DetectorStatus`: opens a native privacy-check dialog when the full check starts. Shows why the check is needed, download/startup/page stages, measured time estimates when available, and plain-language failure/retry guidance. Closing it keeps work running; the header button reopens it. Switching to the lighter check stops the worker, preserves files and existing masks, and applies to waiting documents. Manual review acknowledgement remains required for incomplete checks. Downloads time out after two minutes without progress or one hour overall, allowing an active large download on a slow connection; each page check is bounded to 45 seconds. Cached weights skip the network-download stage.
+- `UploadPage`: privacy mode choices, drop zone ("Choose files", "Take a photo" on
   touch devices), "On this device" queue with progress, "Saved in this browser" list
   with "Hide more" and delete confirmation.
 - `ReviewPage`: toolbar (Click words / Draw a box, See under the bars, Text only), pages, side panel
@@ -57,9 +62,8 @@ order lines.
 - `PageView`: page image with an SVG overlay in page coordinates. Visible words are invisible click
   targets; hidden words and regions are black rectangles drawn with the same padding as the burn-in, so
   the screen matches the saved image.
-- `ResultsPage` (`/results`): built from local history and `POST /api/demo/records` ([records.md](records.md)).
-  - Muse Spark status banner (polls every 4 s while it works), counts, search, and jump links per
-    section.
+- `ResultsPage` (`/results`): sends approved result fields to `POST /api/demo/records` and waits for completed server results ([records.md](records.md)). A processing state is followed by results or a retryable error; local charts are not used as a fallback. Completed server responses are cached against the current history revision.
+  - Counts, search, and jump links per section.
   - Per domain: chart cards (`LineChart`) and a "Measured once" list.
   - "Results in words", "Left out of the charts" (each with its reason), and "Everything that was read"
     (the raw rows, with OCR corrections underlined).
@@ -79,7 +83,7 @@ order lines.
 - `WorkingWord`: `id`, `text` (null once removed), `box`, `line`, `hidden`, `locked`, `userSet`,
   `kind`, `source` (`model | rule | you`), `score`.
 
-Local documents live only in memory: reloading the tab discards unsaved files by design.
+Queue files, extracted pages, redaction edits, names, privacy choices and selected document are checkpointed on this device. IndexedDB stores the full queue atomically; localStorage holds a small progress marker, never photo payloads. Ready documents reopen after refresh, interrupted OCR/detection resumes, and an interrupted approval is matched to local history by its queue ID so it cannot create a duplicate. Originals are removed from the checkpoint after approval or discard. Progress percentages alone do not rewrite files. Storage failures remain visible with retry, block the “saved” indicator and trigger a browser leave warning while changes are uncommitted. A revision check prevents another tab from silently overwriting the queue. Existing base64 history images remain readable; new approved page images use IndexedDB.
 
 ## Self-hosted assets (`angular.json → assets`)
 
@@ -90,11 +94,27 @@ Copied from `node_modules` at build time:
 | `vendor/pdfjs/pdf.worker.min.mjs` | pdfjs-dist |
 | `vendor/pdfjs/{wasm,cmaps,standard_fonts,iccs}/` | pdfjs-dist (decoders for scanned PDFs) |
 | `vendor/tesseract/worker.min.js` | tesseract.js |
-| `vendor/tesseract-core/*lstm.wasm.js` | tesseract.js-core |
+| `vendor/tesseract-core/*.wasm.js` | tesseract.js-core (legacy OSD and LSTM variants; only the needed cores are fetched) |
 | `vendor/tessdata/{pol,deu,eng}.traineddata.gz` | @tesseract.js-data/* (4.0.0_best_int) |
+| `vendor/tessdata/osd.traineddata.gz` | Tesseract tessdata 4.1.0; compressed size 4.39 MB, Apache-2.0 |
 | `vendor/ort/ort-wasm-simd-threaded.asyncify.{mjs,wasm}` | onnxruntime-web |
 
 Paths are defined once in `core/assets.ts`. The model worker is built from `tsconfig.worker.json`.
+
+## Device selection and local model preparation
+
+`model-selection.ts` checks a real WebGPU adapter, `shader-f16`, buffer limits of at least 384,003,072 bytes, and successful device creation before any privacy weights are requested. Software adapters and reported device memory of 4 GB or less use CPU/Q8. A four-second timeout also selects CPU. The main page previews that decision without downloading weights; the worker repeats the check before loading. Only an available GPU export manifest enables GPU loading. A GPU load/warm-up failure is retried in a **fresh worker** on CPU, because a failed runtime session can poison subsequent sessions in the same worker.
+
+The GPU model is the same `bardsai/eu-pii-anonimization-multilang` detector, converted from original full-precision weights at revision `62ca5712368705bac11b8fea19e42e65cce088dd`. Prepare it before `npm run build`:
+
+```sh
+python -m pip install onnx==1.23.2 onnxruntime==1.31.1
+python scripts/prepare-gpu-model.py
+```
+
+The script downloads the public original model (about 1.11 GB) once for development, converts it with ONNX Runtime's FP16 converter, checks graph/runtime validity, and writes the approximately 555 MB export and provenance manifest to `public/models/pii-fp16-62ca5712-v1/`. Original and generated weights are Git-ignored. Include the generated directory in the deployed build; without it, selection safely uses CPU. The versioned path keeps an old browser cache from silently serving a different export. Re-running the script verifies and reuses an intact export. Do not use the generic onnxconverter-common converter for this checkpoint: its output retained incompatible float32 Cast attributes in the attention layers.
+
+The recommendation is a small badge beside the applicable option. Timing labels show broad, explicitly rough planning ranges for a 500-word page until session measurements replace them. Measured detector time is normalized to 500 words and combined with recent photo-reading time. Manual-review timing covers photo reading only, not the person's editing time. Download time is separate, uses observed network transfers from the model's origin when available, then the browser's coarse downlink hint (or explicitly states a 10 Mbps assumption). It updates from actual transfer progress and disappears when the selected weights are cached. These estimates are not hardware benchmarks or completion guarantees.
 
 ## Design system (daisyUI)
 
@@ -130,7 +150,7 @@ the `ICONS` map.
 
 | Where | Components |
 | --- | --- |
-| Shell | `navbar`, `badge` (detector status, with `tooltip`), `toast` + `alert`, `footer` |
+| Shell | `navbar`, privacy status button + native `modal` with `progress`, `toast` + `alert`, `footer` |
 | Landing (`landing/home.page`) | Hero copy and cards, public navigation, steps and FAQ |
 | Upload | Dashed `card` dropzone, `list` / `list-row` queue with `badge` and `progress`, `table` of documents, `skeleton` loading, `modal` to confirm deletion |
 | Review | `steps`, `breadcrumbs`, `join` mode switch, `toggle` for "See under bars" / "Text only", `fieldset` + `input`, `badge` counts, `collapse` list with "Keep" buttons, `alert`, `loading`, block `btn` for approve |

@@ -1,0 +1,40 @@
+:host { display: inline-flex; flex-shrink: 0; }
+.status-button { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 44px; padding: 0.5rem 0.75rem; border-radius: 999px; background: #edf5f2; color: var(--color-primary); font-size: 0.875rem; cursor: pointer; }
+.status-button:hover { background: #dfede6; }
+.privacy-modal::backdrop { background: rgb(11 35 30 / 48%); backdrop-filter: blur(3px); }
+.privacy-box { display: flex; flex-direction: column; width: calc(100% - 2rem); max-width: 86rem; height: calc(100dvh - 2rem); max-height: calc(100dvh - 2rem); padding: 0; overflow: hidden; border: 1px solid var(--color-base-300); border-radius: 1.5rem; }
+.privacy-heading { flex-shrink: 0; display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem 1.5rem; border-bottom: 1px solid var(--color-base-300); background: white; }
+.heading-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.heading-row h2 { flex: 1; }
+.heading-row app-step-rail { flex: 1; max-width: 25rem; }
+.batch-progress { padding: 0.5rem 1rem; border-radius: 1rem; background: #edf5f2; }
+.batch-progress progress { display: block; margin-block: 0.5rem; }
+.progress-overview { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.35rem 1rem; }
+.progress-counts { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; font-size: 0.875rem; }
+.progress-counts strong { color: var(--color-primary); }
+.document-picker { width: clamp(12rem, 40%, 24rem); max-width: 100%; min-width: 0; }
+.document-picker select { width: 100%; height: 2rem; min-height: 2rem; padding-block: 0; font-size: 0.8rem; color: var(--color-primary); }
+/* Put the initial top spacing on the review itself so sticky tools meet the scrollport edge. */
+.privacy-body { --review-top-space: 1.25rem; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 1.5rem 1.25rem; }
+.waiting-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; min-height: 12rem; padding: 2rem 1rem; text-align: center; }
+.waiting-state:empty { display: none; }
+.manual-option { margin-top: 1rem; padding: 1rem; border: 1px solid var(--color-base-300); border-radius: 1rem; }
+.manual-option summary { cursor: pointer; font-weight: 600; }
+.privacy-actions { flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; gap: 1rem; border-top: 1px solid var(--color-base-300); padding: 0.75rem 1.5rem; background: white; }
+.results-action { display: flex; align-items: center; justify-content: flex-end; gap: 1rem; }
+.results-action p { max-width: 18rem; text-align: right; }
+@media (max-width: 640px) {
+  .privacy-box { width: 100%; max-width: 100%; height: 100dvh; max-height: 100dvh; border: 0; border-radius: 0; }
+  .privacy-heading { padding: 0.75rem; gap: 0.5rem; }
+  .privacy-heading h2 { font-size: 1.1rem; }
+  .heading-row { flex-wrap: wrap; gap: 0.5rem; }
+  .heading-row app-step-rail { order: 3; flex-basis: 100%; max-width: none; }
+  .privacy-body { --review-top-space: 0.75rem; padding: 0 0.75rem 0.75rem; }
+  .batch-progress { padding: 0.5rem 0.75rem; }
+  .progress-counts { font-size: 0.75rem; gap: 0.25rem 0.75rem; }
+  .document-picker { width: 100%; }
+  .privacy-actions { padding: 0.75rem; padding-bottom: calc(0.75rem + env(safe-area-inset-bottom)); align-items: flex-end; gap: 0.5rem; }
+  .privacy-actions > button { max-width: 8rem; white-space: normal; }
+  .results-action { flex-direction: column; align-items: flex-end; gap: 0.35rem; }
+  .results-action p { max-width: 14rem; }
+}

@@ -1,4 +1,7 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import 'fake-indexeddb/auto';
+import { Blob as NativeBlob } from 'node:buffer';
+import { deviceTransaction } from './device-storage';
 import { LocalHistory, LOCAL_HISTORY_KEY } from './local-history';
 import type { DocumentManifest, StoredWord } from './models';
 
@@ -21,12 +24,16 @@ function report(image = false): DocumentManifest {
 }
 
 function asDataUrl(blob: Blob): Promise<string> {
-  return new Promise((resolve) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.readAsDataURL(blob); });
+  return blob.arrayBuffer().then(bytes => `data:${blob.type};base64,${btoa(String.fromCharCode(...new Uint8Array(bytes)))}`);
 }
 
 describe('persistent browser demo history', () => {
-  beforeEach(() => localStorage.removeItem(LOCAL_HISTORY_KEY));
-  afterEach(() => vi.restoreAllMocks());
+  beforeEach(async () => {
+    vi.stubGlobal('Blob', NativeBlob);
+    localStorage.removeItem(LOCAL_HISTORY_KEY);
+    await deviceTransaction(['approved-images'], 'readwrite', tx => { tx.objectStore('approved-images').clear(); });
+  });
+  afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
   it('reopens saved sources, extracted readings and charts from a new service instance', async () => {
     const originalImage = new Blob(['fictional approved pixels'], { type: 'image/jpeg' });
@@ -39,6 +46,36 @@ describe('persistent browser demo history', () => {
     expect((await reopened.records()).stats.values).toBe(1);
     expect(await asDataUrl(await reopened.pageImage(saved.id, 0))).toBe(await asDataUrl(originalImage));
     expect(localStorage.getItem(LOCAL_HISTORY_KEY)).toContain('TSH');
+    expect(localStorage.getItem(LOCAL_HISTORY_KEY)).not.toContain('base64');
+  });
+
+  it('reads an older base64 image and keeps the same approval when retried after refresh', async () => {
+    const history = new LocalHistory();
+    const saved = await history.create(report(true), [new Blob(['pixels'], { type: 'image/jpeg' })], 'source.jpg', 'original-queue-id');
+    const retried = await new LocalHistory().create(report(true), [new Blob(['pixels'])], 'source.jpg', 'original-queue-id');
+    expect(retried.id).toBe(saved.id);
+    expect(await history.list()).toHaveLength(1);
+    expect(history.approvedQueueDocuments().get('original-queue-id')?.id).toBe(saved.id);
+    expect(JSON.stringify(history.recordSnapshot())).not.toContain('original-queue-id');
+    const state = JSON.parse(localStorage.getItem(LOCAL_HISTORY_KEY)!);
+    state.entries[0].images = { '0': 'data:image/jpeg;base64,cGl4ZWxz' };
+    delete state.entries[0].imageRefs;
+    localStorage.setItem(LOCAL_HISTORY_KEY, JSON.stringify(state));
+    expect(await (await new LocalHistory().pageImage(saved.id, 0)).text()).toBe('pixels');
+  });
+
+  it('removes binary images after deletion and cleans up a save rejected by localStorage', async () => {
+    const history = new LocalHistory();
+    const saved = await history.create(report(true), [new Blob(['pixels'])]);
+    const count = () => deviceTransaction<number>(['approved-images'], 'readonly', (tx, result) => {
+      const request = tx.objectStore('approved-images').count(); request.onsuccess = () => result(request.result);
+    });
+    expect(await count()).toBe(1);
+    await history.delete(saved.id);
+    expect(await count()).toBe(0);
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('Full', 'QuotaExceededError'); });
+    await expect(history.create(report(true), [new Blob(['pixels'])])).rejects.toThrow('previous results are unchanged');
+    expect(await count()).toBe(0);
   });
 
   it('keeps existing data intact when a new save or replacement exceeds storage quota', async () => {

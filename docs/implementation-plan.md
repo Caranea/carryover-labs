@@ -20,3 +20,8 @@ The software preparation plan is complete as of 29 October 2026. See [release ev
 | Actual deployment validation | Hosting target, secrets, HTTPS, backups and independent security assessment | External gate: environment not supplied; nothing deployed |
 
 Prepared synthetic data and simulated accounts must be labelled as such. They cannot be presented as real patient evidence, clinical validation, or physical Android testing. No original medical files will be sent to external services for these checks.
+
+## Queued follow-ups — 29 October 2026
+
+- [x] Detect page orientation before full OCR, preserving photo metadata orientation and matching word boxes. User notified before starting. Tesseract OSD corrects confident 0°/90°/180°/270° cases before recognition; uncertain/blurred pages retain the quality fallback. Browser checks recovered all 454 words and upright dimensions in eight synthetic clean/blurred rotation cases. Clear rotated pages took about 4–5 seconds on this laptop; blurred rotated pages still took 26–38 seconds. Synthetic evidence is in `artifacts/device-processing/rotation.json`.
+- [x] Replace the separate device panel with an inline recommendation badge, choose a compatible privacy model after a WebGPU probe, cache the selected export, and show rough per-page and separate first-download estimates. GPU/FP16 and CPU/Q8 were exercised on the same synthetic text; see `docs/frontend.md` for asset preparation and limitations.

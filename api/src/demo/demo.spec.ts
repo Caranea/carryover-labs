@@ -4,6 +4,7 @@ import { after, before, describe, it } from 'node:test';
 import { NestFactory } from '@nestjs/core';
 import type { INestApplication } from '@nestjs/common';
 import { DemoModule } from './demo.module.js';
+import { DemoController } from './demo.controller.js';
 import type { JsonModel, ModelTask } from '../records/muse.js';
 import type { SavedDocument } from '../documents/contract.js';
 import { securityHeaders } from '../security/http-security.js';
@@ -84,13 +85,20 @@ describe('stateless Meta demo API', () => {
     assert.equal(tasks.length, calls);
   });
 
-  it('rejects malformed input and handles invalid model answers without discarding local readings', async () => {
+  it('rejects missing inference configuration instead of returning deterministic charts', async () => {
+    await assert.rejects(new DemoController(null).records(snapshot()), (error: any) => error.getStatus() === 503);
+  });
+
+  it('rejects malformed input and fails invalid model answers without returning partial charts', async () => {
     const malformed = snapshot(); malformed.documents[0].observations[0].date = '2026-02-30';
     assert.equal((await post('records', malformed)).status, 400);
     invalid = true;
     try {
-      const result = await (await post('records', snapshot())).json() as RecordsResponse;
-      assert.equal(result.model.state, 'error'); assert.ok(result.warnings.length);
+      const response = await post('records', snapshot());
+      assert.equal(response.status, 502);
+      const result = await response.json() as Record<string, unknown>;
+      assert.match(String(result.message), /try again/i);
+      assert.equal(result.domains, undefined);
       assert.equal((await post('recovery', { document: source(), page: 0 })).status, 502);
     } finally { invalid = false; }
   });

@@ -10,7 +10,7 @@ For your own documents: add files → check hidden personal details → approve 
 
 ## What works
 
-- Local PDF/photo OCR and DOCX/text reading. Personal-detail detection runs in the browser; approved sources and results are saved in localStorage on that device.
+- Local PDF/photo OCR and DOCX/text reading. Personal-detail detection runs in the browser. Queue progress, approvals and results survive refresh: small checkpoints and history use localStorage; original files awaiting approval and page images use IndexedDB.
 - Redaction removes text and burns matching areas into new JPEGs. Images stay in the browser. Default document titles do not use original filenames.
 - Source-linked timelines grouped by domain, with deterministic unit conversions. Missing units, ambiguous dates and uncertain readings stay visible for review.
 - Corrections retain the original reading and a change history. Version checks prevent one edit from silently overwriting another.
@@ -34,9 +34,9 @@ npm run start:api
 npm start
 ```
 
-Visit `http://localhost:4200` for Home, `/documents` to add documents, or `/demo` for the fictional sample. The browser's optional personal-detail model is approximately 280 MB on first use; failed/incomplete checks are reported. OCR assets are served by the app.
+Visit `http://localhost:4200` for Home, `/documents` to add documents, or `/demo` for the fictional sample. Before downloading a privacy model, the browser checks WebGPU capabilities and selects one compatible export: approximately 555 MB for GPU/FP16 or 279 MB for CPU/Q8. It caches that export for reuse. GPU setup failure restarts in a fresh CPU worker; that exceptional fallback can require a second download. OCR assets are served by the app. See [local model preparation](docs/frontend.md#device-selection-and-local-model-preparation) before building a deployment with GPU support.
 
-To enable live Meta inference, configure the Baseten and/or Meta credentials in `api/.env`. Without them, deterministic extraction and matching still work. See [configuration and endpoints](docs/api.md).
+Live results require the demo API and Baseten and/or Meta credentials in `api/.env`. After approval, the Results page sends the approved lab data for server processing and waits for completion. Failures show a retry action; there is no local chart fallback. Previously completed server results remain saved in the browser. See [configuration and endpoints](docs/api.md).
 
 ## Verify
 

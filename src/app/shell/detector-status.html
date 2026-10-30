@@ -1,0 +1,106 @@
+@if (queue.batch().length) {
+  <button type="button" class="status-button" (click)="queue.openReview()" aria-haspopup="dialog" aria-label="Open document review">
+    @if (queue.batchProgress().remaining) { <span class="loading loading-spinner loading-xs" aria-hidden="true"></span> }
+    @else { <app-icon name="shield" size="1.1rem" /> }
+    <span>{{ queue.batchProgress().ready ? queue.batchProgress().ready + ' ready to check' : queue.resultsBlocked() ? 'Document progress' : 'Documents approved' }}</span>
+  </button>
+}
+
+<dialog #dialog class="modal privacy-modal" aria-labelledby="privacy-title" (cancel)="dismiss($event)" (close)="queue.closeReview()">
+  <div class="modal-box privacy-box">
+    <header class="privacy-heading">
+      <div class="heading-row">
+        <h2 id="privacy-title" tabindex="-1" class="font-display text-xl sm:text-2xl font-semibold">{{ title() }}</h2>
+        <app-step-rail [inline]="true" />
+        <button type="button" class="btn btn-ghost btn-circle btn-sm shrink-0" aria-label="Close document review" (click)="dismiss()"><app-icon name="x" /></button>
+      </div>
+      <section class="batch-progress" aria-label="Queue progress">
+        <div class="progress-overview">
+          <div class="progress-counts" role="status" aria-live="polite">
+            <strong>{{ queue.batchProgress().ready }} ready to check</strong>
+            <span>{{ queue.batchProgress().remaining }} still processing</span>
+            <span>{{ queue.batchProgress().approved }} / {{ queue.batchProgress().total }} approved</span>
+            @if (queue.batchProgress().errors) { <span class="text-error">{{ queue.batchProgress().errors }} need attention</span> }
+          </div>
+          @if (queue.batchProgress().ready || selected().length) {
+            <label class="document-picker">
+              <span class="sr-only">Document to review</span>
+              <select class="select select-sm" (change)="queue.openReview($any($event.target).value)">
+                @if (!queue.reviewId()) { <option value="" disabled>Choose a ready document</option> }
+                @for (doc of queue.batch(); track doc.localId) {
+                  <option [value]="doc.localId" [selected]="doc.localId === queue.reviewId()" [disabled]="doc.status !== 'review'">{{ doc.fileName }} · {{ status(doc) }}</option>
+                }
+              </select>
+            </label>
+          }
+        </div>
+        <progress class="progress progress-primary w-full" [value]="queue.batchProgress().percent" max="100"
+          aria-label="Document preparation progress" [attr.aria-valuetext]="queue.batchProgress().prepared + ' of ' + queue.batchProgress().total + ' documents prepared'"></progress>
+        @if (active(); as active) {
+          <p class="text-xs text-base-content/80 truncate" [attr.title]="active.fileName">{{ stageTitle() }} · {{ active.fileName }} @if (estimate()) { · {{ estimate() }} }</p>
+        }
+        @if (queue.recovery.status() === 'error' || queue.recovery.status() === 'unavailable') {
+          <div role="alert" class="mt-2 text-sm text-error">
+            {{ queue.recovery.error() || 'Progress cannot be saved in this browser. Keep this tab open.' }}
+            <button class="btn btn-xs btn-outline rounded-full ml-2" (click)="queue.retryRecovery()">Retry saving progress</button>
+          </div>
+        } @else {
+          <p class="text-xs text-base-content/70 mt-1" role="status">{{ queue.recovery.status() === 'saving' ? 'Saving your progress on this device…' : 'Progress saved on this device. You can return after a refresh.' }}</p>
+        }
+      </section>
+    </header>
+
+    <div class="privacy-body">
+      @if (queue.reviewOpened()) {
+        @if (selected().length) {
+          @defer (on immediate) {
+            @for (doc of selected(); track doc.localId) {
+              <app-review [localId]="doc.localId" [embedded]="true" />
+            }
+          } @placeholder {
+            <div class="waiting-state" role="status"><span class="loading loading-spinner text-primary"></span><p>Opening the document…</p></div>
+          }
+        } @else {
+          <div class="waiting-state" role="status">
+            @if (queue.batchProgress().remaining) {
+              <span class="loading loading-spinner loading-lg text-primary"></span>
+              <h3 class="font-display text-2xl font-semibold">{{ queue.batchProgress().approved ? 'Preparing the remaining documents' : 'Your first document will open here when it’s ready' }}</h3>
+              <p>You can check and approve each document while the others keep processing.</p>
+              <p class="text-sm text-base-content/75">Privacy checks run on your device.</p>
+            } @else if (!queue.resultsBlocked() && queue.batchProgress().total) {
+              <app-icon name="check-circle" size="2.5rem" />
+              <h3 class="font-display text-2xl font-semibold">All documents approved</h3>
+              <p>Your approved copies are saved. You can now continue to Results.</p>
+            }
+          </div>
+        }
+        @if (errors().length) {
+          <section class="space-y-3" aria-label="Documents that need attention">
+            @for (doc of errors(); track doc.localId) {
+              <div class="rounded-2xl border border-warning/40 bg-warning/10 p-4 flex flex-wrap items-center gap-3" role="alert">
+                <div class="min-w-0 flex-1"><h3 class="font-semibold break-all">{{ doc.fileName }}</h3><p class="text-sm">{{ doc.error }}</p></div>
+                @if (doc.file) { <button class="btn btn-sm rounded-full" (click)="queue.retry(doc.localId)">Try again</button> }
+                <button class="btn btn-sm btn-ghost rounded-full" (click)="queue.remove(doc.localId)" [attr.aria-label]="'Remove ' + doc.fileName">Remove from queue</button>
+              </div>
+            }
+          </section>
+        }
+        @if (active()?.privacyMode === 'automatic' && active()?.status === 'detecting') {
+          <details class="manual-option">
+            <summary>Prefer to hide details yourself?</summary>
+            <p class="text-sm mt-2">Stop automatic detection for the remaining documents. You’ll click or tap personal details to hide them yourself and check every page.</p>
+            <button type="button" class="btn btn-sm btn-outline rounded-full mt-3" (click)="switchMode()">Hide details myself</button>
+          </details>
+        }
+      }
+    </div>
+
+    <footer class="privacy-actions">
+      <button type="button" class="btn btn-ghost rounded-full" (click)="dismiss()">{{ queue.batchProgress().remaining ? 'Continue in background' : 'Close for now' }}</button>
+      <div class="results-action">
+        @if (queue.resultsBlocked()) { <p class="text-xs text-base-content/80">Finish processing and approve or remove every document to unlock Results.</p> }
+        <button type="button" class="btn btn-primary rounded-full" [disabled]="queue.resultsBlocked()" (click)="results()">Continue to Results <app-icon name="arrow-right" size="1rem" /></button>
+      </div>
+    </footer>
+  </div>
+</dialog>

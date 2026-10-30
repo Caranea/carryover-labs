@@ -1,6 +1,8 @@
 @if (doc(); as doc) {
-  <div class="mx-auto max-w-7xl px-5 sm:px-8 py-8 sm:py-10">
-    <app-step-rail class="block mb-6" />
+  <div class="review-layout mx-auto max-w-7xl px-5 sm:px-8 py-8 sm:py-10" [class.review-embedded]="embedded()"
+    [attr.role]="embedded() ? 'region' : null" [attr.aria-label]="embedded() ? doc.fileName : null" [attr.tabindex]="embedded() ? -1 : null">
+    @if (!embedded()) {
+    <app-step-rail />
     <div class="breadcrumbs text-sm text-base-content/80 mb-2">
       <ul>
         <li><a routerLink="/documents">Documents</a></li>
@@ -8,17 +10,18 @@
       </ul>
     </div>
     <h1 class="text-3xl sm:text-4xl tracking-tight">
-      <span class="font-bold">Check what is hidden</span>
+      <span class="font-bold">{{ doc.privacyMode === 'lightweight' ? 'Hide personal details yourself' : 'Check what is hidden' }}</span>
     </h1>
     <p class="mt-2 text-base-content/80 max-w-3xl leading-relaxed">
       Text under black bars is removed from the saved copy. Tap a word to hide it or tap a removable bar to keep it. Hide stamps and signatures with an area. Use Text only for keyboard access to words.
     </p>
+    }
 
-    <app-storage-notice class="block mt-5" />
-    <div class="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] items-start">
+    @if (!embedded()) { <app-storage-notice class="block mt-5" /> }
+    <div class="review-columns mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] items-start">
       <!-- Pages -->
       <section class="relative rounded-box bg-base-200 border border-base-300" aria-label="Pages">
-        <div class="sticky top-[var(--app-header-height)] z-10 flex flex-wrap items-center gap-3 rounded-t-box bg-base-200/90 backdrop-blur px-4 py-3 border-b border-base-300" aria-label="Editing tools">
+        <div class="review-tools sticky top-[var(--app-header-height)] z-10 flex flex-wrap items-center gap-3 rounded-t-box bg-base-200 px-4 py-3 border-b border-base-300" aria-label="Editing tools">
           @if (hasImages() && !textView()) {
             <div class="join" role="group" aria-label="What clicking does">
               <button type="button" class="btn btn-sm join-item" [class.btn-primary]="mode() === 'words'" [attr.aria-pressed]="mode() === 'words'" (click)="mode.set('words')">
@@ -85,13 +88,13 @@
       </section>
 
       <!-- Summary and decision -->
-      <aside class="card bg-base-100 border border-base-300 shadow-sm lg:sticky lg:top-[calc(var(--app-header-height)+1rem)] lg:max-h-[calc(100dvh-var(--app-header-height)-2rem)] lg:overflow-y-auto">
+      <aside class="review-decision card bg-base-100 border border-base-300 shadow-sm lg:sticky lg:top-[calc(var(--app-header-height)+1rem)] lg:max-h-[calc(100dvh-var(--app-header-height)-2rem)] lg:overflow-y-auto">
         <div class="card-body gap-5 p-5">
           <fieldset class="fieldset p-0">
             <legend class="fieldset-legend pt-0">Document name</legend>
             <input id="doc-name" aria-label="Document name" class="input w-full" [disabled]="busy()" [value]="doc.name" (input)="rename($any($event.target).value)" maxlength="120" autocomplete="off" />
             @if (!doc.serverId) {
-              <p class="label whitespace-normal">Use a general name such as Thyroid tests. Do not include personal details.</p>
+              <p class="label whitespace-normal">Suggested from the report when possible. You can edit it. Keep personal details out.</p>
             }
           </fieldset>
 
@@ -119,22 +122,18 @@
             }
           </div>
 
-          @if (doc.privacyCheck === 'incomplete') {
+          @if (doc.privacyCheck === 'incomplete' || doc.privacyCheck === 'manual') {
             <div role="alert" class="alert alert-warning alert-soft text-sm">
               <app-icon name="alert" />
               <span>{{ doc.privacyMessage ?? 'Automatic privacy checking was incomplete. Read every page and hide any personal details before saving.' }}</span>
             </div>
             <label class="flex items-start gap-3 rounded-box border border-warning/60 p-4 text-sm cursor-pointer">
               <input type="checkbox" class="checkbox checkbox-primary mt-0.5" [checked]="doc.privacyAcknowledged === true" [disabled]="busy()" (change)="queue.acknowledgePrivacy(localId(), $any($event.target).checked)" />
-              <span>I understand this privacy check was incomplete. I checked every page myself and hid the personal details I want removed.</span>
+              <span>{{ doc.privacyCheck === 'manual' ? 'I understand automatic detection is off.' : 'I understand this privacy check was incomplete.' }} I checked every page myself and hid the personal details I want removed.</span>
             </label>
-            @if (doc.privacyMode === 'lightweight') {
-              <button type="button" class="btn btn-sm btn-outline rounded-full h-auto min-h-11 py-2" [disabled]="busy()" (click)="queue.runAutomaticCheck(localId())">Use the full local check (about 280 MB)</button>
-            }
+            <button type="button" class="btn btn-sm btn-outline rounded-full h-auto min-h-11 py-2" [disabled]="busy()" (click)="queue.runAutomaticCheck(localId())">{{ doc.privacyMode === 'lightweight' ? 'Use the full privacy check' : 'Retry the full privacy check' }}</button>
           }
 
-          @if (regionCount()) { <p class="text-sm text-base-content/80">Words inside a hidden area stay hidden. Use “Undo area” below that page before keeping any words inside it.</p> }
-          @if (nearbyCount()) { <p role="status" class="rounded-box border border-warning/60 p-3 text-sm">{{ nearbyCount() }} nearby words are also hidden because the black areas touch them. On a tightly spaced row this can spread further. Check the black preview. To change it, undo the original hidden word or area; selecting a nearby covered word does this too.</p> }
           @if (groups().length) {
             <div class="collapse collapse-arrow border border-base-300 rounded-box">
               <input type="checkbox" [checked]="groups().length <= 8" aria-label="Show original hiding choices" />
@@ -171,21 +170,22 @@
               <li class="flex gap-2"><span class="text-primary"><app-icon name="check" size="1.05rem" /></span>Addresses, phone numbers, stamps, signatures</li>
               <li class="flex gap-2"><span class="text-primary"><app-icon name="check" size="1.05rem" /></span>PESEL, insurance, card or order numbers</li>
             </ul>
+            @if (doc.privacyMode !== 'lightweight') {
             <button type="button" class="btn btn-sm btn-outline rounded-full border-base-300 self-start" [disabled]="busy() || doc.strict" (click)="rescan()">
               <app-icon name="scan" size="1rem" />
-              {{ doc.strict ? 'Checked strictly' : doc.privacyMode === 'lightweight' ? 'Check patterns again, more strictly' : 'Check again, more strictly' }}
+              {{ doc.strict ? 'Checked strictly' : 'Check again, more strictly' }}
             </button>
+            }
           </div>
 
-          @if (doc.error) {
-            <div role="alert" class="alert alert-error alert-soft text-sm">
-              <app-icon name="alert" />
-              <span>{{ doc.error }}</span>
-            </div>
-          }
-
           <div class="sticky bottom-0 -mx-5 -mb-5 flex flex-col gap-2 border-t border-base-300 bg-base-100 p-5">
-            <button type="button" class="btn btn-primary btn-lg btn-block rounded-full" [disabled]="busy() || (doc.privacyCheck === 'incomplete' && !doc.privacyAcknowledged)" (click)="approve()">
+            @if (doc.error) {
+              <div id="approval-error" role="alert" class="alert alert-error alert-soft text-sm">
+                <app-icon name="alert" />
+                <span>{{ doc.error }}</span>
+              </div>
+            }
+            <button type="button" class="btn btn-primary btn-lg btn-block rounded-full" [attr.aria-describedby]="doc.error ? 'approval-error' : null" [disabled]="busy() || ((doc.privacyCheck === 'incomplete' || doc.privacyCheck === 'manual') && !doc.privacyAcknowledged)" (click)="approve()">
               @if (doc.status === 'saving') {
                 <span class="loading loading-spinner loading-sm"></span> Saving
               } @else {
@@ -193,7 +193,7 @@
               }
             </button>
             <p class="text-xs text-center text-base-content/80">
-              Saves page images with the bars burned in. The original stays on this device.
+              Saves page images with the bars burned in. Removes the original from the saved queue.
             </p>
             @if (!doc.serverId) {
               <button type="button" class="btn btn-ghost btn-sm rounded-full text-error self-center" [disabled]="busy()" (click)="discard()">
@@ -212,8 +212,8 @@
         <span class="grid place-items-center size-14 rounded-full bg-base-100 text-base-content/80"><app-icon name="file-text" size="1.6rem" /></span>
         <h1 class="font-display text-2xl font-semibold">This document is no longer here</h1>
         <p class="text-base-content/80 max-w-md">
-          Files that were not saved are discarded when the page is reloaded or closed, because they never leave this
-          device. Add the file again to continue.
+          Open Documents to restore saved progress or choose another file. If this file was removed or browser
+          storage was cleared, add it again to continue.
         </p>
         <a routerLink="/documents" class="btn btn-primary rounded-full">Back to documents</a>
       </div>

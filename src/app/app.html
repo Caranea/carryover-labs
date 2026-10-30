@@ -13,17 +13,16 @@
       <ul class="header-nav-list">
         <li><a routerLink="/" routerLinkActive="is-active" ariaCurrentWhenActive="page" [routerLinkActiveOptions]="{ exact: true }" (click)="closeMenu()">Home</a></li>
         <li><a routerLink="/documents" routerLinkActive="is-active" ariaCurrentWhenActive="page" (click)="closeMenu()">Documents</a></li>
-        <li><a routerLink="/results" routerLinkActive="is-active" ariaCurrentWhenActive="page" (click)="closeMenu()">Results</a></li>
+        <li><a [routerLink]="queue.resultsBlocked() ? null : '/results'" [attr.aria-disabled]="queue.resultsBlocked() || null" [attr.title]="queue.resultsBlocked() ? 'Finish checking and approving your queued documents first' : null" routerLinkActive="is-active" ariaCurrentWhenActive="page" (click)="closeMenu()">Results</a></li>
+        <li><a routerLink="/demo" routerLinkActive="is-active" ariaCurrentWhenActive="page" (click)="closeMenu()">See demo</a></li>
       </ul>
       <div class="mobile-menu-actions">
-        <a routerLink="/demo" class="header-sample" (click)="closeMenu()">Try sample <app-icon name="arrow-right" size="1rem" /></a>
         <a routerLink="/documents" class="header-cta" (click)="closeMenu()">Get started <app-icon name="arrow-right" size="1rem" /></a>
       </div>
     </nav>
 
     <div class="header-actions">
       <app-detector-status />
-      <a routerLink="/demo" class="header-sample desktop-action">Try sample</a>
       <a routerLink="/documents" class="header-cta desktop-action">Get started <app-icon name="arrow-right" size="1rem" /></a>
       <button #menuToggle type="button" class="menu-toggle" [attr.aria-expanded]="menuOpen()" aria-controls="main-navigation" [attr.aria-label]="menuOpen() ? 'Close navigation menu' : 'Open navigation menu'" (click)="toggleMenu()">
         <app-icon [name]="menuOpen() ? 'x' : 'menu'" size="1.35rem" />
@@ -36,17 +35,39 @@
   <router-outlet />
 </main>
 
-<footer class="app-footer footer sm:footer-horizontal bg-base-200 text-base-content/80 px-6 py-8 text-sm">
-  <aside class="flex items-center gap-3">
-    <app-mark [size]="28" class="size-7 shrink-0" />
-    <p class="max-w-md">Carryover organises lab results. It never interprets them or gives medical advice.</p>
-  </aside>
-  <nav class="sm:justify-self-end">
-    <p class="flex items-center gap-2">
-      <app-icon name="lock" size="1rem" />
-      Documents are read on your device. Your result history is saved in this browser.
-    </p>
-  </nav>
+<footer class="app-footer">
+  <div class="footer-inner">
+    <div class="footer-main">
+      <div class="footer-brand">
+        <a routerLink="/" class="footer-logo" aria-label="Carryover Labs, home">
+          <app-mark [size]="40" />
+          <span class="footer-wordmark">Carryover <span>Labs</span></span>
+        </a>
+        <p>From scattered lab reports to a clearer conversation with your doctor.</p>
+      </div>
+
+      <nav class="footer-links" aria-label="Footer">
+        <h2>Explore</h2>
+        <a routerLink="/">Home</a>
+        <a routerLink="/documents">Documents</a>
+        <a [routerLink]="queue.resultsBlocked() ? null : '/results'" [attr.aria-disabled]="queue.resultsBlocked() || null" [attr.title]="queue.resultsBlocked() ? 'Finish checking and approving your queued documents first' : null">Results</a>
+        <a routerLink="/demo">See demo</a>
+      </nav>
+
+      <section class="footer-privacy" aria-labelledby="footer-privacy-title">
+        <span class="footer-privacy-icon"><app-icon name="shield" size="1.25rem" /></span>
+        <div>
+          <h2 id="footer-privacy-title">Keep personal details private</h2>
+          <p>Original files stay on this device while you review them. You choose what to hide before saving a copy. AI checks use text from that checked copy.</p>
+        </div>
+      </section>
+    </div>
+
+    <div class="footer-bottom">
+      <p>© {{ currentYear }} Carryover Labs</p>
+      <p>For appointment preparation only. Carryover does not provide medical advice.</p>
+    </div>
+  </div>
 </footer>
 
 <app-toasts />

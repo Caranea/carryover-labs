@@ -24,6 +24,7 @@ import {
   SquareDashedMousePointer,
   Stethoscope,
   Trash2,
+  TriangleAlert,
   Upload,
   X,
 } from 'lucide-static';
@@ -52,6 +53,7 @@ const ICONS = {
   'draw-box': SquareDashedMousePointer,
   stethoscope: Stethoscope,
   trash: Trash2,
+  warning: TriangleAlert,
   upload: Upload,
   x: X,
 } as const;

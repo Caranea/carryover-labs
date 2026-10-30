@@ -7,11 +7,11 @@ interface Point {
 }
 
 const POINTS: Point[] = [
-  { label: '2008', value: 212 },
-  { label: '2009', value: 183 },
-  { label: '2010', value: 141 },
-  { label: '2011', value: 168 },
-  { label: '2012', value: 172 },
+  { label: '2022', value: 212 },
+  { label: '2023', value: 183 },
+  { label: '2024', value: 141 },
+  { label: '2025', value: 168 },
+  { label: '2026', value: 172 },
 ];
 const W = 260;
 const PLOT_HEIGHT = 96;
@@ -45,7 +45,7 @@ export class HeroStack {
   protected readonly line = POINTS.map((p, i) => `${x(i)},${y(p.value)}`).join(' ');
   protected readonly removed = [
     'Patient name',
-    'PESEL',
+    'National ID / SSN',
     'Doctors and technicians',
     'Addresses and phones',
   ];

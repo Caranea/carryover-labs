@@ -26,6 +26,7 @@ interface HiddenGroup {
   selector: 'app-review',
   imports: [PageView, TextView, RouterLink, Icon, StepRail, StorageNotice],
   templateUrl: './review.page.html',
+  styleUrl: './review.page.css',
 })
 export class ReviewPage {
   protected readonly queue = inject(DocumentQueueService);
@@ -34,6 +35,7 @@ export class ReviewPage {
   private readonly toast = inject(ToastService);
 
   readonly localId = input.required<string>();
+  readonly embedded = input(false);
 
   protected readonly mode = signal<EditMode>('words');
   protected readonly reveal = signal(false);
@@ -124,16 +126,20 @@ export class ReviewPage {
     const ok = await this.queue.approve(this.localId());
     if (!ok) return;
     this.toast.show(
-      before?.serverId ? `Saved changes to “${before.name}”` : `Saved “${before?.name ?? 'document'}”`,
+      before?.serverId ? `Saved changes to “${before.fileName}”` : `Saved “${before?.fileName ?? 'document'}”`,
       `${removed} ${removed === 1 ? 'detail' : 'details'} removed. The approved copy is saved in this browser.`,
     );
+    if (this.embedded()) return;
     const next = this.queue.documents().find((d) => d.status === 'review');
-    void this.router.navigate(next ? ['/review', next.localId] : ['/results']);
+    if (this.queue.resultsBlocked()) {
+      this.queue.openReview(next?.localId);
+      void this.router.navigate(['/documents']);
+    } else void this.router.navigate(['/results']);
   }
 
   protected discard() {
     this.queue.remove(this.localId());
-    void this.router.navigate(['/documents']);
+    if (!this.embedded()) void this.router.navigate(['/documents']);
   }
 
   private wordAt(page: number, id: number): WorkingWord | undefined {

@@ -6,22 +6,32 @@ import type { DocumentManifest, SavedDocument, SavedDocumentSummary } from './mo
 import type { RecordsResponse } from './records';
 import type { CorrectionRequest, Observation, ObservationFields, ResultsResponse } from './results';
 import type { RecoveryResponse } from './recovery';
+import { deleteApprovedImages, getApprovedImage, putApprovedImages } from './device-storage';
 
 export const LOCAL_HISTORY_KEY = 'carryover.demo.history.v1';
 interface Entry {
   document: SavedDocument;
+  /** Kept outside document so recovery and results requests cannot include it. */
+  originalFileName?: string;
+  /** Local idempotency key: reconnect an approval if refresh interrupted queue saving. */
+  sourceLocalId?: string;
   observations: Observation[];
   images: Record<string, string>;
+  /** New page images use binary storage; images above remains readable for older saves. */
+  imageRefs?: Record<string, string>;
   revision: string;
   recovery?: RecoveryResponse;
 }
 interface HistoryState { version: 1; entries: Entry[]; modelRecords?: { fingerprint: string; records: RecordsResponse } }
 
-/** One atomic localStorage value holds approved sources, readings and correction history. */
+/** Atomic localStorage metadata references page blobs committed to IndexedDB first. */
 export class LocalHistory {
+  approvedQueueDocuments(): Map<string, SavedDocumentSummary> {
+    return new Map(read().filter(entry => entry.sourceLocalId).map(entry => [entry.sourceLocalId!, summary(entry.document, entry.originalFileName)]));
+  }
   recordSnapshot() {
     const all = read();
-    return { fingerprint: fingerprint(all), documents: all.map(({ document, observations }) => ({ id: document.id, name: document.name, observations })) };
+    return { fingerprint: fingerprint(all), documents: all.map(({ document, observations }) => ({ id: document.id, name: document.name, observations })), issues: issues(all) };
   }
 
   cachedModelRecords(): RecordsResponse | null {
@@ -71,13 +81,19 @@ export class LocalHistory {
   }
 
   async list(): Promise<SavedDocumentSummary[]> {
-    return read().map(({ document }) => summary(document));
+    return read().map(({ document, originalFileName }) => summary(document, originalFileName));
   }
 
-  async get(id: string): Promise<SavedDocument> { return find(read(), id).document; }
+  async get(id: string): Promise<SavedDocument> {
+    const { document, originalFileName } = find(read(), id);
+    return { ...document, ...summary(document, originalFileName) };
+  }
 
   async pageImage(id: string, index: number): Promise<Blob> {
-    const data = find(read(), id).images[String(index)];
+    const entry = find(read(), id);
+    const ref = entry.imageRefs?.[String(index)];
+    if (ref) return getApprovedImage(ref);
+    const data = entry.images[String(index)];
     if (!data) throw new Error('This page image is no longer saved on this device.');
     const [prefix, encoded] = data.split(',', 2);
     const mime = /^data:([^;]+);base64$/.exec(prefix)?.[1];
@@ -86,16 +102,25 @@ export class LocalHistory {
     return new Blob([bytes], { type: mime });
   }
 
-  async create(manifest: DocumentManifest, images: (Blob | null)[]): Promise<SavedDocumentSummary> {
+  async create(manifest: DocumentManifest, images: (Blob | null)[], originalFileName?: string, sourceLocalId?: string): Promise<SavedDocumentSummary> {
+    const existing = sourceLocalId ? read().find(entry => entry.sourceLocalId === sourceLocalId) : undefined;
+    if (existing) return summary(existing.document, existing.originalFileName);
     const now = new Date().toISOString();
     const document: SavedDocument = {
       ...safeManifest(manifest), id: crypto.randomUUID(), pageCount: manifest.pages.length,
       createdAt: now, updatedAt: now,
     };
     const entry = await prepare(document, images);
-    // Read only after image conversion finishes, so concurrent saves retain each other's work.
-    write([entry, ...read()]);
-    return summary(document);
+    if (originalFileName) entry.originalFileName = originalFileName;
+    if (sourceLocalId) entry.sourceLocalId = sourceLocalId;
+    try {
+      // Read after binary saving finishes so concurrent saves retain each other's work.
+      const current = read();
+      const concurrent = sourceLocalId ? current.find(item => item.sourceLocalId === sourceLocalId) : undefined;
+      if (concurrent) { await cleanImages(entry); return summary(concurrent.document, concurrent.originalFileName); }
+      write([entry, ...current]);
+    } catch (error) { await cleanImages(entry); throw error; }
+    return summary(document, entry.originalFileName);
   }
 
   async replace(id: string, manifest: DocumentManifest, images: (Blob | null)[]): Promise<SavedDocumentSummary> {
@@ -106,10 +131,15 @@ export class LocalHistory {
       ...previous.document, ...safe, pageCount: safe.pages.length, updatedAt: new Date().toISOString(),
     };
     const replacement = await prepare(document, images);
-    const all = read();
-    if (find(all, id).revision !== previous.revision) throw new Error('This document changed. Reopen it before saving.');
-    write(all.map((entry) => entry.document.id === id ? replacement : entry));
-    return summary(document);
+    replacement.originalFileName = previous.originalFileName;
+    replacement.sourceLocalId = previous.sourceLocalId;
+    try {
+      const all = read();
+      if (find(all, id).revision !== previous.revision) throw new Error('This document changed. Reopen it before saving.');
+      write(all.map((entry) => entry.document.id === id ? replacement : entry));
+    } catch (error) { await cleanImages(replacement); throw error; }
+    await cleanImages(previous);
+    return summary(document, replacement.originalFileName);
   }
 
   async results(): Promise<ResultsResponse> {
@@ -160,7 +190,10 @@ export class LocalHistory {
   }
 
   async delete(id: string): Promise<void> {
-    write(read().filter((entry) => entry.document.id !== id));
+    const entries = read();
+    const removed = entries.find(entry => entry.document.id === id);
+    write(entries.filter((entry) => entry.document.id !== id));
+    if (removed) await cleanImages(removed);
   }
 }
 
@@ -185,7 +218,9 @@ function validEntry(value: any): value is Entry {
     && doc.pages.every((page: any) => Number.isInteger(page?.index) && Array.isArray(page.words) && Array.isArray(page.regions))
     && Array.isArray(value.observations) && value.observations.every((o: any) => typeof o?.id === 'string' && o.documentId === doc.id && typeof o.name === 'string' && typeof o.valueText === 'string')
     && value.images && typeof value.images === 'object' && !Array.isArray(value.images)
-    && Object.values(value.images).every((image) => typeof image === 'string');
+    && Object.values(value.images).every((image) => typeof image === 'string')
+    && (value.imageRefs === undefined || (value.imageRefs && typeof value.imageRefs === 'object' && !Array.isArray(value.imageRefs)
+      && Object.values(value.imageRefs).every(ref => typeof ref === 'string')));
 }
 
 function write(entries: Entry[], modelRecords?: HistoryState['modelRecords']): void {
@@ -199,10 +234,14 @@ function find(entries: Entry[], id: string): Entry {
   return entry;
 }
 
-function summary({ pages: _pages, ...rest }: SavedDocument): SavedDocumentSummary { return rest; }
+function summary({ pages: _pages, ...rest }: SavedDocument, originalFileName?: string): SavedDocumentSummary {
+  return originalFileName ? { ...rest, originalFileName } : rest;
+}
 
 function safeManifest(manifest: DocumentManifest): DocumentManifest {
-  const copy = structuredClone(manifest);
+  // Explicit fields prevent browser-only metadata from entering processing payloads.
+  const { name, sourceKind, pages, hiddenCount } = manifest;
+  const copy = structuredClone({ name, sourceKind, pages, hiddenCount });
   for (const page of copy.pages) for (const word of page.words) if (word.h) word.t = null;
   return copy;
 }
@@ -220,26 +259,26 @@ function preserveHidden(previous: SavedDocument, next: DocumentManifest): void {
 }
 
 async function prepare(document: SavedDocument, images: (Blob | null)[]): Promise<Entry> {
-  const savedImages: Record<string, string> = {};
+  const revision = crypto.randomUUID();
+  const imageRefs: Record<string, string> = {};
+  const blobs: Record<string, Blob> = {};
   for (let i = 0; i < document.pages.length; i++) {
     if (!document.pages[i].hasImage) continue;
     if (!images[i]) throw new Error('A source page image is missing. Add the document again.');
-    savedImages[String(document.pages[i].index)] = await encodeImage(images[i]!);
+    const key = `${document.id}/${revision}/${document.pages[i].index}`;
+    imageRefs[String(document.pages[i].index)] = key;
+    blobs[key] = images[i]!;
   }
+  if (Object.keys(blobs).length) await putApprovedImages(blobs);
   return {
-    document, images: savedImages, revision: crypto.randomUUID(),
+    document, images: {}, imageRefs, revision,
     observations: extractDocument(document).observations.map((o) => ({ ...o, revision: crypto.randomUUID() })),
   };
 }
 
-function encodeImage(image: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error('The approved page image could not be read. Try saving again.'));
-    reader.onabort = () => reject(new Error('Saving was interrupted. Try again.'));
-    reader.readAsDataURL(image);
-  });
+async function cleanImages(entry: Entry) {
+  // A cleanup failure must not turn a completed save into a failed approval.
+  await deleteApprovedImages(Object.values(entry.imageRefs ?? {})).catch(() => {});
 }
 
 function issues(entries: Entry[]) {

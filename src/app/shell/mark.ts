@@ -1,6 +1,6 @@
 import { Component, input } from '@angular/core';
 
-/** Layered lab reports, with a retained result highlighted in warm yellow. */
+/** Layered lab reports with matching teal rows. */
 @Component({
   selector: 'app-mark',
   template: `

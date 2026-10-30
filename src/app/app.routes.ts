@@ -1,9 +1,10 @@
 import { Routes } from '@angular/router';
+import { resultsReadyGuard } from './core/results-ready.guard';
 
 export const routes: Routes = [
   { path: '', title: 'Carryover Labs – Home', loadComponent: () => import('./landing/home.page').then((m) => m.HomePage) },
   { path: 'demo', data: { demo: true }, title: 'Fictional sample – Carryover', loadComponent: () => import('./results/results.page').then((m) => m.ResultsPage) },
-  { path: 'appointment', title: 'Appointment record – Carryover', loadComponent: () => import('./appointment/appointment.page').then((m) => m.AppointmentPage) },
+  { path: 'appointment', canActivate: [resultsReadyGuard], title: 'Appointment record – Carryover', loadComponent: () => import('./appointment/appointment.page').then((m) => m.AppointmentPage) },
   {
     path: 'documents',
     title: 'Add documents – Carryover',
@@ -16,6 +17,7 @@ export const routes: Routes = [
   },
   {
     path: 'results',
+    canActivate: [resultsReadyGuard],
     title: 'Your results – Carryover',
     loadComponent: () => import('./results/results.page').then((m) => m.ResultsPage),
   },

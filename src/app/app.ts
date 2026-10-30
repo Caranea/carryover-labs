@@ -5,6 +5,7 @@ import { DetectorStatus } from './shell/detector-status';
 import { Mark } from './shell/mark';
 import { Toasts } from './shell/toasts';
 import { Icon } from './ui/icon';
+import { DocumentQueueService } from './core/document-queue.service';
 
 @Component({
   selector: 'app-root',
@@ -19,11 +20,13 @@ import { Icon } from './ui/icon';
   },
 })
 export class App {
+  protected readonly queue = inject(DocumentQueueService);
   private readonly router = inject(Router);
   private readonly injector = inject(Injector);
   private readonly navigation = viewChild<ElementRef<HTMLElement>>('navigation');
   private readonly menuToggle = viewChild<ElementRef<HTMLButtonElement>>('menuToggle');
   protected readonly menuOpen = signal(false);
+  protected readonly currentYear = new Date().getFullYear();
 
   constructor() {
     this.router.events.pipe(takeUntilDestroyed()).subscribe((event) => {

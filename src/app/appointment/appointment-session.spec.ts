@@ -21,6 +21,15 @@ describe('appointment view lifecycle', () => {
     const fixture = TestBed.createComponent(AppointmentPage); fixture.detectChanges();
     return { fixture, component: fixture.componentInstance as any };
   }
+  it('keeps appointment export unavailable when server processing fails', async () => {
+    const { fixture, component } = setup({ records: vi.fn().mockRejectedValue(new Error('Please try again.')), results: vi.fn().mockResolvedValue(DEMO_RESULTS) });
+    await vi.waitFor(() => expect(component.error()).toBe('Please try again.'));
+    fixture.detectChanges();
+    expect(component.data()).toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain('Download appointment PDF');
+    expect(fixture.nativeElement.querySelector('[role="alert"]')).not.toBeNull();
+    fixture.destroy();
+  });
   it('aborts export when the appointment view is destroyed', async () => {
     vi.stubGlobal('Worker', FakeWorker);
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});

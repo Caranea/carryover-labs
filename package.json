@@ -58,6 +58,7 @@
     "@types/node": "^20.17.19",
     "@types/pdfmake": "^0.3.3",
     "esbuild": "^0.25.12",
+    "fake-indexeddb": "^6.2.7",
     "jsdom": "^27.1.0",
     "typescript": "~5.9.2",
     "vitest": "^4.0.8"

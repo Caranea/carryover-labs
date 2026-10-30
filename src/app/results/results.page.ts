@@ -22,10 +22,6 @@ const REASON: Record<WarningReason, string> = {
   model: 'Needs checking',
 };
 
-/** While Muse Spark works in the background, check back this often. */
-const POLL_MS = 4000;
-const MAX_POLLS = 45;
-
 /** Each test over time, from every lab and language, each value traceable to its page. */
 @Component({
   selector: 'app-results',
@@ -45,12 +41,9 @@ export class ResultsPage implements OnInit, OnDestroy {
   private request = 0;
   private readonly router = inject(Router);
   protected readonly demo = inject(ActivatedRoute).snapshot.data['demo'] === true;
-  protected readonly paused = signal(false);
   protected readonly refreshing = signal(false);
   private destroyed = false;
   private readonly sourceDialog = viewChild.required(SourceDialog);
-  private poll: ReturnType<typeof setTimeout> | null = null;
-  private polls = 0;
 
   protected readonly data = signal<RecordsResponse | null>(null);
   protected readonly raw = signal<ResultsResponse | null>(null);
@@ -110,15 +103,14 @@ export class ResultsPage implements OnInit, OnDestroy {
   protected async refresh(retryModel = false) {
     if (this.demo || this.destroyed || this.refreshing()) return;
     const request = ++this.request;
-    if (this.poll) clearTimeout(this.poll);
-    this.polls = 0; this.paused.set(false); this.refreshing.set(true);
+    this.refreshing.set(true); this.error.set(null); this.data.set(null); this.raw.set(null);
     try {
-      if (retryModel) await this.api.retryRecords();
+      const data = await (retryModel ? this.api.retryRecords() : this.api.records());
       if (!this.current(request)) return;
       const raw = await this.api.results();
       if (!this.current(request)) return;
       this.raw.set(raw);
-      await this.load(request);
+      this.data.set(data);
     } catch (e) { if (this.current(request)) this.error.set(describeHttpError(e)); }
     finally { if (this.current(request)) this.refreshing.set(false); }
   }
@@ -126,22 +118,6 @@ export class ResultsPage implements OnInit, OnDestroy {
   ngOnDestroy() {
     this.destroyed = true;
     this.request++;
-    if (this.poll) clearTimeout(this.poll);
-  }
-
-  private async load(request: number) {
-    if (!this.current(request)) return;
-    try {
-      const data = await this.api.records();
-      if (!this.current(request)) return;
-      this.data.set(data);
-      this.error.set(null);
-      if (data.model.state === 'working' && this.polls++ < MAX_POLLS) {
-        this.poll = setTimeout(() => void this.load(request), POLL_MS);
-      } else if (data.model.state === 'working') { this.paused.set(true); }
-    } catch (e) {
-      if (this.current(request)) this.error.set(describeHttpError(e));
-    }
   }
 
   protected chartTitle(chart: RecordDomain['charts'][number]): string {
