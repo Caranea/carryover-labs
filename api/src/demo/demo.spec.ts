@@ -5,172 +5,27 @@ import { NestFactory } from '@nestjs/core';
 import type { INestApplication } from '@nestjs/common';
 import { DemoModule } from './demo.module.js';
 import { DemoController } from './demo.controller.js';
-import type { JsonModel, ModelTask } from '../records/muse.js';
-import type { SavedDocument } from '../documents/contract.js';
 import { securityHeaders } from '../security/http-security.js';
-import type { RecordsResponse } from '../records/contract.js';
-import type { RecoveryResponse } from '../recovery/contract.js';
 
-function source(): SavedDocument {
-  const word = (t: string, l: number, x: number) => ({ t, l, b: [x, 20 + l * 30, Math.max(12, t.length * 8), 18] as [number, number, number, number] });
-  return { id: 'synthetic-document', name: 'PRIVATE-TITLE', sourceKind: 'text', hiddenCount: 1, pageCount: 1,
-    createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z',
-    pages: [{ index: 0, width: 1200, height: 500, hasImage: false, ocr: false, regions: [], words: [
-      word('Collected', 0, 40), word('2024-01-01', 0, 150), word('TSH', 2, 40),
-      word('1,50', 3, 40), word('mIU/L', 3, 130), word('0,35', 3, 240), word('–', 3, 290), word('4,94', 3, 320),
-      { t: null, h: true, l: 7, b: [40, 230, 120, 18] },
-    ] }] };
-}
-const evidence = { name: [2], value: [3], unit: [4], date: [1], reference: [5, 6, 7] };
-const batchSnapshot = (count: number, name = 'TSH') => ({ documents: Array.from({ length: count }, (_, i) => ({
-  id: `fictional-${i}`, name: 'Synthetic report', observations: [{
-    id: `row-${i}`, documentId: `fictional-${i}`, page: 0, name, valueText: '2.4', unit: 'mIU/L', date: '2026-01-01',
-  }],
-})) });
-
-describe('stateless Meta demo API', () => {
+describe('stateless image processing API', () => {
   let app: INestApplication, base: string;
-  const tasks: ModelTask[] = [];
-  let invalid = false;
-  const model: JsonModel = { name: 'Synthetic Meta model', async ask<T>(task: ModelTask): Promise<T> {
-    tasks.push(task);
-    if (invalid) return { unexpected: true } as T;
-    if (task.kind === 'recover-source-rows') return { rows: [{ page: 0, ...evidence }, { page: 0, ...evidence, value: [8] }] } as T;
-    if (task.kind === 'map-names') return { answers: [{ name: 'Unfamiliar thyroid label', key: 'tsh', newTest: null, notATest: false, reason: 'Synthetic name match' }] } as T;
-    return { flags: [] } as T;
-  } };
   before(async () => {
-    app = await NestFactory.create(DemoModule.forRoot({ models: [] }, model), { logger: false });
-    app.setGlobalPrefix('api'); app.use(securityHeaders); await app.listen(0, '127.0.0.1');
-    base = `${await app.getUrl()}/api`;
+    app = await NestFactory.create(DemoModule.forRoot({ models: [] }, { name: 'Synthetic Meta', async ask<T>() { return { mappings: [] } as T; } }), { logger: false });
+    app.setGlobalPrefix('api'); app.use(securityHeaders); await app.listen(0, '127.0.0.1'); base = `${await app.getUrl()}/api`;
   });
   after(async () => { await app?.close(); });
-  const post = (route: string, data: unknown) => fetch(`${base}/demo/${route}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-  const snapshot = () => ({ documents: [{ id: 'fictional', name: 'PRIVATE-TITLE', observations: [{
-    id: 'row', documentId: 'fictional', page: 0, name: 'Unfamiliar thyroid label', valueText: '2.4', value: 999,
-    unit: 'mIU/L', date: '2026-01-01', bbox: null,
-  }] }] });
-
-  it('works without a session and exposes no stored-document or account routes', async () => {
-    const config = await fetch(`${base}/demo/config`);
-    assert.equal(config.status, 200); assert.equal((await config.json() as { modelName: string }).modelName, model.name);
-    assert.match(config.headers.get('cache-control')!, /no-store/);
-    for (const path of ['documents', 'documents/synthetic-document', 'results', 'records', 'recovery/synthetic-document', 'config']) {
-      assert.equal((await fetch(`${base}/${path}`)).status, 404, path);
-    }
-    assert.equal((await fetch(`${base}/documents`, { method: 'POST' })).status, 404);
+  it('exposes no account, image, batch retrieval or OCR recovery routes', async () => {
+    assert.match((await fetch(`${base}/demo/config`)).headers.get('cache-control')!, /no-store/);
+    for (const path of ['documents', 'results', 'records', 'demo/batches/test', 'demo/extract/test']) assert.equal((await fetch(`${base}/${path}`)).status, 404);
+    assert.equal((await fetch(`${base}/demo/recovery`, { method: 'POST' })).status, 404);
   });
-
-  it('calls Meta for name matching and review, rebuilds numbers from text, and retains no cross-request history', async () => {
-    tasks.length = 0;
-    const response = await post('records', snapshot());
-    assert.equal(response.status, 201);
-    const result = await response.json() as RecordsResponse;
-    assert.equal(result.model.state, 'ready'); assert.equal(result.stats.values, 1);
-    assert.equal(result.domains.flatMap((d: any) => d.charts).flatMap((c: any) => c.series)[0].points[0].value, 2.4);
-    assert.ok(tasks.some((task) => task.kind === 'map-names')); assert.ok(tasks.some((task) => task.kind === 'review'));
-    assert.ok(tasks.every((task) => !task.user.includes('PRIVATE-TITLE')));
-    const calls = tasks.length;
-    await post('records', snapshot());
-    assert.equal(tasks.length, calls * 2, 'each request supplies its own history');
-    assert.equal((await (await post('records', { documents: [] })).json() as RecordsResponse).stats.values, 0);
+  it('requires current browser processing data and refuses unavailable inference', async () => {
+    await assert.rejects(new DemoController(null).records({ documents: [] }), (e: any) => e.getStatus() === 400);
+    await assert.rejects(new DemoController(null).records({ processingVersion: 2, batchId: 'batch-test', documents: [] }), (e: any) => e.getStatus() === 503);
   });
-
-  it('returns only source-verified proposals and accepts no hidden text', async () => {
-    const response = await post('recovery', { document: source(), page: 0 });
-    assert.equal(response.status, 201);
-    const answer = await response.json() as RecoveryResponse;
-    assert.equal(answer.proposals.length, 1); assert.equal(answer.proposals[0].state, 'pending');
-    assert.equal(answer.proposals[0].valueText, '1,50');
-    const duplicate = await post('recovery', { document: source(), page: 0, acceptedEvidence: [{ page: 0, evidence }] });
-    assert.deepEqual((await duplicate.json() as RecoveryResponse).proposals, []);
-    const hidden = source(); hidden.pages[0].words[8].t = 'HIDDEN-SECRET';
-    const calls = tasks.length;
-    assert.equal((await post('recovery', { document: hidden, page: 0 })).status, 400);
-    assert.equal(tasks.length, calls);
-  });
-
-  it('finishes all 41 documents after name matching instead of stopping after eight AI calls', async () => {
-    tasks.length = 0;
-    const response = await post('records', batchSnapshot(41, 'Unfamiliar thyroid label'));
-    assert.equal(response.status, 201);
-    const result = await response.json() as RecordsResponse;
-    assert.equal(result.model.state, 'ready');
-    assert.equal(result.model.waiting, 0);
-    assert.equal(result.stats.documents, 41);
-    assert.equal(result.stats.values, 41);
-    assert.equal(tasks.filter(task => task.kind === 'map-names').length, 1);
-    assert.equal(tasks.filter(task => task.kind === 'review').length, 41);
-  });
-
-  it('bounds simultaneous reviews and keeps each review flag attached to its own document', async () => {
-    let active = 0, peak = 0, calls = 0;
-    const controller = new DemoController({ name: 'Synthetic model', async ask<T>(): Promise<T> {
-      const index = calls++;
-      peak = Math.max(peak, ++active);
-      await new Promise(resolve => setTimeout(resolve, index % 3 === 0 ? 6 : 1));
-      active--;
-      return { flags: index === 17 ? [{ row: 1, reason: 'Synthetic mismatch' }] : [] } as T;
-    } });
-    const result = await controller.records(batchSnapshot(41));
-    assert.equal(calls, 41);
-    assert.equal(peak, 3);
-    assert.equal(active, 0);
-    assert.equal(result.stats.values, 40);
-    assert.deepEqual(result.warnings.filter(w => w.by === 'model').map(w => w.documentId), ['fictional-17']);
-  });
-
-  it('stops after a failed review batch without returning partial results or leaving calls running', async () => {
-    let active = 0, calls = 0;
-    const controller = new DemoController({ name: 'Synthetic model', async ask<T>(): Promise<T> {
-      const index = calls++;
-      active++;
-      try {
-        await new Promise(resolve => setTimeout(resolve, index % 3 === 0 ? 6 : 1));
-        if (index === 4) throw new Error('Synthetic provider failure');
-        return { flags: [] } as T;
-      } finally { active--; }
-    } });
-    await assert.rejects(controller.records(batchSnapshot(41)), (error: any) => error.getStatus() === 502);
-    assert.equal(active, 0);
-    assert.equal(calls, 6);
-    assert.equal((await controller.records(batchSnapshot(1))).model.state, 'ready');
-  });
-
-  it('resolves more than eight name batches before reviewing the resulting readings', async () => {
-    const snapshot = batchSnapshot(1);
-    snapshot.documents[0].observations = Array.from({ length: 321 }, (_, i) => ({
-      ...snapshot.documents[0].observations[0], id: `row-${i}`, name: `Unfamiliar thyroid label ${i}`,
-    }));
-    let mappingCalls = 0, reviewCalls = 0;
-    const controller = new DemoController({ name: 'Synthetic model', async ask<T>(task: ModelTask): Promise<T> {
-      if (task.kind === 'review') { reviewCalls++; return { flags: [] } as T; }
-      mappingCalls++;
-      return { answers: [...task.user.matchAll(/^- "([^"]+)" \| value /gm)].map(([, name]) => ({
-        name, key: 'tsh', newTest: null, notATest: false, reason: 'Synthetic name match',
-      })) } as T;
-    } });
-    const result = await controller.records(snapshot);
-    assert.equal(result.stats.values, 321);
-    assert.equal(mappingCalls, 9);
-    assert.equal(reviewCalls, 1);
-  });
-
-  it('rejects missing inference configuration instead of returning deterministic charts', async () => {
-    await assert.rejects(new DemoController(null).records(snapshot()), (error: any) => error.getStatus() === 503);
-  });
-
-  it('rejects malformed input and fails invalid model answers without returning partial charts', async () => {
-    const malformed = snapshot(); malformed.documents[0].observations[0].date = '2026-02-30';
-    assert.equal((await post('records', malformed)).status, 400);
-    invalid = true;
-    try {
-      const response = await post('records', snapshot());
-      assert.equal(response.status, 502);
-      const result = await response.json() as Record<string, unknown>;
-      assert.match(String(result.message), /try again/i);
-      assert.equal(result.domains, undefined);
-      assert.equal((await post('recovery', { document: source(), page: 0 })).status, 502);
-    } finally { invalid = false; }
+  it('validates and does not persist an empty complete batch', async () => {
+    const response = await fetch(`${base}/demo/records`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ processingVersion: 2, batchId: 'batch-test', documents: [] }) });
+    assert.equal(response.status, 201); assert.equal((await response.json() as any).model.state, 'ready');
+    assert.equal((await fetch(`${base}/demo/batches/batch-test`)).status, 404);
   });
 });

@@ -22,32 +22,25 @@ All routes are public. All pages are lazy-loaded. Unknown paths redirect to `/`.
 | --- | --- | --- |
 | `LocalHistory` | `core/local-history.ts` | Atomic localStorage history and corrections; IndexedDB page images; idempotent approvals and revision checks |
 | `QueueRecovery` | `core/queue-recovery.ts` | Atomic IndexedDB file/edit checkpoints with small localStorage progress markers; refresh recovery and stale-tab protection |
-| Name suggestions | `core/document-name.ts` | Editable fixed test-category labels and an unambiguous, visible report date; no free-form patient text |
+| Name privacy validation | `core/document-name.ts` | Recognises visible report dates when validating a user-entered title; no local result parsing or categorisation |
+| Name suggestions | `api/src/demo/source-processing.ts` | Spark suggests a general title after transcription; user-entered names are preserved |
 | Repeated personal details | `pii/remembered-details.ts` | Local, source-attributed matches across automatic/manual reviews; persisted in IndexedDB, excluded from progress markers and manifests |
 | Clinical term protection | `pii/medical-terms.ts` | Exact catalogue spans in result rows or standalone headings survive automatic false positives; explicit hides and drawn regions remain |
 | `DocumentQueueService` | `core/document-queue.service.ts` | All document state and the workflow: add, process, rescan, toggle, regions, rename, approve, open saved, delete |
 | `DocumentsApi` | `core/documents-api.ts` | Local history plus stateless Meta requests |
 | `ExtractionService` | `extraction/extraction.service.ts` | File type detection and limits, dispatch to readers |
-| `OcrService` | `extraction/ocr.service.ts` | Reusable orientation and multilingual OCR workers, corrected page coordinates, progress and session timings |
+| `OcrService` | `extraction/ocr.service.ts` | One reusable multilingual OCR worker, one pass per page, original-image coordinates and timings |
 | `NerService` | `pii/ner.service.ts` | Starts the model worker, reports download/startup/page progress and measured estimates, supports cancellation and explicit retry |
 
 ## Readers
 
-- **PDF** (`pdf-extractor.ts`): pdf.js renders each page at ~2000 px wide (scale 1.5–3, longest side
-  capped), and reads the text layer with positions. The text layer is used only if it reads as real
-  language (`text-quality.ts`); scans and garbled layers go to OCR. The WASM decoders, CMaps, fonts and
-  ICC profiles pdf.js needs for scanner output are self-hosted.
-- **Images** (`image-extractor.ts`): HEIC/HEIF converted with heic2any; EXIF orientation applied;
-  downscaled to 2600 px on the longest side; redrawn on a canvas (drops metadata).
-- **OCR** (`ocr.service.ts`): tesseract.js 7, LSTM engine, always `pol+deu+eng`. Tesseract's lines
-  are merged into visual rows (`assignLines`) so a table row split into column blocks stays one line.
-  `recognizeUpright` runs the separate Tesseract OSD worker before reading. Confident 0°/90°/180°/270° corrections rotate the canvas before full OCR. Uncertain/failed orientation and poor text retain the reading-quality fallback. Word boxes always refer to the returned corrected canvas.
-- **DOCX** (mammoth, raw text) and **TXT/CSV**: one text-only page, no image. CSV separators become
-  word breaks; decimal commas are kept.
-- Limits: 40 MB per file, 40 pages per PDF. `.doc` (old Word) is rejected with a message.
+- **PDF**: pdf.js freshly renders pages at the existing rendering resolution. Text layers are never read. Each raster gets one privacy OCR pass. Only approved redacted rasters can be uploaded.
+- **Images**: HEIC/HEIF uses the existing decoder. Browser display orientation is respected, but no OCR autorotation occurs. Full-resolution images are retained for accurate masks; only the OCR input is scaled to a maximum side of 2000 pixels. OCR boxes map back to original pixels.
+- **OCR**: Tesseract 7, LSTM `pol+deu+eng`, one call with `rotateAuto:false`. No OSD worker, angle search or retry loop. Sparse/unreadable output does not imply privacy safety.
+- **DOCX/TXT/CSV**: visible text is rendered into pages and privacy checked, so these imports also upload only pixels.
+- Limits: 40 MB per original file and 40 rendered pages. Old Word `.doc` remains unsupported.
 
-`layout.ts` turns PDF text runs into words with proportional boxes and groups any boxes into reading-
-order lines.
+The existing queue persists the batch ID, documents, user masks and confirmed personal-detail reuse. Every image page requires explicit manual privacy acknowledgement. Completed page transcriptions are saved independently in browser history. The Documents/Results views show transcription and normalization progress. Results remain unavailable while queue documents need preparation, approval or removal; failed page processing offers retry through the existing flow.
 
 ## Components
 
@@ -62,7 +55,7 @@ order lines.
 - `PageView`: page image with an SVG overlay in page coordinates. Visible words are invisible click
   targets; hidden words and regions are black rectangles drawn with the same padding as the burn-in, so
   the screen matches the saved image.
-- `ResultsPage` (`/results`): sends approved result fields to `POST /api/demo/records` and waits for completed server results ([records.md](records.md)). A processing state is followed by results or a retryable error; local charts are not used as a fallback. Completed server responses are cached against the current history revision.
+- `ResultsPage` (`/results`): sends each unprocessed approved OCR document to `POST /api/demo/extract`, then server-derived rows/classifications to `POST /api/demo/records` ([records.md](records.md)). A loader is followed by results or a retryable error; local charts are not used as a fallback. Up to three documents process concurrently. Per-document results are saved immediately for refresh/retry; completed charts are cached against the current history revision. Approval itself only saves the redacted source and images, without local row parsing or category-based title suggestions.
   - Counts, search, and jump links per section.
   - Per domain: chart cards (`LineChart`) and a "Measured once" list.
   - "Results in words", "Left out of the charts" (each with its reason), and "Everything that was read"

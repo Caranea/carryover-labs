@@ -41,9 +41,8 @@ describe('PDF reader resource ownership', () => {
     expect(destroy).toHaveBeenCalledOnce();
   });
 
-  it.each(['render', 'text', 'encode'] as const)('releases the canvas, page and worker after a %s failure', async (failure) => {
+  it.each(['render', 'encode'] as const)('releases the canvas, page and worker after a %s failure', async (failure) => {
     if (failure === 'render') page.render.mockImplementation(() => ({ promise: Promise.reject(new Error('failed')) }));
-    if (failure === 'text') page.getTextContent.mockRejectedValue(new Error('failed'));
     if (failure === 'encode') vi.mocked(HTMLCanvasElement.prototype.toBlob).mockImplementation((callback) => callback(null));
     await expect(readPdf(file, 40).next()).rejects.toThrow(failure === 'encode' ? 'Could not encode' : 'failed');
     const bitmap = created.mock.results.find((result) => result.value instanceof HTMLCanvasElement)?.value as HTMLCanvasElement;
@@ -57,6 +56,7 @@ describe('PDF reader resource ownership', () => {
     const reader = readPdf(file, 40);
     const first = await reader.next();
     expect(first.done).toBe(false);
+    expect(page.getTextContent).not.toHaveBeenCalled();
     const bitmap = first.value!.canvas;
     expect([bitmap.width, bitmap.height]).toEqual([120, 240]);
     await reader.return(undefined);

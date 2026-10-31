@@ -12,7 +12,7 @@ export type VerificationFailure = 'structure' | 'hidden-or-missing-word' | 'over
 export type VerifiedEvidence = { ok: true; observation: Observation; dateText: string | null; issues: string[] } | { ok: false; reason: VerificationFailure };
 
 /** Rebuild only from visible source words. The model supplies no reading, unit or date text. */
-export function verifyEvidence(doc: SavedDocument, pageIndex: number, evidence: RecoveryEvidence, existing: Observation[] = []): VerifiedEvidence {
+export function verifyEvidence(doc: SavedDocument, pageIndex: number, evidence: RecoveryEvidence, existing: Observation[] = [], options: { sourceExtraction?: boolean } = {}): VerifiedEvidence {
   const fail = (reason: VerificationFailure): VerifiedEvidence => ({ ok: false, reason });
   const page = doc.pages[pageIndex];
   if (!Number.isInteger(pageIndex) || !page || page.index !== pageIndex || !evidence || typeof evidence !== 'object' || Array.isArray(evidence)) return fail('structure');
@@ -21,30 +21,46 @@ export function verifyEvidence(doc: SavedDocument, pageIndex: number, evidence: 
     const indices = evidence[field];
     if (!Array.isArray(indices) || indices.length > MAX_FIELD_WORDS[field] || ((field === 'name' || field === 'value') && !indices.length)) return fail('structure');
     // A field must retain source order and cannot skip hidden or intervening words.
-    if (indices.some((index, i) => !Number.isInteger(index) || index < 0 || index >= page.words.length || (i > 0 && index !== indices[i - 1] + 1))) return fail('structure');
+    if (new Set(indices).size !== indices.length || indices.some((index, i) => !Number.isInteger(index) || index < 0 || index >= page.words.length
+      || (!options.sourceExtraction && i > 0 && index !== indices[i - 1] + 1))) return fail('structure');
     if (indices.some((index) => !visibleWord(page, page.words[index]))) return fail('hidden-or-missing-word');
   }
-  const all = FIELDS.flatMap((field) => evidence[field]);
+  // Scanned reports often fuse a unit and range into one token, e.g.
+  // "mg/L(0-6)". Separate only those unambiguous printed substrings.
+  const combined = options.sourceExtraction && evidence.unit.length === 1
+    ? /^(.+?)\s*\(([^()]+)\)$/.exec(page.words[evidence.unit[0]].t!) : null;
+  const splitUnitRange = combined && parseUnit(combined[1]) && parseRange(combined[2]) ? combined : null;
+  const sharedUnitRange = splitUnitRange && evidence.reference.length === 1 && evidence.reference[0] === evidence.unit[0];
+  const all = FIELDS.flatMap((field) => sharedUnitRange && field === 'reference' ? [] : evidence[field]);
   if (new Set(all).size !== all.length) return fail('overlapping-fields');
   const rowIndices = [...evidence.name, ...evidence.value, ...evidence.unit, ...evidence.reference];
   const rowWords = rowIndices.map((i) => page.words[i]);
   const anchor = evidence.value.map((i) => page.words[i]);
-  if (!nearby(rowWords, anchor) || evidence.name[0] >= evidence.value[0]) return fail('distant-evidence');
-  if (existing.some((o) => o.page === pageIndex && o.words.some((i) => rowIndices.includes(i)))) return fail('already-read');
+  if (!nearby(rowWords, anchor) || (!options.sourceExtraction && evidence.name[0] >= evidence.value[0])) return fail('distant-evidence');
+  // A percentage and count can share one printed name. During primary
+  // extraction, the value evidence identifies a reading, not its shared label.
+  if (existing.some((o) => o.page === pageIndex && (options.sourceExtraction
+    ? (o.sourceEvidence?.value ?? o.words).some(i => evidence.value.includes(i))
+    : o.words.some(i => rowIndices.includes(i))))) return fail('already-read');
 
   const text = (field: keyof RecoveryEvidence) => evidence[field].map((i) => page.words[i].t!).join(' ');
-  const name = text('name'), valueText = text('value'), unit = text('unit') || null, refText = text('reference') || null;
+  const name = text('name'), valueText = text('value');
+  const unit = splitUnitRange ? splitUnitRange[1] : text('unit') || null;
+  const refText = splitUnitRange && (sharedUnitRange || !evidence.reference.length) ? splitUnitRange[2] : text('reference') || null;
   if (name.length > 200 || !/\p{L}/u.test(name) || /^(?:patient|pacjent|name|imie|nazwisko|geburtsdatum|birth|address|age|data|date|datum|order|reference|range|result|wynik|ergebnis)(?:\b|:)/i.test(norm(name))) return fail('unsupported-name');
   const parsed = parseNumber(valueText);
   const qualitative = isQualitative(valueText) || /^(?:not detected|not reactive|nie wykryto|nicht nachweisbar|\d{1,6}:\d{1,6})$/i.test(valueText);
   if (valueText.length > 100 || (!parsed && !qualitative) || isRangeEndpoint(page, evidence.value)) return fail('unsupported-value');
-  if (unit && (unit.length > 60 || (!parseUnit(unit) && !isUnitLike(unit) && !/^[\p{L}µμ\d*^%.]+\/[\p{L}µμ\d*^%.]+$/u.test(unit)))) return fail('unsupported-unit');
+  // Primary extraction retains literal OCR units, including garbled ones. The
+  // server record builder keeps unverified units out of charts for correction.
+  if (unit && (unit.length > 60 || (!options.sourceExtraction && !parseUnit(unit) && !isUnitLike(unit) && !/^[\p{L}µμ\d*^%.]+\/[\p{L}µμ\d*^%.]+$/u.test(unit)))) return fail('unsupported-unit');
   if (refText && refText.length > 200) return fail('structure');
 
   const dateText = text('date') || null;
   const dateWords = evidence.date.map((i) => page.words[i]);
   if (dateWords.length && !rowDate(page, dateWords, anchor) && !collectionDate(page, evidence.date)) return fail('unrelated-date');
-  const date = dateText ? explicitDate(dateText, detectLocale([page])) : null;
+  const calendarText = options.sourceExtraction ? dateText?.replace(/\s+\d{1,2}:\d{2}(?::\d{2})?$/, '') : dateText;
+  const date = calendarText ? explicitDate(calendarText, detectLocale([page])) : null;
   const reference = refText ? parseRange(refText) : null;
   const issues: string[] = [];
   if (!date) issues.push(dateText ? 'The printed date is ambiguous. Confirm the collection date after adding this reading.' : 'No collection date was selected. Add it after checking the source.');

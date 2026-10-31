@@ -1,6 +1,6 @@
 import { WorkingPage, WorkingWord } from '../core/models';
 import { decideLabel, LabelDecision, WordPrediction } from './labels';
-import { detectWithRules, groupLines, identityLabelWordIds, isProtectedResultToken, isResultLine, Hit } from './rules';
+import { detectWithRules, groupLines, identityLabelWordIds, isResultLine, Hit } from './rules';
 import { isDateToken, normalizeToken } from './text-utils';
 import { medicalWords } from './medical-terms';
 import { applyRememberedDetails, learnDetails } from './remembered-details';
@@ -12,7 +12,7 @@ export interface DetectionSettings {
   reviewThreshold: number;
 }
 
-export const PRIVACY_VERSION = 3;
+export const PRIVACY_VERSION = 4;
 // Scores are evidence, not calibrated guarantees. Lower-confidence candidates
 // remain readable; a more thorough pass highlights more, rather than erasing more.
 export const NORMAL: DetectionSettings = { strict: false, threshold: 0.9, reviewThreshold: 0.25 };
@@ -60,7 +60,8 @@ export function applyDetections(
       if (labels.has(w.id)) return w;
       const hit = hits.get(w.id);
       if (hit) return { ...w, hidden: true, kind: hit.kind, source: hit.source, score: 1 };
-      if (medical.has(w.id) || isProtectedResultToken(w.text!, resultLines.has(w.line))) return w;
+      // Unfamiliar printed test labels are not identity evidence. Explicit identity hits above still win.
+      if (medical.has(w.id) || resultLines.has(w.line)) return w;
 
       if (pred) {
         const decision = decideLabel(pred.label);

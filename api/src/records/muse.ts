@@ -15,9 +15,14 @@ export interface ModelTask {
   user: string;
   /** JSON schema of the answer. */
   schema: Record<string, unknown>;
+  /** Larger source-extraction answers contain word references for a full page. */
+  maxTokens?: number;
+  reasoningEffort?: 'low';
+  model?: 'muse-spark-1.3' | 'muse-wonder-1.0';
+  image?: string;
 }
 
-const TIMEOUT_MS = 30_000;
+const TIMEOUT_MS = 150_000;
 const MAX_RESPONSE_BYTES = 256 * 1024;
 const ajv = new Ajv({ allErrors: false, strict: true });
 const validators = new Map<string, ValidateFunction>();
@@ -38,12 +43,7 @@ export function validateAnswer<T>(task: ModelTask, value: unknown): T {
   return value as T;
 }
 
-/**
- * Muse Spark over OpenAI-compatible chat completions: Muse Spark Open on
- * Baseten first, the Meta Model API second. Routine tasks send result fields.
- * Explicit missed-row recovery sends visible indexed words from the selected
- * approved page. Neither path sends hidden text, page images or document titles.
- */
+/** Existing Meta chat-completions transport, with page vision and explicit standard model selection. */
 export class MuseSpark implements JsonModel {
   private readonly log = new Logger('MuseSpark');
 
@@ -56,6 +56,8 @@ export class MuseSpark implements JsonModel {
   async ask<T>(task: ModelTask): Promise<T> {
     let lastError: unknown = null;
     for (const endpoint of this.endpoints) {
+      // Standard Meta models only; never send private pages to an open/contributor variant.
+      if (task.model && !/^muse-(spark|wonder)-[\d.]+$/.test(endpoint.model)) continue;
       try {
         const started = Date.now();
         const answer = await this.call<T>(endpoint, task);
@@ -72,12 +74,13 @@ export class MuseSpark implements JsonModel {
 
   private async call<T>(endpoint: ModelEndpoint, task: ModelTask): Promise<T> {
     const body = {
-      model: endpoint.model,
+      model: task.model ?? endpoint.model,
       temperature: 0,
-      max_tokens: 4096,
+      max_tokens: task.maxTokens ?? 4096,
+      ...(task.reasoningEffort ? { reasoning_effort: task.reasoningEffort } : {}),
       messages: [
         { role: 'system', content: task.system },
-        { role: 'user', content: task.user },
+        { role: 'user', content: task.image ? [{ type: 'text', text: task.user }, { type: 'image_url', image_url: { url: task.image } }] : task.user },
       ],
       response_format: { type: 'json_schema', json_schema: { name: task.kind.replace(/\W/g, '_'), strict: true, schema: task.schema } },
     };
@@ -92,7 +95,8 @@ export class MuseSpark implements JsonModel {
       await res.body?.cancel();
       throw new Error(`Model request failed (HTTP ${res.status}).`);
     }
-    const data = JSON.parse(await boundedText(res)) as { choices?: { message?: { content?: string | null } }[] };
+    const data = JSON.parse(await boundedText(res)) as { choices?: { finish_reason?: string; message?: { content?: string | null } }[] };
+    if (data.choices?.[0]?.finish_reason === 'length') throw new Error('The model response was truncated.');
     const content = data.choices?.[0]?.message?.content ?? '';
     return validateAnswer<T>(task, parseJson<unknown>(content));
   }

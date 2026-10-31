@@ -38,6 +38,7 @@ const REASON: Record<WarningReason, string> = {
 })
 export class ResultsPage implements OnInit, OnDestroy {
   private readonly api = inject(DocumentsApi);
+  protected readonly processing = this.api.processing;
   private request = 0;
   private readonly router = inject(Router);
   protected readonly demo = inject(ActivatedRoute).snapshot.data['demo'] === true;

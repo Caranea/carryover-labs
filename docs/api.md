@@ -1,38 +1,26 @@
-# Demo API
+# Processing API
 
-NestJS/Express exposes stateless Meta inference under `/api`. No login, user ID, device ID or server-side document history is required.
+NestJS exposes stateless inference under `/api`. No accounts, database, image storage, server jobs, batch retrieval or polling endpoints are used by the application. Batch IDs are correlation identifiers, not authorization.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
 | GET | `/health` | Availability and browser-storage mode |
-| GET | `/demo/config` | Configured model name; no secrets |
-| POST | `/demo/records` | Check a supplied snapshot of result fields and return charts, unresolved rows and model status |
-| POST | `/demo/recovery` | Check one approved source page and return source-verified proposals |
+| GET | `/demo/config` | Configured provider name, without credentials |
+| POST | `/demo/extract` | Standard `muse-spark-1.3`, one approved redacted raster page |
+| POST | `/demo/records` | Standard `muse-wonder-1.0`, complete structured batch; validated server grouping and unit arithmetic |
 
-The previous document, correction and saved-history routes are not mounted. Existing disk records are neither opened nor migrated by the demo. Legacy storage code is reachable only through offline tools and an explicitly injected test harness.
+`extract` accepts `{batchId, documentId, pageId, page, revision, image}`. IDs and page references are validated. `image` is a PNG/JPEG data URL, at most 20 million characters, decoded with a 60-million-pixel bound and re-encoded without metadata before inference. No PDF, OCR words, original filename, title or hidden text belongs in this request. The browser has already burned the reviewed blackouts into a fresh PNG. Server re-encoding strips metadata; it cannot establish that a client actually reviewed its page.
 
-## Requests and limits
+The reply contains literal rows, immutable observations, source image references, optional image-coordinate regions, separate printed/ISO collection, order and report dates, uncertainties, issues and a general suggested title. Invalid fields, invalid regions, invalid dates, truncated responses and inference failures are rejected. Missing measurements remain null. Model readings are not independently proven correct against pixels.
 
-Records requests contain `{documents: [{id, name, observations}]}`. IDs are local source references, not account identifiers. The API rebuilds numeric values from printed text and validates the snapshot. It processes up to 100 documents / 5,000 observations, with at most eight model tasks per request.
+`records` accepts `{processingVersion: 2, batchId, documents: [{id, name, observations}]}`. It rejects old processing versions. Limits remain 100 documents / 5,000 observations. The server sends distinct name/unit/specimen/method combinations with stable references to Wonder, without images or correction notes. Mapping coverage must be exact. Canonical references, form conflicts, proposed units and response schemas are checked. Unknown identities and unsupported or missing units stay visible for source review. Unit factors and molar masses cannot be supplied by the model.
 
-Recovery requests contain `{document, page, acceptedEvidence?}`. The approved manifest contains only visible text and positions; hidden words must have null text. Page images are not sent. The model selects word indices, and the server reconstructs and verifies each proposal. The browser saves proposals and requires explicit source confirmation before adding a reading.
+The browser submits at most three page requests concurrently and saves each response immediately. A retry or refresh sends only unfinished pages. Final normalization waits for all retained queue documents to be approved and all approved pages to succeed. The existing source-recovery UI explicitly rechecks one saved raster via `extract`, holds suggestions locally and requires source inspection and acceptance. It does not use a separate server job or OCR endpoint.
 
-JSON requests are limited to 8 MiB. Up to four inference requests run concurrently. Request budgets are 240 reads / 30 writes per minute per observed IP. These are process-local limits. API responses use private/no-store headers.
-
-All record history, approved source images, corrections, accepted recovery evidence and cached results are in browser localStorage under `carryover.demo.history.v1`. A revision check prevents late responses from restoring deleted or changed content.
+JSON bodies are capped at 21 MiB. The server admits at most four concurrent inference requests. Existing per-IP request limits and bounded 429 backoff remain. Each provider call has a 150-second timeout including schema fallback; browser requests time out at 180 seconds. Provider replies are capped at 256 KiB, with a 16,000-token output budget. Logs contain stage durations, counts and correlation IDs, never provider bodies, document contents or credentials. Responses use private/no-store headers.
 
 ## Configuration
 
-Copy `api/.env.example` to `api/.env` if the latter does not already exist. Keep keys out of the repository.
+Use `META_MODEL_API_KEY` and the existing optional `META_MODEL_BASE_URL`. The configured standard endpoint must use `muse-spark-1.3`; each task explicitly selects Spark or Wonder. Baseten/open/contributor variants are excluded from this pipeline. Keep keys on the server. Missing configuration returns 503; failed/incomplete inference returns 502 with a retryable message.
 
-| Variable | Purpose |
-| --- | --- |
-| `BASETEN_API_KEY`, `BASETEN_BASE_URL`, `BASETEN_MODEL` | Primary Meta inference |
-| `META_MODEL_API_KEY`, `META_MODEL_BASE_URL`, `META_MODEL` | Meta Model API fallback |
-| `PORT`, `WEB_ROOT` | API port and built frontend directory |
-| `HOST`, `TRUST_LOOPBACK_PROXY` | Loopback binding and optional trust of a local gateway |
-
-The demo requires a configured model for results processing. Missing configuration returns HTTP 503; failed or incomplete processing returns HTTP 502 without partial charts. The frontend waits for the server and offers a retry on failure. It caches only completed server results. Storage encryption settings apply only to the retained offline legacy tools. The demo API does not require or use a document store.
-
-Keep model keys on the server and serve the app/API on the same HTTPS origin for hosting. Provider retention is governed by the configured inference provider.
-
+`PORT`, `HOST`, `WEB_ROOT` and `TRUST_LOOPBACK_PROXY` retain their existing meanings. Serve the app and API on the same HTTPS origin. Provider retention depends on the configured Meta account. Legacy storage code and offline regression tools remain unmounted and unchanged.

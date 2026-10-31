@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, provideRouter } from '@angular/router';
 import { vi } from 'vitest';
@@ -11,7 +12,7 @@ describe('results view lifecycle', () => {
   it('shows processing, then an error with retry, and only displays results after server success', async () => {
     vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
     let reject!: (error: Error) => void;
-    const api = {
+    const api = { prepareBatch: vi.fn(), processing: signal({ stage: 'idle', completed: 0, total: 0, error: null }),
       results: vi.fn().mockResolvedValue(DEMO_RESULTS),
       records: vi.fn().mockReturnValue(new Promise((_resolve, fail) => { reject = fail; })),
       retryRecords: vi.fn().mockResolvedValue(DEMO_RECORDS),
@@ -19,7 +20,7 @@ describe('results view lifecycle', () => {
     TestBed.configureTestingModule({ imports: [ResultsPage], providers: [provideRouter([]), { provide: ActivatedRoute, useValue: { snapshot: { data: {} } } }, { provide: DocumentsApi, useValue: api }] });
     const fixture = TestBed.createComponent(ResultsPage); fixture.detectChanges();
     const component = fixture.componentInstance as any;
-    expect(fixture.nativeElement.textContent).toContain('Processing your approved lab data');
+    expect(fixture.nativeElement.textContent).toContain('Transcribing approved pages');
     expect(fixture.nativeElement.querySelector('.stats')).toBeNull();
     expect(fixture.nativeElement.querySelector('a[href="/appointment"]')).toBeNull();
     reject(new Error('Results processing did not finish. Please try again.'));
@@ -39,7 +40,7 @@ describe('results view lifecycle', () => {
 
   it('discards delayed results after leaving the page', async () => {
     let resolve!: (value: unknown) => void;
-    const api = { results: vi.fn().mockResolvedValue(DEMO_RESULTS), records: vi.fn().mockReturnValue(new Promise((done) => { resolve = done; })) };
+    const api = { prepareBatch: vi.fn(), processing: signal({ stage: 'idle', completed: 0, total: 0, error: null }), results: vi.fn().mockResolvedValue(DEMO_RESULTS), records: vi.fn().mockReturnValue(new Promise((done) => { resolve = done; })) };
     TestBed.configureTestingModule({ imports: [ResultsPage], providers: [provideRouter([]), { provide: ActivatedRoute, useValue: { snapshot: { data: {} } } }, { provide: DocumentsApi, useValue: api }] });
     const fixture = TestBed.createComponent(ResultsPage); fixture.detectChanges();
     await vi.waitFor(() => expect(api.records).toHaveBeenCalledOnce());

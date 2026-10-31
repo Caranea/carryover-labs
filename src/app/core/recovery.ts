@@ -10,6 +10,7 @@ export interface RecoveryEvidence {
 }
 
 export interface RecoveryProposal {
+  sourceObservation?: import('./results').Observation;
   id: string;
   page: number;
   name: string;

@@ -100,4 +100,15 @@ describe('model answer boundary', () => {
       return true;
     });
   });
+
+  it('sets the extraction token budget and effort, and rejects truncated output even when JSON is valid', async context => {
+    let request: any;
+    context.mock.method(globalThis, 'fetch', async (_url: unknown, init: RequestInit) => {
+      request = JSON.parse(init.body as string);
+      return Response.json({ choices: [{ finish_reason: 'length', message: { content: '{"factor":1}' } }] });
+    });
+    await assert.rejects(new MuseSpark([endpoint]).ask({ ...task, maxTokens: 8192, reasoningEffort: 'low' }), /automatic check could not finish/);
+    assert.equal(request.max_tokens, 8192);
+    assert.equal(request.reasoning_effort, 'low');
+  });
 });

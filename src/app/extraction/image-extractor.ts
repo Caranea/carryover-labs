@@ -1,4 +1,4 @@
-import { createCanvas, MAX_SIDE } from './render';
+import { createCanvas } from './render';
 
 const HEIC_TYPES = ['image/heic', 'image/heif'];
 
@@ -7,7 +7,7 @@ export function isHeic(file: File): boolean {
 }
 
 /**
- * Decode a photo or scan into an upright, downscaled canvas.
+ * Decode the full-resolution photo as displayed, without OCR orientation changes.
  *
  * Re-drawing onto a canvas also drops all metadata (EXIF, GPS position,
  * camera serial), so the uploaded image carries only pixels.
@@ -27,8 +27,7 @@ export async function loadImage(file: File): Promise<HTMLCanvasElement> {
     throw new Error('This image could not be opened. Try saving it as JPEG or PNG.');
   }
 
-  const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height));
-  const canvas = createCanvas(bitmap.width * scale, bitmap.height * scale);
+  const canvas = createCanvas(bitmap.width, bitmap.height);
   const ctx = canvas.getContext('2d')!;
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);

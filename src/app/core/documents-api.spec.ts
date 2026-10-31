@@ -1,139 +1,156 @@
+import 'fake-indexeddb/auto';
+import { Blob as NativeBlob } from 'node:buffer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DocumentsApi } from './documents-api';
-import { LocalHistory, LOCAL_HISTORY_KEY } from './local-history';
+import { LOCAL_HISTORY_KEY } from './local-history';
 import type { DocumentManifest } from './models';
+import { processedFixture, recordsFixture } from './processing-test-fixture';
+import { deviceTransaction } from './device-storage';
 
-function report(): DocumentManifest {
-  const word = (t: string, l: number, x: number) => ({ t, l, b: [x, 20 + l * 30, Math.max(12, t.length * 8), 18] as [number, number, number, number] });
-  return { name: 'Synthetic source', sourceKind: 'text', hiddenCount: 1,
-    pages: [{ index: 0, width: 1200, height: 500, hasImage: false, ocr: false, regions: [], words: [
-      word('Collected', 0, 40), word('2024-01-01', 0, 150), word('TSH', 2, 40),
-      word('1,50', 3, 40), word('mIU/L', 3, 130), word('0,35', 3, 240), word('–', 3, 290), word('4,94', 3, 320),
-      { t: 'HIDDEN-SECRET', h: true, l: 7, b: [40, 230, 120, 18] },
-    ] }] };
-}
-const evidence = { name: [2], value: [3], unit: [4], date: [1], reference: [5, 6, 7] };
+const report = (pages = 1): DocumentManifest => ({ name: 'PRIVATE-TITLE', sourceKind: 'pdf', hiddenCount: 1,
+  pages: Array.from({ length: pages }, (_, index) => ({ index, width: 100, height: 100, hasImage: true, ocr: true, regions: [],
+    words: [{ t: 'LOCAL-OCR-NOT-AUTHORITATIVE', l: 0 }, { t: 'HIDDEN-SECRET', h: true, l: 1 }] })) });
 const json = (body: unknown) => new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' } });
-const proposal = { id: 'proposal', page: 0, name: 'TSH', valueText: '1,50', unit: 'mIU/L', date: '2024-01-01', dateText: '2024-01-01', refText: '0,35 – 4,94', words: [1, 2, 3, 4, 5, 6, 7], bbox: null, evidence, issues: [], state: 'pending', revision: 'revision', decidedAt: null, note: null };
+const serverFetch = async (url: string, options?: RequestInit) => {
+  const body = JSON.parse(options!.body as string);
+  return json(url.endsWith('extract') ? processedFixture(body) : recordsFixture(body.documents.length));
+};
+const create = (api: DocumentsApi, pages = 1) => api.create(report(pages), Array.from({ length: pages }, () => new Blob(['approved-pixels'], { type: 'image/png' })), 'PRIVATE-FILENAME.pdf', 'local-id', 'saved-batch');
 
-describe('browser history with stateless Meta checks', () => {
-  beforeEach(() => localStorage.removeItem(LOCAL_HISTORY_KEY));
-  afterEach(() => vi.unstubAllGlobals());
-
-  it('retains original filenames across reloads and edits without sending them in either AI request', async () => {
-    const originalFileName = 'Fictional_Patient_44051401359.pdf';
-    const api = new DocumentsApi();
-    const saved = await api.create(report(), [null], originalFileName);
-    const reopened = new DocumentsApi();
-    expect((await reopened.list())[0].originalFileName).toBe(originalFileName);
-    const document = await reopened.get(saved.id);
-    expect(document.originalFileName).toBe(originalFileName);
-    // Passing a locally decorated document back through a save must not copy its
-    // filename into the approved manifest used for later processing requests.
-    expect((await reopened.replace(saved.id, document, [null])).originalFileName).toBe(originalFileName);
-    expect((await new DocumentsApi().list())[0].originalFileName).toBe(originalFileName);
-    const fetchMock = vi.fn(async (url: string, options?: RequestInit) => {
-      expect(options?.body).not.toContain(originalFileName);
-      expect(options?.body).not.toContain('originalFileName');
-      return url.endsWith('records')
-        ? json({ ...await new LocalHistory().records(), model: { state: 'ready', name: 'Synthetic Meta', waiting: 0, message: null } })
-        : json({ sourceRevision: 'source', proposals: [], modelName: 'Synthetic Meta', limits: (await reopened.recovery(saved.id)).limits });
+describe('page transcription and batch recovery', () => {
+  beforeEach(async () => {
+    localStorage.removeItem(LOCAL_HISTORY_KEY);
+    vi.stubGlobal('Blob', NativeBlob);
+    // Native Blob is used by fake IndexedDB; emulate the browser reader at this I/O boundary.
+    vi.stubGlobal('FileReader', class { result = ''; onload = () => {}; onerror = () => {};
+      readAsDataURL(blob: Blob) { void blob.arrayBuffer().then(b => { this.result = `data:${blob.type};base64,${Buffer.from(b).toString('base64')}`; this.onload(); }); }
     });
-    vi.stubGlobal('fetch', fetchMock);
-    await reopened.records();
-    const recovery = await reopened.recovery(saved.id);
-    await reopened.findMissedReadings(saved.id, { page: 0, expectedRevision: recovery.sourceRevision });
-    await vi.waitFor(async () => expect((await reopened.recovery(saved.id)).status).toBe('ready'));
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    await reopened.delete(saved.id);
-    expect(localStorage.getItem(LOCAL_HISTORY_KEY)).not.toContain(originalFileName);
+    await deviceTransaction(['approved-images'], 'readwrite', tx => { tx.objectStore('approved-images').clear(); });
   });
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
-  it('coalesces simultaneous checks and reuses saved AI results after a reload', async () => {
-    const api = new DocumentsApi();
-    await api.create(report(), [null]);
-    const result = { ...await new LocalHistory().records(), model: { state: 'ready', name: 'Synthetic Meta', waiting: 0, message: null } };
-    const fetchMock = vi.fn(async (_url: string) => json(result));
-    vi.stubGlobal('fetch', fetchMock);
-    await Promise.all([api.records(), api.records()]);
-    await vi.waitFor(async () => expect((await api.records()).model.state).toBe('ready'));
-    expect(fetchMock.mock.calls.filter(([url]) => url.endsWith('records'))).toHaveLength(1);
-    expect((await new DocumentsApi().records()).model.state).toBe('ready');
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock.mock.calls[0][0]).toBe('/api/demo/records');
-  });
-
-  it('waits for server processing and retries a failure without returning local charts', async () => {
-    const api = new DocumentsApi(); const saved = await api.create(report(), [null]);
-    let fail!: (reason: Error) => void;
-    const fetchMock = vi.fn().mockImplementationOnce(() => new Promise<Response>((_resolve, reject) => { fail = reject; }));
-    vi.stubGlobal('fetch', fetchMock);
-    const pending = api.records();
-    const rejected = expect(pending).rejects.toThrow('Please try again');
-    expect(new LocalHistory().cachedModelRecords()).toBeNull();
-    fail(new Error('Network disconnected'));
-    await rejected;
-    expect((await api.get(saved.id)).name).toBe('Synthetic source');
-    expect(new LocalHistory().cachedModelRecords()).toBeNull();
-
-    const result = { ...await new LocalHistory().records(), model: { state: 'ready', name: 'Synthetic Meta', waiting: 0, message: null } };
-    fetchMock.mockResolvedValueOnce(json(result));
-    expect((await api.retryRecords()).model.state).toBe('ready');
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-  });
-
-  it.each(['off', 'working', 'error'] as const)('rejects an incomplete %s response and ignores an old incomplete cache', async (state) => {
-    const api = new DocumentsApi(); await api.create(report(), [null]);
-    const result = { ...await new LocalHistory().records(), model: { state, name: null, waiting: 0, message: null } };
-    api.saveModelRecords(api.recordSnapshot().fingerprint, result);
-    const fetchMock = vi.fn().mockResolvedValue(json(result));
-    vi.stubGlobal('fetch', fetchMock);
-    await expect(api.records()).rejects.toThrow('processing did not finish');
-    expect(fetchMock).toHaveBeenCalledOnce();
-  });
-
-  it('processes newly approved data even when earlier server results are cached', async () => {
-    const api = new DocumentsApi(); await api.create(report(), [null]);
-    const fetchMock = vi.fn(async () => json({ ...await new LocalHistory().records(), model: { state: 'ready', name: 'Synthetic Meta', waiting: 0, message: null } }));
-    vi.stubGlobal('fetch', fetchMock);
+  it('sends one approved image per request, no OCR, title, filename or hidden text, then saves immutable transcription', async () => {
+    const api = new DocumentsApi(); await create(api, 2);
+    const fetchMock = vi.fn(serverFetch); vi.stubGlobal('fetch', fetchMock);
     await api.records();
-    await api.create(report(), [null]);
-    const result = await api.records();
-    expect(result.stats.documents).toBe(2);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-  });
-
-  it('never restores deleted history when an older AI request finishes', async () => {
-    const api = new DocumentsApi(); const saved = await api.create(report(), [null]);
-    const result = { ...await new LocalHistory().records(), model: { state: 'ready', name: 'Synthetic Meta', waiting: 0, message: null } };
-    let finish!: (response: Response) => void;
-    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>((resolve) => { finish = resolve; })));
-    const pending = api.records(); await api.delete(saved.id);
-    finish(json(result));
-    expect((await pending).stats.documents).toBe(0);
-    expect(new LocalHistory().cachedModelRecords()).toBeNull();
-    expect(localStorage.getItem(LOCAL_HISTORY_KEY)).not.toContain('TSH');
-  });
-
-  it('saves recovery suggestions locally, requires confirmation, and keeps accepted source evidence after reload', async () => {
-    const api = new DocumentsApi(); const saved = await api.create(report(), [null]);
-    const fetchMock = vi.fn(async (url: string, options?: RequestInit) => {
-      expect(options?.headers).toEqual({ 'Content-Type': 'application/json' });
-      expect(options?.body).not.toContain('HIDDEN-SECRET');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    for (const [url, options] of fetchMock.mock.calls) {
+      expect(options?.body).not.toMatch(/PRIVATE-|HIDDEN-|LOCAL-OCR|sourceEvidence|classifications/);
       const body = JSON.parse(options!.body as string);
-      expect(body).not.toHaveProperty('userId'); expect(body).not.toHaveProperty('deviceId');
-      return json({ sourceRevision: 'source', proposals: [proposal], modelName: 'Synthetic Meta', limits: (await api.recovery(saved.id)).limits });
+      if (url.endsWith('extract')) {
+        expect(body.image).toBe('data:image/png;base64,' + Buffer.from('approved-pixels').toString('base64'));
+        expect(body.batchId).toBe('saved-batch'); expect(body).not.toHaveProperty('document');
+      } else { expect(body).not.toHaveProperty('image'); expect(body.documents[0].observations).toHaveLength(2); }
+    }
+    expect((await api.results()).observations[0].transcription?.value).toBe('2.4');
+    expect((await new DocumentsApi().records()).model.state).toBe('ready');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('saves completed pages immediately, bounds concurrency and retries only failures after refresh', async () => {
+    const api = new DocumentsApi(); await create(api, 6);
+    let active = 0, peak = 0;
+    const fetchMock = vi.fn(async (url: string, options?: RequestInit) => {
+      const body = JSON.parse(options!.body as string);
+      if (!url.endsWith('extract')) return serverFetch(url, options);
+      peak = Math.max(peak, ++active);
+      await new Promise(r => setTimeout(r, 5)); active--;
+      return body.page === 2 ? new Response('{}', { status: 502 }) : serverFetch(url, options);
     });
     vi.stubGlobal('fetch', fetchMock);
-    const initial = await api.recovery(saved.id);
-    await api.findMissedReadings(saved.id, { page: 0, expectedRevision: initial.sourceRevision });
-    await vi.waitFor(async () => expect((await api.recovery(saved.id)).status).toBe('ready'));
+    await expect(api.records()).rejects.toThrow();
+    expect(peak).toBe(3); expect(api.recordSnapshot().sources.map(s => s.page)).toEqual([2]);
+    expect(fetchMock.mock.calls.every(([url]) => url.endsWith('extract'))).toBe(true);
+    fetchMock.mockClear().mockImplementation(serverFetch);
+    await new DocumentsApi().retryRecords();
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/demo/extract', '/api/demo/records']);
+    expect(JSON.parse(fetchMock.mock.calls[0][1]!.body as string).page).toBe(2);
+  });
+
+  it('transcribes approved pages during privacy review but waits for the retained batch to normalize', async () => {
+    const api = new DocumentsApi(); await create(api);
+    const fetchMock = vi.fn(serverFetch); vi.stubGlobal('fetch', fetchMock);
+    api.prepareBatch('restored-batch', false);
+    await vi.waitFor(() => expect(api.processing().stage).toBe('waiting'));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    api.prepareBatch('restored-batch', true);
+    await vi.waitFor(() => expect(api.processing().stage).toBe('ready'));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(fetchMock.mock.calls[1][1]!.body as string).batchId).toBe('restored-batch');
+  });
+
+  it.each(['delete', 'replace'] as const)('does not restore a late page response after %s', async action => {
+    const api = new DocumentsApi(); const saved = await create(api);
+    let resolve!: (response: Response) => void;
+    const fetchMock = vi.fn((url: string, options?: RequestInit) => new Promise<Response>(r => { resolve = r; }));
+    vi.stubGlobal('fetch', fetchMock);
+    const pending = api.records().catch(() => null);
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const request = JSON.parse(fetchMock.mock.calls[0][1]!.body as string);
+    if (action === 'delete') await api.delete(saved.id);
+    else await api.replace(saved.id, report(), [new Blob(['changed'], { type: 'image/png' })]);
+    // New requests fail; the obsolete response must never populate the replacement.
+    fetchMock.mockRejectedValue(new Error('offline'));
+    resolve(json(processedFixture(request)));
+    await pending;
     expect((await api.results()).observations).toHaveLength(0);
-    await api.acceptRecoveredReading(saved.id, 'proposal', { expectedRevision: 'revision', note: 'Checked the fictional source.' });
-    const reopened = new DocumentsApi();
-    expect((await reopened.results()).observations[0]).toMatchObject({ name: 'TSH', value: 1.5, confirmed: true, recovery: { evidence } });
-    expect((await reopened.recovery(saved.id)).proposals[0].state).toBe('accepted');
-    await expect(reopened.acceptRecoveredReading(saved.id, 'proposal', { expectedRevision: 'revision', note: 'Again' })).rejects.toThrow('suggestion changed');
-    expect(fetchMock.mock.calls.filter(([url]) => url.endsWith('recovery'))).toHaveLength(1);
+  });
+
+  it('retries normalization without repeating saved transcriptions', async () => {
+    const api = new DocumentsApi(); await create(api);
+    const fetchMock = vi.fn(async (url: string, options?: RequestInit) => url.endsWith('records') ? new Response('{}', { status: 502 }) : serverFetch(url, options));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(api.records()).rejects.toThrow();
+    fetchMock.mockClear().mockImplementation(serverFetch);
+    await api.retryRecords();
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/demo/records']);
+  });
+
+  it('preserves source measurements through user corrections and refuses stale saves', async () => {
+    const api = new DocumentsApi(); const saved = await create(api);
+    vi.stubGlobal('fetch', vi.fn(serverFetch)); await api.records();
+    const original = (await api.results()).observations[0];
+    await api.correct(saved.id, original.id, { name: 'TSH', valueText: '< 3.1', unit: null, date: null, note: 'Checked source', expectedRevision: original.revision! });
+    const corrected = (await api.results()).observations[0];
+    expect(corrected).toMatchObject({ valueText: '< 3.1', comparator: '<', transcription: { value: '2.4', unit: 'mIU/L' } });
+    expect(api.recordSnapshot().sources).toHaveLength(0);
+  });
+
+  it('keeps missed-reading recovery on images and requires explicit acceptance of its source-linked proposal', async () => {
+    const api = new DocumentsApi(); const saved = await create(api);
+    const fetchMock = vi.fn(serverFetch); vi.stubGlobal('fetch', fetchMock); await api.records();
+    fetchMock.mockImplementation(async (_url, options) => {
+      const request = JSON.parse(options!.body as string);
+      expect(request.image).toBeTruthy(); expect(request).not.toHaveProperty('document');
+      const answer = processedFixture(request);
+      answer.rows[0].name = 'Ferritin'; answer.observations[0].name = 'Ferritin';
+      const otherSpecimen = { ...answer.rows[0], name: 'TSH', specimen: 'urine' };
+      answer.rows.push(otherSpecimen);
+      answer.observations.push({ ...answer.observations[0], id: `${request.pageId}:1`, name: 'TSH', transcription: otherSpecimen,
+        sourceImage: { pageId: request.pageId, revision: request.revision, row: 1 } });
+      return json(answer);
+    });
+    const state = await api.recovery(saved.id);
+    await api.findMissedReadings(saved.id, { page: 0, expectedRevision: state.sourceRevision });
+    await vi.waitFor(async () => expect((await api.recovery(saved.id)).status).toBe('ready'));
+    const proposal = (await api.recovery(saved.id)).proposals[0];
+    expect((await api.recovery(saved.id)).proposals).toHaveLength(2);
+    expect((await api.results()).observations).toHaveLength(1);
+    await api.acceptRecoveredReading(saved.id, proposal.id, { expectedRevision: proposal.revision, note: 'Checked printed row' });
+    const recovered = (await api.results()).observations[1];
+    expect(recovered.sourceImage?.pageId).toBe(`${saved.id}:0`);
+    expect(recovered.transcription?.name).toBe('Ferritin'); expect(recovered.confirmed).toBe(true);
+    expect(api.cachedModelRecords()).toBeNull();
+  });
+
+  it('does not save a late normalization after a source is deleted', async () => {
+    const api = new DocumentsApi(); const saved = await create(api);
+    let resolve!: (response: Response) => void;
+    const fetchMock = vi.fn(async (url: string, options?: RequestInit) => url.endsWith('extract') ? serverFetch(url, options) : new Promise<Response>(r => { resolve = r; }));
+    vi.stubGlobal('fetch', fetchMock);
+    const pending = api.records(); const rejected = expect(pending).rejects.toThrow('batch changed');
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await api.delete(saved.id); resolve(json(recordsFixture())); await rejected;
+    expect(api.cachedModelRecords()).toBeNull(); expect(await api.list()).toHaveLength(0);
   });
 });

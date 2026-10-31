@@ -11,11 +11,11 @@ For your own documents: add files → check hidden personal details → approve 
 ## What works
 
 - Local PDF/photo OCR and DOCX/text reading. Personal-detail detection runs in the browser. Queue progress, approvals and results survive refresh: small checkpoints and history use localStorage; original files awaiting approval and page images use IndexedDB.
-- Redaction removes text and burns matching areas into new JPEGs. Images stay in the browser. Default document titles do not use original filenames.
+- Redaction burns permanent blackouts into fresh PNGs. Only explicitly approved page images are sent to the server; originals stay local. Default document titles do not use original filenames.
 - Source-linked timelines grouped by domain, with deterministic unit conversions. Missing units, ambiguous dates and uncertain readings stay visible for review.
 - Corrections retain the original reading and a change history. Version checks prevent one edit from silently overwriting another.
-- Muse Spark maps unfamiliar names and reviews extracted rows. Answers are schema-checked and cannot invent a numeric conversion factor used by the charts. The API processes request text without storing records or linking them to an account.
-- Explicit Meta recovery of missed rows on a selected page: the model returns source-word indices, the server reconstructs and verifies the fields, and the user checks and accepts each proposal before it enters the record.
+- Standard Muse Spark transcribes approved page images; standard Muse Wonder normalizes identities and groups after the retained batch is complete. Source measurements remain unchanged. Verified server code performs supported unit conversions. The API is stateless.
+- Explicit Meta recovery of missed rows on a selected page: Spark rechecks an approved redacted page image, and the user checks and accepts each proposal before it enters the record.
 - A source viewer with zoom/text fallback, chart data tables, and a locally generated PDF with embedded Unicode fonts, vector charts, values, unresolved readings, questions and source references. PDF generation runs in a bounded, cancellable worker.
 - A lightweight privacy option for older phones skips the large personal-detail model and requires manual review acknowledgement. The full local check remains available.
 - No login or account setup. Browser history survives a reload; clearing site data removes it. Saves that exceed browser storage capacity report an error and preserve the previous history.
@@ -28,7 +28,7 @@ Use a current Node 24 LTS release (24.15 or newer for the installed tooling). In
 npm ci
 npm --prefix api ci
 Copy-Item api/.env.example api/.env
-# Add BASETEN_API_KEY and/or META_MODEL_API_KEY; never commit it.
+# Add META_MODEL_API_KEY; never commit it.
 npm run start:api
 # In a second terminal:
 npm start
@@ -36,7 +36,7 @@ npm start
 
 Visit `http://localhost:4200` for Home, `/documents` to add documents, or `/demo` for the fictional sample. Before downloading a privacy model, the browser checks WebGPU capabilities and selects one compatible export: approximately 555 MB for GPU/FP16 or 279 MB for CPU/Q8. It caches that export for reuse. GPU setup failure restarts in a fresh CPU worker; that exceptional fallback can require a second download. OCR assets are served by the app. See [local model preparation](docs/frontend.md#device-selection-and-local-model-preparation) before building a deployment with GPU support.
 
-Live results require the demo API and Baseten and/or Meta credentials in `api/.env`. After approval, the Results page sends the approved lab data for server processing and waits for completion. Failures show a retry action; there is no local chart fallback. Previously completed server results remain saved in the browser. See [configuration and endpoints](docs/api.md).
+Live results require the API and standard Meta credentials in `api/.env`. The browser runs one privacy OCR pass per rendered page, without autorotation, then requires review and approval of permanent blackouts. Spark transcribes each approved image independently, with at most three simultaneous requests. Completed pages are saved immediately; refresh/retry reuses them. Wonder normalizes the completed batch without resending its images. Original filenames, hidden text, original PDFs and local OCR are excluded from requests. See [configuration](docs/api.md) and [measured limitations](docs/pipeline-verification.md).
 
 ## Verify
 
@@ -62,6 +62,6 @@ Serve the app and API on the same origin, keep model keys on the server, and use
 
 ## Repository map
 
-`src/app/extraction` reads files; `pii` detects details; `redaction` creates safe copies; `review` lets the user verify them; `core/local-history.ts` saves approved history; `results` shows readings and corrections; `appointment` prepares the visit. `api/src/demo` handles stateless inference, while the browser and API share pure extraction, matching and source-verification code.
+`src/app/extraction` reads files; `pii` detects details; `redaction` creates safe copies; `review` lets the user verify them; `core/local-history.ts` saves approved history; `results` shows readings and corrections; `appointment` prepares the visit. `api/src/demo` handles source extraction and categorisation through stateless inference. Browser corrections and recovery share pure source-verification helpers with the API; result extraction and chart grouping run on the server.
 
 Keep `.env`, storage, original documents and private fixtures out of the public repository. The built-in demo is invented from scratch. Record the pre-event baseline and the work added during the event before submitting; see [demo and attribution](docs/hackathon-demo.md).

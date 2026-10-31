@@ -1,10 +1,8 @@
 import { inject, Injectable, InjectionToken } from '@angular/core';
 import { SourceKind, WorkingPage } from '../core/models';
 import { isHeic, loadImage } from './image-extractor';
-import { runsToWords, textToWords } from './layout';
 import { OcrService } from './ocr.service';
-import { canvasToBlob } from './render';
-import { textLayerIsUsable } from './text-quality';
+import { canvasToBlob, createCanvas } from './render';
 import { PdfPageLimitError } from './pdf-extractor';
 
 export const MAX_FILE_BYTES = 40 * 1024 * 1024;
@@ -43,8 +41,7 @@ export function sourceKindOf(file: File): SourceKind | null {
 
 /**
  * Turns any supported file into pages of positioned words, entirely in the
- * browser. Images and scanned PDF pages go through OCR; PDFs with a text layer
- * use it directly.
+ * browser. Every rendered page gets one OCR pass for privacy detection only.
  */
 @Injectable({ providedIn: 'root' })
 export class ExtractionService {
@@ -87,26 +84,12 @@ export class ExtractionService {
           }
           const base = page.index / page.pageCount;
           const span = 1 / page.pageCount;
-          let words;
-          let ocr = false;
-          let image = page.image;
-          // Many lab PDFs have a scrambled or missing text layer; read those pages with OCR.
-          if (textLayerIsUsable(page.runs.map((r) => r.text).join(' '))) {
-            progress(base, `Reading page ${page.index + 1} of ${page.pageCount}`);
-            words = runsToWords(page.runs, nextId);
-          } else {
-            ocr = true;
-            const label = `Recognising text on page ${page.index + 1} of ${page.pageCount}`;
-            progress(base, label);
-            const result = await this.ocr.recognizeUpright(page.canvas, nextId, (p, msg) =>
-              progress(base + span * p, msg ?? label),
-            );
-            words = result.words;
-            if (result.canvas !== page.canvas) {
-              canvas = result.canvas;
-              image = await this.io.canvasToBlob(canvas);
-            }
-          }
+          const label = `Privacy checking page ${page.index + 1} of ${page.pageCount}`;
+          const result = await this.ocr.recognizePage(page.canvas, nextId, (p, msg) =>
+            progress(base + span * p, msg ?? label));
+          const words = result.words;
+          const image = page.image;
+          const ocr = true;
           nextId += words.length;
           pages.push({
             index: page.index,
@@ -138,7 +121,7 @@ export class ExtractionService {
     let canvas = loaded;
     try {
       progress(0.02, 'Recognising text');
-      const result = await this.ocr.recognizeUpright(loaded, 0, (p, msg) =>
+      const result = await this.ocr.recognizePage(loaded, 0, (p, msg) =>
         progress(p, msg ?? 'Recognising text'),
       );
       canvas = result.canvas;
@@ -164,19 +147,45 @@ export class ExtractionService {
     const mod = await import('mammoth');
     const mammoth = (mod.default ?? mod) as typeof mod;
     const { value } = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
-    return [textPage(value)];
+    return this.fromTextContent(value, progress);
   }
 
   private async fromText(file: File, progress: ExtractionProgress): Promise<WorkingPage[]> {
     progress(0, 'Reading text');
     // Split CSV cells into separate words, but keep decimal commas ("13,2") intact.
     const text = (await file.text()).replace(/\t/g, '  ').replace(/;|(?<!\d),|,(?!\d)/g, (c) => `${c} `);
-    return [textPage(text)];
+    return this.fromTextContent(text, progress);
   }
-}
-
-function textPage(text: string): WorkingPage {
-  const words = textToWords(text);
-  if (!words.length) throw new UnsupportedFileError('This file has no text in it.');
-  return { index: 0, width: 0, height: 0, image: null, imageUrl: null, words, regions: [], ocr: false };
+  private async fromTextContent(text: string, progress: ExtractionProgress): Promise<WorkingPage[]> {
+    if (!text.trim()) throw new UnsupportedFileError('This file has no text in it.');
+    // Render text-only imports into visible pages too; the server receives pixels only.
+    const canvas = createCanvas(1400, 1900);
+    const ctx = canvas.getContext('2d')!;
+    ctx.font = '24px sans-serif';
+    const lines: string[] = [];
+    for (const paragraph of text.split(/\r?\n/)) {
+      let line = '';
+      for (const char of paragraph) {
+        if (ctx.measureText(line + char).width > 1280) { lines.push(line); line = ''; }
+        line += char;
+      }
+      lines.push(line);
+    }
+    if (lines.length > 50 * MAX_PAGES) throw new UnsupportedFileError('This file has too many pages. Split it into smaller files.');
+    const pages: WorkingPage[] = [];
+    let nextId = 0;
+    try {
+      for (let offset = 0; offset < lines.length; offset += 50) {
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#000';
+        lines.slice(offset, offset + 50).forEach((line, i) => ctx.fillText(line, 60, 70 + i * 35));
+        const { words } = await this.ocr.recognizePage(canvas, nextId, p => progress((offset + 50 * p) / lines.length, 'Privacy checking text'));
+        nextId += words.length;
+        const image = await this.io.canvasToBlob(canvas);
+        pages.push({ index: pages.length, width: canvas.width, height: canvas.height, words, image, imageUrl: URL.createObjectURL(image), regions: [], ocr: true });
+      }
+      return pages;
+    } catch (error) { for (const page of pages) if (page.imageUrl) URL.revokeObjectURL(page.imageUrl); throw error; }
+    finally { canvas.width = canvas.height = 0; }
+  }
 }

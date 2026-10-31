@@ -14,7 +14,7 @@ const page = (): WorkingPage => ({ index: 0, width: 100, height: 100, image: nul
 
 function setup(incomplete = false) {
   const create = vi.fn(async (manifest: DocumentManifest, _images: (Blob | null)[], originalFileName?: string) => ({ id: 'saved', ...manifest, originalFileName, pageCount: manifest.pages.length, createdAt: '', updatedAt: '' }));
-  const api = { create, list: vi.fn(async () => []), get: vi.fn(), pageImage: vi.fn() };
+  const api = { prepareBatch: vi.fn(), processing: () => ({stage: 'idle', total: 0}), create, list: vi.fn(async () => []), get: vi.fn(), pageImage: vi.fn() };
   const extraction = { extract: vi.fn(async () => [page()]) };
   const ner = { load: vi.fn(async () => true), predict: vi.fn(async (_pages: WorkingPage[], _signal?: AbortSignal): Promise<PagePredictions[]> => incomplete ? [null] : [new Map([[1, { label: 'O', score: 1 }]])]), retry: vi.fn(), cancel: vi.fn(), error: vi.fn(() => incomplete ? 'The full privacy checker could not start.' : null) };
   TestBed.configureTestingModule({ providers: [
@@ -85,13 +85,13 @@ describe('document privacy boundary', () => {
     expect(queue.byId(ids[1])?.pages[0].words[0].hidden).toBe(false);
   });
 
-  it('suggests a date and content title and accepts an edited description retaining the report date', async () => {
+  it('leaves categorisation for the server and accepts a user title retaining the visible report date', async () => {
     const { queue, extraction, create } = setup();
     extraction.extract.mockImplementation(async () => [{ ...page(), words:
       ['Collected: 2026-10-15', 'TSH 2.1 mIU/L 0.4-4.0'].flatMap((line, row) => line.split(' ').map((text, col) => ({ id: row * 10 + col, text, line: row, hidden: false }))) }]);
     const [id] = queue.add([new File(['fictional'], 'first.txt')]);
     await vi.waitFor(() => expect(queue.byId(id)?.status).toBe('review'));
-    expect(queue.byId(id)?.name).toBe('2026-10-15 · Thyroid tests');
+    expect(queue.byId(id)?.name).toBe('Lab document 1');
     queue.rename(id, '2026-10-15 · Follow-up thyroid tests');
     expect(await queue.approve(id)).toBe(true);
     expect(create.mock.calls[0][0].name).toBe('2026-10-15 · Follow-up thyroid tests');
@@ -132,9 +132,9 @@ describe('document privacy boundary', () => {
       expect(queue.byId(id)?.file).not.toBeNull();
       expect(queue.byId(id)?.privacyMode).toBe('lightweight');
       expect(queue.byId(id)?.privacyMessage).toContain('email addresses');
-      expect(await queue.approve(id)).toBe(false);
+      expect(await queue.approve(id)).toBe(true);
     }
-    expect(create).not.toHaveBeenCalled();
+    expect(create).toHaveBeenCalledTimes(ids.length);
   });
 
   it('honors a mode switch during file reading and preserves masks during a cancelled recheck', async () => {
@@ -142,6 +142,7 @@ describe('document privacy boundary', () => {
     let finish!: (pages: WorkingPage[]) => void;
     extraction.extract.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
     const [id] = queue.add([new File(['TSH'], 'report.txt')]);
+    await vi.waitFor(() => expect(extraction.extract).toHaveBeenCalledOnce());
     queue.useLightweightReview(); finish([page()]);
     await vi.waitFor(() => expect(queue.byId(id)?.status).toBe('review'));
     expect(ner.predict).not.toHaveBeenCalled();
@@ -168,7 +169,7 @@ describe('document privacy boundary', () => {
     expect(queue.documents()).toEqual([]);
   });
 
-  it('never starts the large model in lightweight mode, even on retry, and requires acknowledgement', async () => {
+  it('never starts the large model in lightweight mode, even on retry, and saves with one approval', async () => {
     const { queue, create, ner } = setup();
     const [id] = queue.add([new File(['TSH'], 'report.txt', { type: 'text/plain' })], 'lightweight');
     await vi.waitFor(() => expect(queue.byId(id)?.status).toBe('review'));
@@ -178,10 +179,9 @@ describe('document privacy boundary', () => {
     expect(ner.retry).not.toHaveBeenCalled();
     expect(queue.byId(id)?.privacyCheck).toBe('manual');
     expect(queue.byId(id)?.privacyMessage).toContain('Click or tap any other personal details');
-    expect(await queue.approve(id)).toBe(false);
     expect(create).not.toHaveBeenCalled();
-    queue.acknowledgePrivacy(id, true);
     expect(await queue.approve(id)).toBe(true);
+    expect(create).toHaveBeenCalledOnce();
   });
 
   it('starts the full check only after a lightweight user explicitly upgrades', async () => {

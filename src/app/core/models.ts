@@ -90,7 +90,7 @@ export interface LocalDocument {
   privacyCheck?: 'complete' | 'incomplete' | 'manual';
   privacyMessage?: string;
   privacyMode?: PrivacyMode;
-  /** Explicit acknowledgement is required for manual or incomplete automatic checks. */
+  /** Legacy queue metadata; the Approve action is now the only confirmation. */
   privacyAcknowledged?: boolean;
   /** Version of the rules and model interpretation used for these OCR words. */
   privacyVersion?: number;

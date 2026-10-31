@@ -4,6 +4,13 @@ import { Blob as NativeBlob } from 'node:buffer';
 import { deviceTransaction } from './device-storage';
 import { LocalHistory, LOCAL_HISTORY_KEY } from './local-history';
 import type { DocumentManifest, StoredWord } from './models';
+import { processedFixture, recordsFixture } from './processing-test-fixture';
+
+async function serverProcessed(history: LocalHistory, id: string) {
+  const source = history.recordSnapshot().sources.find(s => s.documentId === id)!;
+  history.savePageProcessing(id, source.revision, processedFixture(source));
+  history.saveModelRecords(history.recordSnapshot().fingerprint, recordsFixture(history.recordSnapshot().documents.length));
+}
 
 function report(image = false): DocumentManifest {
   const words: StoredWord[] = [];
@@ -35,11 +42,14 @@ describe('persistent browser demo history', () => {
   });
   afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
-  it('reopens saved sources, extracted readings and charts from a new service instance', async () => {
+  it('saves only the approved source locally, then reopens cached server readings and charts', async () => {
     const originalImage = new Blob(['fictional approved pixels'], { type: 'image/jpeg' });
     const saved = await new LocalHistory().create(report(true), [originalImage]);
     const reopened = new LocalHistory();
     expect((await reopened.list()).map((doc) => doc.id)).toEqual([saved.id]);
+    expect((await reopened.results()).observations).toEqual([]);
+    await expect(reopened.records()).rejects.toThrow('server processing');
+    await serverProcessed(reopened, saved.id);
     const results = await reopened.results();
     expect(results.observations).toHaveLength(1);
     expect(results.observations[0]).toMatchObject({ name: 'TSH', value: 2.4, date: '2026-09-15' });
@@ -93,6 +103,7 @@ describe('persistent browser demo history', () => {
   it('persists checked comparisons with their original reading and rejects stale corrections', async () => {
     const history = new LocalHistory();
     const saved = await history.create(report(), [null]);
+    await serverProcessed(history, saved.id);
     const original = (await history.results()).observations[0];
     const change = { name: 'TSH', valueText: '< 3,1', unit: 'mIU/L', date: '2026-09-15', note: 'Checked the fictional source', expectedRevision: original.revision! };
     await history.correct(saved.id, original.id, change);
@@ -106,13 +117,15 @@ describe('persistent browser demo history', () => {
   it('removes readings and their correction text when more source content is hidden', async () => {
     const history = new LocalHistory();
     const saved = await history.create(report(), [null]);
+    await serverProcessed(history, saved.id);
     const original = (await history.results()).observations[0];
     await history.correct(saved.id, original.id, { name: 'TSH', valueText: '2.4', unit: 'mIU/L', date: '2026-09-15', note: 'Unique old correction', expectedRevision: original.revision! });
     const redacted = report();
     redacted.pages[0].words = redacted.pages[0].words.map((word) => word.l === 2 ? { ...word, h: true } : word);
     await history.replace(saved.id, redacted, [null]);
     expect((await history.results()).observations).toEqual([]);
-    expect((await history.records()).issues).toHaveLength(1);
+    expect(history.cachedModelRecords()).toBeNull();
+    expect(history.recordSnapshot().sources).toHaveLength(1);
     const stored = localStorage.getItem(LOCAL_HISTORY_KEY)!;
     expect(stored).not.toContain('TSH');
     expect(stored).not.toContain('Unique old correction');
@@ -122,6 +135,7 @@ describe('persistent browser demo history', () => {
   it('deletes sources and results together without leaving cached copies', async () => {
     const history = new LocalHistory();
     const saved = await history.create(report(), [null]);
+    await serverProcessed(history, saved.id);
     await history.records();
     await history.delete(saved.id);
     const reopened = new LocalHistory();
@@ -144,6 +158,42 @@ describe('persistent browser demo history', () => {
     const history = new LocalHistory();
     await Promise.all([history.create(report(true), [new Blob(['pixels'], { type: 'image/jpeg' })]), history.create(report(), [null])]);
     expect(await history.list()).toHaveLength(2);
-    expect((await history.results()).observations).toHaveLength(2);
+    expect((await history.results()).observations).toHaveLength(0);
+    expect(history.recordSnapshot().sources).toHaveLength(2);
+  });
+
+  it('replaces legacy parser guesses with server results but preserves user-confirmed corrections', async () => {
+    const history = new LocalHistory();
+    const saved = await history.create(report(), [null]);
+    await serverProcessed(history, saved.id);
+    const original = (await history.results()).observations[0];
+    await history.correct(saved.id, original.id, { name: 'TSH', valueText: '2.5', unit: 'mIU/L', date: '2026-09-15',
+      note: 'Checked the original', expectedRevision: original.revision! });
+    const state = JSON.parse(localStorage.getItem(LOCAL_HISTORY_KEY)!);
+    delete state.entries[0].transcriptions;
+    state.entries[0].observations.push({ ...original, id: 'old-parser-guess', confirmed: false, name: 'Merged wrong name' });
+    state.modelRecords = { fingerprint: history.recordSnapshot().fingerprint, records: recordsFixture() };
+    localStorage.setItem(LOCAL_HISTORY_KEY, JSON.stringify(state));
+    expect(history.cachedModelRecords()).toBeNull();
+    expect(history.recordSnapshot().sources).toHaveLength(1);
+    await serverProcessed(history, saved.id);
+    expect((await history.results()).observations).toHaveLength(1);
+    expect((await history.results()).observations[0]).toMatchObject({ value: 2.5, confirmed: true });
+    expect(localStorage.getItem(LOCAL_HISTORY_KEY)).not.toContain('Merged wrong name');
+  });
+
+  it('uses the server name suggestion only for a generic default, preserving custom names', async () => {
+    const history = new LocalHistory();
+    const defaultDoc = await history.create({ ...report(), name: 'Lab document 7' }, [null]);
+    const custom = await history.create({ ...report(), name: 'My annual report' }, [null]);
+    await serverProcessed(history, defaultDoc.id);
+    await serverProcessed(history, custom.id);
+    expect((await history.get(defaultDoc.id)).name).toBe('Thyroid tests');
+    expect((await history.get(custom.id)).name).toBe('My annual report');
+    const records = recordsFixture();
+    records.warnings.push({ documentId: custom.id, documentName: 'Lab document', observationId: 'source-row', page: 0, bbox: null,
+      reason: 'unit', by: 'rules', detail: 'Missing unit', printedName: 'TSH', printedValue: '2.4', printedUnit: null, date: null });
+    history.saveModelRecords(history.recordSnapshot().fingerprint, records);
+    expect(history.cachedModelRecords()?.warnings[0].documentName).toBe('My annual report');
   });
 });

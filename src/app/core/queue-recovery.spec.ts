@@ -80,12 +80,15 @@ describe('queue recovery after refresh', () => {
 
   it('restores files and edits while keeping large images out of localStorage', async () => {
     const state = snapshot();
+    state.batchId = crypto.randomUUID();
     state.documents[0].pages[0].image = new Blob([new Uint8Array(6 * 1024 * 1024)], { type: 'image/png' });
     state.documents[0].pages[0].imageUrl = 'blob:old-tab';
     const writer = new QueueRecovery(); await writer.load(); await writer.save(state);
     const marker = localStorage.getItem(QUEUE_PROGRESS_KEY)!;
     expect(marker.length).toBeLessThan(2000); expect(marker).not.toContain('Fictional');
     const restored = (await new QueueRecovery().load())!;
+    expect(restored.batchId).toBe(state.batchId);
+    expect(restored.documents[0].localId).toBe(state.documents[0].localId);
     expect(restored.reviewId).toBe('one'); expect(restored.reviewOpened).toBe(true);
     expect(await restored.documents[0].file!.text()).toBe('fictional original');
     expect(restored.documents[0].pages[0]).toMatchObject({ imageUrl: null, regions: state.documents[0].pages[0].regions, words: state.documents[0].pages[0].words });
@@ -138,8 +141,53 @@ describe('queue recovery after refresh', () => {
   it('does not let a stale second tab overwrite newer progress', async () => {
     const first = new QueueRecovery(); const second = new QueueRecovery(); await first.load(); await second.load();
     await first.save(snapshot());
-    await expect(second.save(snapshot([document('different')]))).rejects.toThrow('Another tab');
+    await expect(second.save(snapshot([document('different')]))).rejects.toThrow('Saved progress changed');
     expect((await new QueueRecovery().load())!.documents[0].localId).toBe('one');
+  });
+
+  it('does not let a delayed restore roll back the revision of this same page’s newer autosave', async () => {
+    const writer = new QueueRecovery(); await writer.load();
+    const state = snapshot(); await writer.save(state);
+    const transaction = IDBDatabase.prototype.transaction;
+    let release!: () => void, captured!: () => void;
+    const read = new Promise<void>(resolve => { captured = resolve; });
+    let delayed = false;
+    const spy = vi.spyOn(IDBDatabase.prototype, 'transaction').mockImplementation(function (this: IDBDatabase, ...args) {
+      const tx = transaction.apply(this, args);
+      if (args[1] === 'readonly' && !delayed) {
+        delayed = true;
+        tx.addEventListener('complete', event => {
+          event.stopImmediatePropagation();
+          release = () => tx.oncomplete?.call(tx, event);
+          captured();
+        }, { once: true });
+      }
+      return tx;
+    });
+    const loading = writer.load(); await read;
+    const changed = snapshot([{ ...state.documents[0], name: 'Thyroid tests' }]);
+    const saving = writer.save(changed);
+    // A transaction barrier lets a premature write commit before the delayed
+    // restore returns. Previously the restore then put the old revision back.
+    await deviceTransaction(['queue-state'], 'readonly', () => {});
+    release(); await loading; await saving; spy.mockRestore();
+    const final = snapshot([{ ...changed.documents[0], name: 'Updated thyroid tests' }]);
+    await expect(writer.save(final)).resolves.toBeUndefined();
+    expect(writer.isSaved(final)).toBe(true);
+    expect((await new QueueRecovery().load())!.documents[0].name).toBe('Updated thyroid tests');
+  });
+
+  it('waits for the initial file checkpoint before starting OCR', async () => {
+    const { queue, extraction } = queueSetup(); await queue.ready; await queue.retryRecovery();
+    let saved!: () => void;
+    const write = vi.spyOn(queue.recovery, 'save').mockReturnValue(new Promise<void>(resolve => { saved = resolve; }));
+    const [id] = queue.add([new File(['fictional original'], 'one.txt')], 'lightweight');
+    expect(queue.byId(id)?.status).toBe('queued');
+    expect(extraction.extract).not.toHaveBeenCalled();
+    saved();
+    await vi.waitFor(() => expect(queue.byId(id)?.status).toBe('review'));
+    expect(extraction.extract).toHaveBeenCalledOnce();
+    write.mockRestore(); await queue.retryRecovery();
   });
 
   it('reopens the selected review and resumes interrupted files without repeating completed OCR', async () => {

@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { vi } from 'vitest';
@@ -28,7 +28,7 @@ async function setup() {
       { path: 'appointment', component: Destination, canActivate: [resultsReadyGuard] },
     ]),
     { provide: NerService, useValue: ner },
-    { provide: DocumentsApi, useValue: { create } },
+    { provide: DocumentsApi, useValue: { create, prepareBatch: vi.fn(), processing: signal({stage: 'idle', completed: 0, total: 0, error: null}) } },
     { provide: ExtractionService, useValue: { extract: vi.fn(async () => document('new').pages) } },
   ] });
   await TestBed.compileComponents();
@@ -158,8 +158,8 @@ describe('continuous document review', () => {
     queue.documents.update(docs => docs.map(doc => doc.localId === 'first'
       ? { ...doc, privacyMode: 'lightweight', privacyCheck: 'manual', privacyAcknowledged: false, privacyMessage: 'Click details to hide them.' } : doc));
     queue.openReview(); fixture.detectChanges(); await fixture.whenStable(); fixture.detectChanges();
-    expect(button('Approve and save').disabled).toBe(true);
-    queue.acknowledgePrivacy('first', true); fixture.detectChanges();
+    expect(button('Approve and save').disabled).toBe(false);
+    expect(fixture.nativeElement.textContent).not.toContain('I checked every page myself');
     button('Approve and save').click();
     await vi.waitFor(() => expect(queue.byId('first')?.status).toBe('saved')); fixture.detectChanges();
     expect(button('Continue to Results').disabled).toBe(true);

@@ -21,6 +21,9 @@ export interface Observation {
   page: number;
   bbox: [number, number, number, number] | null;
   words: number[];
+  sourceEvidence?: { name: number[]; value: number[]; unit: number[]; date: number[]; reference: number[] };
+  sourceImage?: { pageId: string; revision: string; row: number };
+  transcription?: import('../../../api/src/demo/processing-contract').PrintedRow;
   name: string;
   value: number | null;
   valueText: string;

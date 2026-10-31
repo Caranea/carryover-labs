@@ -1,41 +1,11 @@
-# Results extraction and correction
+# Page transcription and corrections
 
-The extractor reads visible words from an approved redacted document. It does not see hidden text. OCR readings may differ from the physical original, so each observation retains its page, word indices and bounding box for review.
+The active pipeline is documented in [records](records.md) and [API](api.md). Local OCR supports privacy detection only; it does not extract laboratory rows or determine document categories. PDF text layers are ignored. Pages keep their original displayed orientation.
 
-## Local reading
+Spark transcribes approved, permanently redacted page images on the server. The browser saves each completed page before final Wonder normalization. Printed values, comparators, units, ranges, flags and collection/order/report dates are retained without conversion or medical interpretation. Missing fields are explicit. Image regions are optional and use original image coordinates; a page can still be opened when a region is unavailable.
 
-Digital PDFs use a usable text layer; scans and photographs use Tesseract with Polish, German and English data. The text-quality check can choose OCR for a broken PDF character map. Orientation checks can rotate an image before extraction so word boxes follow the saved image. DOCX/TXT sources produce text-only pages.
+Corrections use the existing browser history and source dialog. A note and expected observation revision are required. The immutable Spark transcription and original reading remain available after a correction. Further redaction discards derived results and invalidates pending responses. Normalization is repeated after corrections; successful page transcriptions are reused.
 
-## Source fidelity
+The old `api/src/results/rows.ts` and word-index recovery remain only in offline legacy regression/storage code. They are not called by the anonymous processing API or browser extraction path.
 
-`api/src/results/rows.ts` detects table headers and inline rows, parses value/comparator/unit/reference text, and retains the recognised source reading. It does **not** insert decimal points, alter reference bounds or repair unit strings to make a reading fit a printed range. For example, OCR `47` remains `47`, even alongside `4.0–10.0`.
-
-Formatting is inferred per page. Collection labels and explicit row dates establish dates; dates are not borrowed from a different page. Invalid, ambiguous or unrelated dates are withheld. Multi-date cumulative columns still require further extraction work. The chart builder lists undated observations for source checking.
-
-`EXTRACTOR_VERSION` invalidates older caches when extraction changes. Raw results are cached separately from user corrections. Document read/extraction failures appear as issues in API responses rather than silently disappearing from the record.
-
-## Corrections
-
-`PATCH /api/results/:documentId/observations/:observationId` accepts:
-
-```json
-{
-  "name": "TSH",
-  "valueText": "< 2.5",
-  "unit": "mIU/L",
-  "date": "2024-01-10",
-  "note": "Checked the printed value and collection date.",
-  "expectedRevision": "64-character revision returned with the observation"
-}
-```
-
-Unit/date may be null. The note is required. The server validates fields and calendar dates and returns409 for an outdated revision. Unknown observation IDs and another account's documents are inaccessible.
-
-The ledger is an overlay: source words/images and extracted readings stay intact. Responses include original fields, effective fields, revision, check/correction history and confirmation status. Confirming without changes is supported. The record uses the effective fields; a confirmed extreme reading is not suppressed because a model or plausibility bound objects.
-
-Re-redaction invalidates extraction, review and correction history because these can contain newly hidden text. A correction is applied only to the source hash against which it was made. Model reviews are also hashed against the exact current readings.
-
-## Verification
-
-Synthetic tests cover locale/date parsing, multi-page and section dates, row dates, malformed/ambiguous dates, source-number preservation, hidden text, auth/account isolation, concurrent revision conflicts, immutable originals, redaction invalidation and visible extraction failures. These tests are not a measured OCR accuracy benchmark on real photographs.
-
+Tests cover source links, comparators, typed dates, invalid model fields, unit arithmetic, page retry/refresh, revisions and the privacy approval gate. Live checks and measured limitations are recorded in [pipeline verification](pipeline-verification.md).

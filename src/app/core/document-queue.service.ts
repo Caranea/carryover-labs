@@ -10,7 +10,7 @@ import { DocumentsApi } from './documents-api';
 import { Box, LocalDocument, PrivacyMode, SavedDocumentSummary, WorkingPage, WorkingWord } from './models';
 import { QueueRecovery, QueueSnapshot } from './queue-recovery';
 import { applyRememberedDetails, learnDetails, RememberedDetails } from '../pii/remembered-details';
-import { documentReportDate, withSuggestedName } from './document-name';
+import { documentReportDate } from './document-name';
 import { protectMedicalTerms } from '../pii/medical-terms';
 
 /**
@@ -23,6 +23,8 @@ export class DocumentQueueService {
   private readonly extraction = inject(ExtractionService);
   private readonly ner = inject(NerService);
   private readonly api = inject(DocumentsApi);
+  readonly processing = this.api.processing;
+  readonly batchId = signal<string>(crypto.randomUUID());
   readonly recovery = inject(QueueRecovery);
   readonly recoveryReady = signal(!this.recovery.available);
   readonly restoring = signal(this.recovery.available);
@@ -74,16 +76,28 @@ export class DocumentQueueService {
 
   private predictions = new Map<string, PagePredictions[]>();
   private running = false;
+  private destroyed = false;
   private counter = 0;
   private readonly activeChecks = new Map<string, AbortController>();
   private readonly rememberedDetails = signal<RememberedDetails>({});
 
   constructor() {
+    inject(DestroyRef).onDestroy(() => {
+      this.destroyed = true;
+      for (const check of this.activeChecks.values()) check.abort();
+    });
     this.ready = this.recovery.available ? this.restoreQueue() : this.recovery.load().then(() => {});
     effect(() => {
       if (!this.recoveryReady()) return;
       const snapshot = this.snapshot();
       untracked(() => { void this.recovery.save(snapshot).catch(() => {}); });
+    });
+    effect(() => {
+      if (!this.recoveryReady()) return;
+      const ready = this.pending().length === 0;
+      const batchId = this.batchId();
+      // Approval can start transcription while the remaining originals are still being prepared.
+      untracked(() => this.api.prepareBatch(batchId, ready));
     });
     const protect = (event: BeforeUnloadEvent) => {
       const snapshot = this.snapshot();
@@ -103,14 +117,16 @@ export class DocumentQueueService {
   }
 
   private snapshot(): QueueSnapshot {
-    return { documents: this.documents(), batchIds: this.batchIds(), reviewId: this.reviewId(), reviewOpened: this.reviewOpened(),
+    return { batchId: this.batchId(), documents: this.documents(), batchIds: this.batchIds(), reviewId: this.reviewId(), reviewOpened: this.reviewOpened(),
       privacyMode: this.privacyMode(), privacyModeChosen: this.privacyModeChosen(), counter: this.counter,
       rememberedDetails: this.rememberedDetails(), rememberedDetailsVersion: PRIVACY_VERSION };
   }
 
   async retryRecovery() {
     if (!this.recoveryReady()) await this.restoreQueue();
-    else await this.recovery.save(this.snapshot()).catch(() => {});
+    else {
+      try { await this.recovery.save(this.snapshot()); void this.run(); } catch { /* Keep unsaved files in this tab. */ }
+    }
   }
 
   private async restoreQueue() {
@@ -118,6 +134,7 @@ export class DocumentQueueService {
     try {
       const snapshot = await this.recovery.load();
       if (snapshot) {
+        this.batchId.set(snapshot.batchId ?? crypto.randomUUID());
         const approved = this.api.approvedQueueDocuments();
         const documents = snapshot.documents.map((doc): LocalDocument => {
           const saved = !doc.serverId ? approved.get(doc.localId) : undefined;
@@ -166,8 +183,8 @@ export class DocumentQueueService {
     for (const file of files) {
       const kind = sourceKindOf(file);
       added.push({
-        localId: `local-${Date.now().toString(36)}-${this.counter++}`,
-        name: `Lab document ${this.counter}`,
+        localId: crypto.randomUUID(),
+        name: `Lab document ${++this.counter}`,
         generatedName: `Lab document ${this.counter}`,
         fileName: file.name,
         sourceKind: kind ?? 'text',
@@ -185,9 +202,10 @@ export class DocumentQueueService {
     }
     if (!added.length) return [];
     // Start a fresh batch after the previous one has been approved or discarded.
-    if (!this.resultsBlocked()) { this.batchIds.set([]); this.reviewId.set(null); }
+    if (!this.resultsBlocked()) { this.batchIds.set([]); this.batchId.set(crypto.randomUUID()); this.reviewId.set(null); }
     this.batchIds.update((ids) => [...ids, ...added.map((doc) => doc.localId)]);
     this.documents.update((docs) => [...docs, ...added]);
+    this.api.prepareBatch(this.batchId(), false);
     this.reviewOpened.set(true);
     if (added.some((d) => d.status === 'queued')) {
       void this.run();
@@ -203,13 +221,16 @@ export class DocumentQueueService {
   }
 
   private async run() {
-    if (this.running) return;
+    if (this.running || this.destroyed) return;
     this.running = true;
     try {
+      // Checkpoint the originals before OCR starts.
+      await this.recovery.save(this.snapshot());
       let next: LocalDocument | undefined;
-      while ((next = this.documents().find((d) => d.status === 'queued'))) {
+      while (!this.destroyed && (next = this.documents().find((d) => d.status === 'queued'))) {
         await this.process(next);
       }
+    } catch { /* Recovery exposes the save error; do not start OCR. */
     } finally {
       this.running = false;
     }
@@ -224,13 +245,14 @@ export class DocumentQueueService {
       const pages = doc.pages.length ? doc.pages : await this.extraction.extract(doc.file!, (fraction, message) =>
         this.patch(id, { progress: fraction * 0.7, message }),
       );
-      if (!this.byId(id)) return revokePages(pages);
+      if (this.destroyed || !this.byId(id)) return revokePages(pages);
 
       const mode = this.byId(id)!.privacyMode;
       this.patch(id, { status: 'detecting', progress: 0.7, message: mode === 'lightweight' ? 'Preparing for you to hide personal details' : 'Finding personal details', pages });
+      const piiStarted = performance.now();
       const predictions = mode === 'lightweight' ? pages.map(() => null) : await this.ner.predict(pages, abort.signal);
       const current = this.byId(id);
-      if (!current) return;
+      if (this.destroyed || !current) return;
       this.predictions.set(id, predictions);
       // Re-read the mode after awaiting: switching to manual must also bypass rules
       // and filename hints when an in-flight model result arrives or is cancelled.
@@ -246,6 +268,7 @@ export class DocumentQueueService {
         ...privacyStatus(pages, predictions, current.privacyMode, this.ner.error()),
       });
       this.refreshReviewDetails(id);
+      console.info('[Carryover timing]', { stage: 'pii-detection', batchId: this.batchId(), documentId: id, pages: pages.length, elapsedMs: Math.round(performance.now() - piiStarted) });
     } catch (e) {
       this.patch(id, { status: 'error', error: e instanceof Error ? e.message : String(e), message: '' });
     } finally {
@@ -367,10 +390,7 @@ export class DocumentQueueService {
   async approve(localId: string): Promise<boolean> {
     const doc = this.byId(localId);
     if (!doc || doc.status !== 'review') return false;
-    if ((doc.privacyCheck === 'incomplete' || doc.privacyCheck === 'manual') && !doc.privacyAcknowledged) {
-      this.patch(localId, { error: 'Confirm that you checked every page yourself and hid the personal details you want removed.' });
-      return false;
-    }
+    // This explicit action is the privacy approval; no separate acknowledgement is required.
     const name = doc.name.trim() || 'Document';
     const generated = name === doc.generatedName;
     const hiddenText = doc.pages.flatMap((page) => [...redactionPlan(page).hidden].map((index) => page.words[index].text).filter((text): text is string => text !== null));
@@ -386,15 +406,17 @@ export class DocumentQueueService {
     this.patch(localId, { status: 'saving', message: 'Blacking out hidden details', error: undefined });
     try {
       const images: (Blob | null)[] = [];
+      const started = performance.now();
       for (const page of doc.pages) {
         images.push(await burnPage(page));
         if (!this.byId(localId)) return false;
       }
       const manifest = buildManifest(doc, name);
+      console.info('[Carryover timing]', { stage: 'redacted-image-preparation', batchId: this.batchId(), documentId: localId, pages: images.length, elapsedMs: Math.round(performance.now() - started) });
       this.patch(localId, { message: 'Saving on this device' });
       const summary = doc.serverId
         ? await this.api.replace(doc.serverId, manifest, images)
-        : await this.api.create(manifest, images, doc.fileName, doc.localId);
+        : await this.api.create(manifest, images, doc.fileName, doc.localId, this.batchId());
       if (!this.byId(localId)) return false;
       // The originals are no longer needed on this device either.
       revokePages(this.byId(localId)?.pages ?? []);
@@ -456,6 +478,9 @@ export class DocumentQueueService {
         status: 'review',
         strict: false,
         progress: 1,
+        privacyCheck: 'manual',
+        privacyAcknowledged: false,
+        privacyMessage: 'Check every page and confirm the permanent blackouts before saving.',
         message: '',
         pages,
         file: null,
@@ -473,6 +498,10 @@ export class DocumentQueueService {
     } catch (e) {
       this.savedError.set(describeHttpError(e));
     }
+  }
+
+  async retryProcessing() {
+    try { await this.api.retryRecords(); await this.refreshSaved(); } catch { /* The existing progress panel shows retry errors. */ }
   }
 
   async deleteSaved(serverId: string) {
@@ -511,7 +540,7 @@ export class DocumentQueueService {
       if (doc.privacyMode !== 'lightweight' && !doc.serverId && doc.privacyVersion !== PRIVACY_VERSION) return doc;
       // Same-document and cross-document matches follow the same reversible rule.
       const pages = applyRememberedDetails(protectMedicalTerms(doc.pages), memory);
-      return withSuggestedName(pages === doc.pages ? doc : { ...doc, pages, privacyAcknowledged: false });
+      return pages === doc.pages ? doc : { ...doc, pages, privacyAcknowledged: false };
     }));
   }
 }
@@ -522,6 +551,8 @@ function revokePages(pages: WorkingPage[]) {
 
 function privacyStatus(pages: WorkingPage[], predictions: PagePredictions[], mode: PrivacyMode = 'automatic', reason?: string | null): Pick<LocalDocument, 'privacyCheck' | 'privacyMessage' | 'privacyAcknowledged'> {
   if (mode === 'lightweight') return { privacyCheck: 'manual', privacyAcknowledged: false, privacyMessage: 'Manual review: matches to personal details hidden in earlier documents are already hidden. Click or tap any other personal details to hide them, including names, addresses, email addresses, phone numbers and identification numbers. Draw boxes over stamps and signatures. Check every page before saving.' };
+  if (pages.some(page => page.image)) return { privacyCheck: 'incomplete', privacyAcknowledged: false,
+    privacyMessage: 'The local privacy check uses one OCR pass without rotating pages. Sideways, upside-down or difficult pages can have missed names and incorrect text boxes. Inspect every page and draw boxes over remaining personal details before approving upload.' };
   const incomplete = pages.some((page, i) => {
     const hasText = page.words.some((w) => w.text !== null);
     return (hasText && !predictions[i]) || (!!page.image && !hasText);

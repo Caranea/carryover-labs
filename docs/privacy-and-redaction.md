@@ -10,15 +10,15 @@ The demo has no accounts or login. Approved history belongs to the current brows
 | Approved source text / burned page images | Browser localStorage / IndexedDB (older base64 images remain readable) |
 | Extracted readings, corrections and accepted recovery evidence | Browser localStorage |
 | Cached Meta-checked charts and proposals | Browser localStorage |
-| Routine AI tasks | Result names, values, units and dates processed through the stateless API and configured Meta provider |
-| Explicit missed-row check | Visible words and positions from the selected approved page; no images |
+| Routine AI tasks | Approved permanently redacted image pixels sent to standard Spark; structured observations sent to standard Wonder; no original files, OCR words, filenames or hidden text |
+| Explicit missed-row check | One saved approved redacted page image, with explicit source-review acceptance for suggestions |
 | PDF export | Generated on device and saved by the user |
 
 ## Local saving
 
 The browser removes hidden text and burns masks into fresh page images before saving. Reopening a saved source only allows additional redaction. Original filenames are not used as default document titles. The preview and saved masks share one geometry calculation.
 
-Editable titles are suggested from fixed, recognised test categories and an explicitly labelled, visible report/collection date. Birth dates, hidden text, ambiguous dates and conflicting report dates are excluded. User-entered names are preserved.
+After transcription, Spark can suggest a short general test/topic title without personal details. Generic titles are replaced; user-entered names are preserved. The review screen uses a neutral title before processing.
 
 Result protection is contextual, not an allowlist of numeric values. Units (including superscripts and OCR-split notation), reference ranges, or a recognised test name immediately followed by a short number establish result context. Numeric values, units, ranges and flags such as LL/HH then survive mistaken model predictions. Explicit identity rules and manual masks take precedence. Standalone numbers are not universally exempt; missed OCR context can still require correction during review.
 
@@ -30,7 +30,7 @@ Browser storage is limited, is not encrypted by the application, and is accessib
 
 ## Meta requests
 
-The server processes supplied request text without writing records or user-linked history. Routine model prompts exclude document titles, images and correction notes. Explicit source recovery sends visible indexed source words and positions, verifies returned indices, and requires user acceptance in the browser before adding a result.
+The server handles request-local pixels and structured observations without writing records or user-linked history. Spark receives only the approved page raster. A second server re-encoding strips any remaining metadata. Wonder receives structured name/unit/specimen/method combinations, without images by default. Completed page transcriptions and normalization are saved in the browser. Source recovery uses the same approved image boundary and requires acceptance before adding proposals. Batch IDs cannot retrieve any server content.
 
 The previous saved-document endpoints are not registered by the demo application. Existing server files remain untouched; offline storage utilities and their regression harness are retained separately.
 
@@ -38,7 +38,7 @@ API responses are private/no-store. Model responses are schema-checked; provider
 
 ## Review remains necessary
 
-Personal-detail detection can miss information. Redacted lab content and dates may still identify someone. The recommended full check and the lightweight option both run locally; incomplete checks require acknowledgement that all pages were reviewed.
+Personal-detail detection can miss information. Redacted lab content and dates may still identify someone. The recommended full check and the lightweight option both run locally; the single Approve button confirms the reviewed copy, without an additional acknowledgement checkbox. One OCR pass without rotation is unreliable on sideways/upside-down pages; upload still waits for approval. Draw manual boxes where OCR misses identifying text. The full-resolution burned PNG uses original image coordinates and cannot reveal pixels under a mask.
 
 Browser model downloads contact Hugging Face. OCR assets, fonts and PDF workers are served by the app. Use fictional reports for shared hackathon demonstrations.
 

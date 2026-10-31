@@ -20,7 +20,7 @@
   }
   @if (data() === null && !error()) {
     <div aria-label="Processing results" aria-busy="true">
-      <p role="status" class="flex items-center gap-3"><span class="loading loading-spinner loading-sm text-primary" aria-hidden="true"></span>Processing your approved lab data…</p>
+      <p role="status" class="flex items-center gap-3"><span class="loading loading-spinner loading-sm text-primary" aria-hidden="true"></span>{{ processing().stage === 'normalizing' ? 'Normalizing test names and groups…' : 'Transcribing approved pages…' }} {{ processing().completed }}/{{ processing().total }} pages</p>
     </div>
   } @else if (data() && !data()!.stats.values && !data()!.warnings.length && !data()!.textResults.length && !data()!.issues?.length) {
     <div class="card bg-base-200">

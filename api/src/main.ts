@@ -17,7 +17,7 @@ async function bootstrap() {
     logger: ['error', 'warn', 'log'],
     bodyParser: false,
   });
-  app.useBodyParser('json', { limit: '8mb' });
+  app.useBodyParser('json', { limit: '21mb' });
   app.disable('x-powered-by');
   if (config.trustLoopbackProxy) app.set('trust proxy', 'loopback');
   app.setGlobalPrefix('api');

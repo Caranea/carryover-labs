@@ -30,6 +30,11 @@ export interface Observation {
   bbox: Tuple4 | null;
   /** Indices into the page's word list. */
   words: number[];
+  /** Exact approved OCR words selected during server extraction. */
+  sourceEvidence?: { name: number[]; value: number[]; unit: number[]; date: number[]; reference: number[] };
+  sourceImage?: { pageId: string; revision: string; row: number };
+  /** Immutable Spark transcription, preserved even after a user correction. */
+  transcription?: import('../demo/processing-contract.js').PrintedRow;
   /** The test name as printed, e.g. "TSH (ICD-9: L69)". */
   name: string;
   /** Numeric value, if the result is a number. */

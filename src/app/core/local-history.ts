@@ -1,7 +1,5 @@
-import { extractDocument } from '../../../api/src/results/extract';
 import { parseNumber, toIsoDate } from '../../../api/src/results/tokens';
-import { buildRecords } from '../../../api/src/records/build-core';
-import { verifyEvidence } from '../../../api/src/recovery/verify-core';
+import { PROCESSING_VERSION, type ProcessedDocument, type PageTranscription } from '../../../api/src/demo/processing-contract';
 import type { DocumentManifest, SavedDocument, SavedDocumentSummary } from './models';
 import type { RecordsResponse } from './records';
 import type { CorrectionRequest, Observation, ObservationFields, ResultsResponse } from './results';
@@ -16,13 +14,16 @@ interface Entry {
   /** Local idempotency key: reconnect an approval if refresh interrupted queue saving. */
   sourceLocalId?: string;
   observations: Observation[];
+  processing?: Omit<ProcessedDocument, 'observations'>;
+  batchId?: string;
+  transcriptions?: Record<string, PageTranscription>;
   images: Record<string, string>;
   /** New page images use binary storage; images above remains readable for older saves. */
   imageRefs?: Record<string, string>;
   revision: string;
   recovery?: RecoveryResponse;
 }
-interface HistoryState { version: 1; entries: Entry[]; modelRecords?: { fingerprint: string; records: RecordsResponse } }
+interface HistoryState { version: 1; entries: Entry[]; modelRecords?: { version?: number; fingerprint: string; records: RecordsResponse } }
 
 /** Atomic localStorage metadata references page blobs committed to IndexedDB first. */
 export class LocalHistory {
@@ -31,18 +32,61 @@ export class LocalHistory {
   }
   recordSnapshot() {
     const all = read();
-    return { fingerprint: fingerprint(all), documents: all.map(({ document, observations }) => ({ id: document.id, name: document.name, observations })), issues: issues(all) };
+    return { fingerprint: fingerprint(all),
+      sources: all.flatMap(entry => entry.document.pages.filter(page => entry.transcriptions?.[page.index]?.version !== PROCESSING_VERSION).map(page => ({
+        documentId: entry.document.id, page: page.index, pageId: `${entry.document.id}:${page.index}`, revision: entry.revision,
+        batchId: entry.batchId,
+      }))),
+      documents: all.map(({ document, observations }) => ({ id: document.id, name: 'Lab document', observations: observations.map(o => ({
+        id: o.id, documentId: o.documentId, page: o.page, bbox: o.bbox, name: o.name, valueText: o.valueText,
+        unit: o.unit, date: o.date, dateSource: o.dateSource, refText: o.refText, flag: o.flag,
+        sourceImage: o.sourceImage, transcription: o.transcription, confirmed: o.confirmed, revision: o.revision,
+      })) })), issues: issues(all) };
+  }
+
+  pageSourceCurrent(id: string, revision: string, page: number): boolean {
+    const entry = read().find(item => item.document.id === id);
+    return !!entry && entry.revision === revision && entry.document.pages.some(p => p.index === page)
+      && entry.transcriptions?.[page]?.version !== PROCESSING_VERSION;
+  }
+
+  savePageProcessing(id: string, expectedRevision: string, result: PageTranscription): boolean {
+    const all = read(), entry = all.find(item => item.document.id === id);
+    if (!entry || entry.revision !== expectedRevision) return false;
+    const page = entry.document.pages.find(p => p.index === result.page);
+    if (!page || result.version !== PROCESSING_VERSION || result.documentId !== id || result.pageId !== `${id}:${result.page}`
+      || result.revision !== expectedRevision || !Array.isArray(result.rows) || !Array.isArray(result.observations)
+      || result.rows.length !== result.observations.length || !Array.isArray(result.issues)
+      || result.observations.some((o, index) => o.documentId !== id || o.page !== result.page || o.id !== `${result.pageId}:${index}`
+        || o.sourceImage?.pageId !== result.pageId || o.sourceImage?.revision !== expectedRevision || o.sourceImage?.row !== index
+        || JSON.stringify(o.transcription) !== JSON.stringify(result.rows[index]) || typeof o.name !== 'string' || typeof o.valueText !== 'string')) {
+      throw new Error('The page response is incomplete. Please try again.');
+    }
+    entry.transcriptions = { ...entry.transcriptions, [result.page]: result };
+    // Raw transcription stays immutable; reviewed corrections are a separate representation.
+    const confirmed = entry.observations.filter(o => o.confirmed && o.page === result.page);
+    entry.observations = [...entry.observations.filter(o => o.page !== result.page),
+      ...result.observations.filter(o => !confirmed.some(old => old.id === o.id)), ...confirmed];
+    if (/^Lab document(?: \d+)?$/.test(entry.document.name) && result.suggestedName) entry.document.name = result.suggestedName.slice(0, 100);
+    write(all);
+    return true;
   }
 
   cachedModelRecords(): RecordsResponse | null {
     const state = readState();
-    return state.modelRecords?.fingerprint === fingerprint(state.entries) ? state.modelRecords.records : null;
+    return state.modelRecords?.version === PROCESSING_VERSION && state.modelRecords.fingerprint === fingerprint(state.entries) ? state.modelRecords.records : null;
   }
 
   saveModelRecords(expected: string, records: RecordsResponse): boolean {
     const all = read();
     if (fingerprint(all) !== expected) return false;
-    write(all, { fingerprint: expected, records });
+    // Reattach local display titles after inference, without sending custom names to the server.
+    const names = new Map(all.map(entry => [entry.document.id, entry.document.name]));
+    const points = records.domains.flatMap(domain => domain.charts.flatMap(chart => chart.series.flatMap(series => series.points)));
+    for (const source of [...points, ...points.flatMap(point => point.alsoIn), ...records.textResults, ...records.warnings]) {
+      source.documentName = names.get(source.documentId) ?? source.documentName;
+    }
+    write(all, { version: PROCESSING_VERSION, fingerprint: expected, records });
     return true;
   }
 
@@ -68,14 +112,18 @@ export class LocalHistory {
     if (!response || !proposal || proposal.state !== 'pending' || proposal.revision !== expectedRevision) throw new Error('This suggestion changed. Reopen it before continuing.');
     if (action === 'accepted') {
       if (!note.trim() || note.trim().length > 500) throw new Error('Write a short note describing what you checked.');
-      const verified = verifyEvidence(entry.document, proposal.page, proposal.evidence, entry.observations);
-      if (!verified.ok) throw new Error('This suggestion no longer matches the source. Reopen the document.');
-      entry.observations.push({ ...verified.observation, id: `${id}:recovery:${proposal.id}`, confirmed: true, revision: crypto.randomUUID(),
+      const observation = proposal.sourceObservation;
+      if (!observation?.sourceImage || observation.documentId !== id || observation.page !== proposal.page
+        || observation.sourceImage.pageId !== `${id}:${proposal.page}` || response.sourceRevision !== entry.revision
+        || !observation.transcription) throw new Error('This suggestion no longer matches the source. Recheck the page.');
+      entry.observations.push({ ...observation, id: `${id}:recovery:${proposal.id}`, confirmed: true, revision: crypto.randomUUID(),
         recovery: { proposalId: proposal.id, sourceRevision: response.sourceRevision, model: response.modelName ?? 'Meta AI', acceptedAt: new Date().toISOString(), note: note.trim(), evidence: proposal.evidence } });
     }
     proposal.state = action; proposal.note = note.trim() || null; proposal.decidedAt = new Date().toISOString(); proposal.revision = crypto.randomUUID();
     response.updatedAt = proposal.decidedAt;
+    // The image source has not changed; accepted rows invalidate the record cache through this revision.
     entry.revision = crypto.randomUUID();
+    response.sourceRevision = entry.revision;
     write(all);
     return response;
   }
@@ -94,7 +142,7 @@ export class LocalHistory {
     const ref = entry.imageRefs?.[String(index)];
     if (ref) return getApprovedImage(ref);
     const data = entry.images[String(index)];
-    if (!data) throw new Error('This page image is no longer saved on this device.');
+    if (!data) throw new Error(entry.document.pages[index]?.hasImage ? 'This page image is no longer saved on this device.' : 'This older text-only source has no page image. Add the file again, then review and approve it.');
     const [prefix, encoded] = data.split(',', 2);
     const mime = /^data:([^;]+);base64$/.exec(prefix)?.[1];
     if (!mime || !encoded) throw new Error('This saved page image could not be read.');
@@ -102,7 +150,7 @@ export class LocalHistory {
     return new Blob([bytes], { type: mime });
   }
 
-  async create(manifest: DocumentManifest, images: (Blob | null)[], originalFileName?: string, sourceLocalId?: string): Promise<SavedDocumentSummary> {
+  async create(manifest: DocumentManifest, images: (Blob | null)[], originalFileName?: string, sourceLocalId?: string, batchId?: string): Promise<SavedDocumentSummary> {
     const existing = sourceLocalId ? read().find(entry => entry.sourceLocalId === sourceLocalId) : undefined;
     if (existing) return summary(existing.document, existing.originalFileName);
     const now = new Date().toISOString();
@@ -111,6 +159,7 @@ export class LocalHistory {
       createdAt: now, updatedAt: now,
     };
     const entry = await prepare(document, images);
+    entry.batchId = batchId;
     if (originalFileName) entry.originalFileName = originalFileName;
     if (sourceLocalId) entry.sourceLocalId = sourceLocalId;
     try {
@@ -131,6 +180,7 @@ export class LocalHistory {
       ...previous.document, ...safe, pageCount: safe.pages.length, updatedAt: new Date().toISOString(),
     };
     const replacement = await prepare(document, images);
+    replacement.batchId = previous.batchId;
     replacement.originalFileName = previous.originalFileName;
     replacement.sourceLocalId = previous.sourceLocalId;
     try {
@@ -145,9 +195,10 @@ export class LocalHistory {
   async results(): Promise<ResultsResponse> {
     const all = read();
     return {
-      documents: all.map(({ document, observations }) => ({
+      documents: all.map(({ document, observations, processing }) => ({
         id: document.id, name: document.name, sourceKind: document.sourceKind,
-        pageCount: document.pageCount, locale: extractDocument(document).locale, count: observations.length,
+        pageCount: document.pageCount, locale: processing?.locale
+          ?? { language: 'unknown', decimal: '.', dateOrder: 'DMY', collectionDate: null, collectionDateSource: null }, count: observations.length,
       })),
       observations: all.flatMap((entry) => entry.observations),
       issues: issues(all),
@@ -155,12 +206,11 @@ export class LocalHistory {
   }
 
   async records(): Promise<RecordsResponse> {
-    const all = read();
-    const { records } = buildRecords(
-      all.map(({ document, observations }) => ({ id: document.id, name: document.name, observations, review: null })),
-      { version: 1, names: {}, tests: [], conversions: {} }, false,
-    );
-    return { ...records, issues: issues(all), model: { state: 'off', name: null, waiting: 0, message: null } };
+    const cached = this.cachedModelRecords();
+    if (cached) return cached;
+    if (read().length) throw new Error('Results need server processing. Open Results to continue.');
+    return { domains: [], textResults: [], warnings: [], issues: [], stats: { documents: 0, tests: 0, values: 0, from: null, to: null },
+      model: { state: 'ready', name: null, waiting: 0, message: null } };
   }
 
   async correct(documentId: string, observationId: string, request: CorrectionRequest): Promise<Observation> {
@@ -197,7 +247,7 @@ export class LocalHistory {
   }
 }
 
-function fingerprint(entries: Entry[]): string { return JSON.stringify(entries.map((entry) => [entry.document.id, entry.revision])); }
+function fingerprint(entries: Entry[]): string { return JSON.stringify([PROCESSING_VERSION, entries.map((entry) => [entry.document.id, entry.revision])]); }
 function read(): Entry[] { return readState().entries; }
 function readState(): HistoryState {
   let raw: string | null;
@@ -241,7 +291,10 @@ function summary({ pages: _pages, ...rest }: SavedDocument, originalFileName?: s
 function safeManifest(manifest: DocumentManifest): DocumentManifest {
   // Explicit fields prevent browser-only metadata from entering processing payloads.
   const { name, sourceKind, pages, hiddenCount } = manifest;
-  const copy = structuredClone({ name, sourceKind, pages, hiddenCount });
+  const copy = structuredClone({ name, sourceKind, hiddenCount, pages: pages.map(page => ({
+    index: page.index, width: page.width, height: page.height, hasImage: page.hasImage, ocr: page.ocr, regions: page.regions,
+    words: page.words.map(word => ({ t: word.t, l: word.l, ...(word.b ? { b: word.b } : {}), ...(word.h ? { h: true as const } : {}), ...(word.k ? { k: word.k } : {}) })),
+  })) });
   for (const page of copy.pages) for (const word of page.words) if (word.h) word.t = null;
   return copy;
 }
@@ -272,7 +325,7 @@ async function prepare(document: SavedDocument, images: (Blob | null)[]): Promis
   if (Object.keys(blobs).length) await putApprovedImages(blobs);
   return {
     document, images: {}, imageRefs, revision,
-    observations: extractDocument(document).observations.map((o) => ({ ...o, revision: crypto.randomUUID() })),
+    observations: [],
   };
 }
 
@@ -282,10 +335,10 @@ async function cleanImages(entry: Entry) {
 }
 
 function issues(entries: Entry[]) {
-  return entries.filter((entry) => !entry.observations.length).map(({ document }) => ({
+  return entries.flatMap(({ document, processing, transcriptions }) => (transcriptions ? Object.values(transcriptions).flatMap(p => p.issues) : processing?.issues ?? []).map(message => ({
     documentId: document.id, documentName: document.name,
-    message: 'No result rows could be read from this document. Check that its pages contain a readable results table.',
-  }));
+    message,
+  })));
 }
 
 function validateCorrection(input: CorrectionRequest): CorrectionRequest {

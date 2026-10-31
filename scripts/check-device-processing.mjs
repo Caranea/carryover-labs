@@ -52,7 +52,7 @@ document.querySelector('#rotation').onclick = async () => {
    const canvas = document.createElement('canvas'); const swap = angle%180!==0;
    canvas.width=swap?bitmap.height:bitmap.width; canvas.height=swap?bitmap.width:bitmap.height;
    const ctx=canvas.getContext('2d'); ctx.translate(canvas.width/2,canvas.height/2);ctx.rotate(angle*Math.PI/180);ctx.drawImage(bitmap,-bitmap.width/2,-bitmap.height/2);
-   const started = performance.now(); const output=await ocr.recognizeUpright(canvas,0);
+   const started = performance.now(); const output=await ocr.recognizePage(canvas,0);
    const row={variant,angle,milliseconds:performance.now()-started,width:output.canvas.width,height:output.canvas.height,words:output.words.length,sample:output.words.slice(0,10).map(w=>w.text)};
    results.push(row);log(JSON.stringify(row));await save('rotation',results);
   } bitmap.close();

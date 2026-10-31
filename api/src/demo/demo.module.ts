@@ -6,8 +6,9 @@ import { DemoController, DemoHealthController, DEMO_MODEL } from './demo.control
 @Module({})
 export class DemoModule {
   static forRoot(config: Pick<AppConfig, 'models'>, model?: JsonModel | null): DynamicModule {
+    const endpoints = config.models.filter(endpoint => endpoint.model === 'muse-spark-1.3');
     return { module: DemoModule, controllers: [DemoController, DemoHealthController], providers: [
-      { provide: DEMO_MODEL, useValue: model !== undefined ? model : config.models.length ? new MuseSpark(config.models) : null },
+      { provide: DEMO_MODEL, useValue: model !== undefined ? model : endpoints.length ? new MuseSpark(endpoints) : null },
     ] };
   }
 }

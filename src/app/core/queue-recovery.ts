@@ -5,6 +5,7 @@ import type { RememberedDetails } from '../pii/remembered-details';
 
 export const QUEUE_PROGRESS_KEY = 'carryover.queue.progress.v1';
 export interface QueueSnapshot {
+  batchId?: string;
   documents: LocalDocument[];
   batchIds: string[];
   reviewId: string | null;
@@ -41,13 +42,22 @@ export class QueueRecovery {
   private stored: QueueSnapshot | undefined;
   private latest: QueueSnapshot | undefined;
   private writing: Promise<void> | undefined;
+  private loading: Promise<QueueSnapshot | null> | undefined;
   readonly available = typeof indexedDB !== 'undefined';
 
   isSaved(snapshot: QueueSnapshot): boolean {
     return this.status() === 'saved' && equal(this.stored, snapshot);
   }
 
-  async load(): Promise<QueueSnapshot | null> {
+  load(): Promise<QueueSnapshot | null> {
+    if (!this.loading) this.loading = (async () => {
+      await this.writing;
+      return this.readCheckpoint();
+    })().finally(() => { this.loading = undefined; });
+    return this.loading;
+  }
+
+  private async readCheckpoint(): Promise<QueueSnapshot | null> {
     if (!this.available) { this.status.set('unavailable'); return null; }
     try {
       const loaded = await deviceTransaction<{ head?: QueueHead; docs: LocalDocument[] }>(['queue-state', 'queue-documents'], 'readonly', (tx, result, fail) => {
@@ -102,6 +112,8 @@ export class QueueRecovery {
 
   private async drain() {
     try {
+      // A delayed restore must finish before a save uses its revision.
+      await this.loading;
       while (this.latest) {
         const snapshot = this.latest; this.latest = undefined;
         const oldDocs = new Map(this.stored?.documents.map(doc => [doc.localId, doc]));
@@ -113,7 +125,7 @@ export class QueueRecovery {
           const request = heads.get('active');
           request.onsuccess = () => {
             try {
-              if (request.result?.revision !== this.revision) { fail(new Error('Another tab changed this queue. Keep this tab open and finish in one tab.')); return; }
+              if (request.result?.revision !== this.revision) { fail(new Error('Saved progress changed while this queue was open. Keep this page open to protect your unsaved work.')); return; }
               const store = tx.objectStore('queue-documents');
               for (const doc of documents) {
                 if (!sameDocument(oldDocs.get(doc.localId), doc)) {

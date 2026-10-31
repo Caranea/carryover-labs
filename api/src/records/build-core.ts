@@ -19,6 +19,7 @@ export interface BuildDocument {
   name: string;
   observations: Observation[];
   review: Review | null;
+  mappings?: Record<string, { test: CatalogueTest | null; reason: string }>;
 }
 
 /** The model's review of one document, kept until the document's rows change. */
@@ -82,7 +83,12 @@ export function buildRecords(docs: BuildDocument[], knowledge: Knowledge, modelO
   for (const doc of docs) {
     for (const o of doc.observations) {
       const src: SourceRef = { observationId: o.id, documentId: doc.id, documentName: doc.name, page: o.page, bbox: o.bbox, confirmed: o.confirmed };
-      const match = matchTest(o.name, o.unit, learned);
+      const mapping = doc.mappings?.[o.id];
+      if (doc.mappings && (!mapping?.test || (!o.confirmed && (o.transcription?.uncertainty.length || !o.valueText)))) {
+        warn(o, src, 'model', mapping?.reason || 'The source reading or test identity is uncertain. Check the source.', 'model');
+        continue;
+      }
+      const match = doc.mappings ? { test: mapping!.test! } : matchTest(o.name, o.unit, learned);
       if (!match) {
         const name = nameContextKey(o.name, o.unit);
         const known = knowledge.names[name];

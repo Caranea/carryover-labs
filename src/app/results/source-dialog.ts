@@ -78,6 +78,16 @@ export function sourceText(words: StoredWord[]): string {
               </details>
             } @else if (!s.loading && !s.error && !s.url) { <p>No readable source text is available for this page.</p> }
             @if (s.target.observation; as o) {
+              @if (o.transcription; as printed) {
+                <details class="rounded-box border border-base-300 p-3">
+                  <summary class="font-medium cursor-pointer py-1">Original page transcription</summary>
+                  <p>{{ printed.name ?? 'Unreadable test' }} · {{ printed.value ?? 'Unreadable value' }} {{ printed.unit ?? '(unit missing)' }}</p>
+                  <p>Reference: {{ printed.reference ?? 'not printed' }} · Flag: {{ printed.flag ?? 'not printed' }}</p>
+                  <p>Collected: {{ printed.collectionDate.printed ?? 'not printed' }} · Ordered: {{ printed.orderDate.printed ?? 'not printed' }} · Reported: {{ printed.reportDate.printed ?? 'not printed' }}</p>
+                  @if (printed.specimen || printed.method) { <p>{{ printed.specimen }} {{ printed.method }}</p> }
+                  @for (issue of printed.uncertainty; track $index) { <p>{{ issue }}</p> }
+                </details>
+              }
               @if (o.original; as original) {
                 <p class="text-sm text-base-content/80"><strong>Original extracted reading:</strong> {{ original.name }} · {{ original.valueText }} {{ original.unit ?? '' }} · {{ original.date ?? 'date unknown' }}. This may contain recognition errors.</p>
               }
@@ -149,7 +159,7 @@ export class SourceDialog implements OnDestroy {
       if (!current()) return false;
       const page = saved.pages.find((p) => p.index === target.page);
       if (!page) throw new Error('The source page is unavailable. Reopen the document and try again.');
-      this.shown.update((s) => s && { ...s, text: sourceText(page.words), width: page.width, height: page.height, loading: page.hasImage });
+      this.shown.update((s) => s && { ...s, text: target.observation?.sourceImage ? '' : sourceText(page.words), width: page.width, height: page.height, loading: page.hasImage });
       if (!page.hasImage) return !!sourceText(page.words).trim();
       const blob = await this.api.pageImage(target.documentId, target.page);
       if (!current()) return false;

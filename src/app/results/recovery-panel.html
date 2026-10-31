@@ -15,7 +15,7 @@
   @if (error()) { <p role="alert" class="alert alert-error alert-soft">{{ error() }} <button type="button" class="btn btn-sm" [disabled]="loading()" (click)="checkProgress()">Refresh status</button></p> }
   @if (data(); as state) {
     <div class="rounded-box bg-base-200 p-4 space-y-2">
-      <p><strong>What will be sent:</strong> the visible text from this saved, redacted page goes to the configured AI provider{{ state.modelName ? ' (' + state.modelName + ')' : '' }}. Any personal details left visible are included. Original files and hidden text are not sent.</p>
+      <p><strong>What will be sent:</strong> this saved page image with permanent blackouts goes to the configured AI provider{{ state.modelName ? ' (' + state.modelName + ')' : '' }}. Any personal details left visible are included. Original files and hidden text are not sent.</p>
       <p class="text-sm text-base-content/80">One page per request, with up to {{ state.limits.maxProposalsPerCall }} proposed readings. {{ attemptsOnPage() }} of {{ state.limits.maxAttemptsPerPage }} checks used for this page. The model can miss or misread rows.</p>
       @if (state.status === 'working') {
         <p role="status" class="font-medium">{{ paused() ? 'This check is taking longer than expected.' : 'Checking saved page ' + ((state.activePage ?? page()) + 1) + '…' }} Your existing results are unchanged.</p>

@@ -1,6 +1,5 @@
-import type { PDFPageProxy, TextItem } from 'pdfjs-dist/types/src/display/api';
+import type { PDFPageProxy } from 'pdfjs-dist/types/src/display/api';
 import { ASSETS, assetUrl } from '../core/assets';
-import { Box } from '../core/models';
 import { TextRun } from './layout';
 import { canvasToBlob, createCanvas, MAX_SIDE } from './render';
 
@@ -43,7 +42,7 @@ export async function* readPdf(file: File, maxPages = Infinity): AsyncGenerator<
       let rendered: Omit<RenderedPdfPage, 'index'> | undefined;
       try {
         try {
-          rendered = await renderPage(page, pdfjs.Util);
+          rendered = await renderPage(page);
         } finally {
           page.cleanup(); // release PDF caches before the consumer performs OCR
         }
@@ -59,7 +58,6 @@ export async function* readPdf(file: File, maxPages = Infinity): AsyncGenerator<
 
 async function renderPage(
   page: PDFPageProxy,
-  util: typeof import('pdfjs-dist').Util,
 ): Promise<Omit<RenderedPdfPage, 'index'>> {
   const base = page.getViewport({ scale: 1 });
   let scale = Math.min(3, Math.max(1.5, TARGET_WIDTH / base.width));
@@ -75,34 +73,10 @@ async function renderPage(
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     await page.render({ canvas, canvasContext: ctx, viewport }).promise;
 
-    const content = await page.getTextContent();
-    const runs: TextRun[] = [];
-    let textLength = 0;
-    for (const item of content.items) {
-      if (!('str' in item)) continue;
-      const t = item as TextItem;
-      if (!t.str.trim()) continue;
-      textLength += t.str.trim().length;
-      runs.push({ text: t.str, box: itemBox(t, viewport.transform, scale, util) });
-    }
-
-    return { canvas, image: await canvasToBlob(canvas), runs, textLength };
+    // Ignore PDF text layers, including invisible text. Privacy detection uses the rendered pixels.
+    return { canvas, image: await canvasToBlob(canvas), runs: [], textLength: 0 };
   } catch (error) {
     canvas.width = canvas.height = 0;
     throw error;
   }
-}
-
-function itemBox(
-  item: TextItem,
-  viewportTransform: number[],
-  scale: number,
-  util: typeof import('pdfjs-dist').Util,
-): Box {
-  const tx = util.transform(viewportTransform, item.transform);
-  const fontHeight = Math.hypot(tx[2], tx[3]);
-  const width = item.width * scale;
-  // tx[4], tx[5] is the baseline start; text extends up by roughly the font height,
-  // and descenders go a little below the baseline.
-  return { x: tx[4], y: tx[5] - fontHeight, w: width, h: fontHeight * 1.2 };
 }
