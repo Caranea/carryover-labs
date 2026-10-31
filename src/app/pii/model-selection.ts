@@ -20,32 +20,56 @@ export async function selectDetectorVariant(device: ModelDevice): Promise<Detect
   const probe = async (): Promise<DetectorVariant> => {
     try {
       const adapter = await device.gpu!.requestAdapter({ powerPreference: 'high-performance' });
-      if (!adapter || adapter.isFallbackAdapter || !adapter.features.has('shader-f16')
-        || adapter.limits.maxBufferSize < GPU_MIN_BUFFER_BYTES
-        || adapter.limits.maxStorageBufferBindingSize < GPU_MIN_BUFFER_BYTES
-        || (device.deviceMemory !== undefined && device.deviceMemory <= 4)) return 'cpu-q8';
+      if (
+        !adapter ||
+        adapter.isFallbackAdapter ||
+        !adapter.features.has('shader-f16') ||
+        adapter.limits.maxBufferSize < GPU_MIN_BUFFER_BYTES ||
+        adapter.limits.maxStorageBufferBindingSize < GPU_MIN_BUFFER_BYTES ||
+        (device.deviceMemory !== undefined && device.deviceMemory <= 4)
+      )
+        return 'cpu-q8';
       // Adapter exposure alone is insufficient: device creation can be blocked.
-      const gpu = await adapter.requestDevice({ requiredFeatures: ['shader-f16'], requiredLimits: {
-        maxBufferSize: GPU_MIN_BUFFER_BYTES, maxStorageBufferBindingSize: GPU_MIN_BUFFER_BYTES,
-      } });
+      const gpu = await adapter.requestDevice({
+        requiredFeatures: ['shader-f16'],
+        requiredLimits: {
+          maxBufferSize: GPU_MIN_BUFFER_BYTES,
+          maxStorageBufferBindingSize: GPU_MIN_BUFFER_BYTES,
+        },
+      });
       gpu.destroy();
       return 'gpu-fp16';
-    } catch { return 'cpu-q8'; }
+    } catch {
+      return 'cpu-q8';
+    }
   };
   try {
-    return await Promise.race([probe(), new Promise<DetectorVariant>(resolve => {
-      timer = setTimeout(() => resolve('cpu-q8'), 4000);
-    })]);
-  } finally { clearTimeout(timer!); }
+    return await Promise.race([
+      probe(),
+      new Promise<DetectorVariant>((resolve) => {
+        timer = setTimeout(() => resolve('cpu-q8'), 4000);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer!);
+  }
 }
 
 /** If the optional GPU asset was omitted from a deployment, use CPU directly. */
 export async function gpuExportAvailable(modelBase: string): Promise<boolean> {
   try {
-    const response = await fetch(`${modelBase}manifest.json`, { signal: AbortSignal.timeout(4000) });
+    const response = await fetch(`${modelBase}manifest.json`, {
+      signal: AbortSignal.timeout(4000),
+    });
     if (!response.ok) return false;
     const manifest = await response.json();
-    return manifest.dtype === 'fp16' && manifest.source === 'bardsai/eu-pii-anonimization-multilang'
-      && manifest.bytes > 0 && manifest.largestTensorBytes <= GPU_MIN_BUFFER_BYTES;
-  } catch { return false; }
+    return (
+      manifest.dtype === 'fp16' &&
+      manifest.source === 'bardsai/eu-pii-anonimization-multilang' &&
+      manifest.bytes > 0 &&
+      manifest.largestTensorBytes <= GPU_MIN_BUFFER_BYTES
+    );
+  } catch {
+    return false;
+  }
 }

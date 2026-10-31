@@ -10,7 +10,7 @@ import { loadConfig } from './config.js';
 import { requestLimits, securityHeaders } from './security/http-security.js';
 
 async function bootstrap() {
-  const config = loadConfig(process.env, { persistentStorage: false });
+  const config = loadConfig();
   const log = new Logger('Carryover');
 
   const app = await NestFactory.create<NestExpressApplication>(DemoModule.forRoot(config), {

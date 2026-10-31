@@ -30,15 +30,18 @@ export class HomePage {
   protected readonly faq = [
     {
       question: 'Where are my documents saved?',
-      answer: 'The original file is read on your device. After you approve a copy, its results and page images are saved in this browser. Clearing site data removes them.',
+      answer:
+        'The original file is read on your device. After you approve a copy, its results and page images are saved in this browser. Clearing site data removes them.',
     },
     {
       question: 'Does Carryover tell me what my results mean?',
-      answer: 'No. Carryover organizes your records so you can review them with your doctor. It does not interpret results or give medical advice.',
+      answer:
+        'No. Carryover organizes your records so you can review them with your doctor. It does not interpret results or give medical advice.',
     },
     {
       question: 'What if a personal detail is missed?',
-      answer: 'Check every page before saving. You can hide words or draw a box over a stamp or signature, and reopen a saved document to hide more.',
+      answer:
+        'Check every page before saving. You can hide words or draw a box over a stamp or signature, and reopen a saved document to hide more.',
     },
   ];
 }

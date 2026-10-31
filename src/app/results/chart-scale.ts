@@ -17,5 +17,3 @@ export function niceScale(min: number, max: number): { lo: number; hi: number; t
   for (let v = lo; v <= hi + step / 2; v += step) ticks.push(Number(v.toPrecision(10)));
   return { lo, hi, ticks };
 }
-
-

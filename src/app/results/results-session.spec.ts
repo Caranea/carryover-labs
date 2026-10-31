@@ -1,36 +1,61 @@
+import { settled } from '../../testing/settled';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, provideRouter } from '@angular/router';
 import { vi } from 'vitest';
 import { DEMO_RECORDS, DEMO_RESULTS } from '../core/demo-data';
-import { DocumentsApi } from '../core/documents-api';
+import { LocalHistory } from '../core/local-history';
+import { ResultsService } from '../core/results.service';
 import { ResultsPage } from './results.page';
 
 describe('results view lifecycle', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('shows processing, then an error with retry, and only displays results after server success', async () => {
-    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        disconnect() {}
+      },
+    );
     let reject!: (error: Error) => void;
-    const api = { prepareBatch: vi.fn(), processing: signal({ stage: 'idle', completed: 0, total: 0, error: null }),
+    const api = {
+      prepareBatch: vi.fn(),
+      processing: signal({ stage: 'idle', completed: 0, total: 0, error: null }),
       results: vi.fn().mockResolvedValue(DEMO_RESULTS),
-      records: vi.fn().mockReturnValue(new Promise((_resolve, fail) => { reject = fail; })),
+      records: vi.fn().mockReturnValue(
+        new Promise((_resolve, fail) => {
+          reject = fail;
+        }),
+      ),
       retryRecords: vi.fn().mockResolvedValue(DEMO_RECORDS),
     };
-    TestBed.configureTestingModule({ imports: [ResultsPage], providers: [provideRouter([]), { provide: ActivatedRoute, useValue: { snapshot: { data: {} } } }, { provide: DocumentsApi, useValue: api }] });
-    const fixture = TestBed.createComponent(ResultsPage); fixture.detectChanges();
+    TestBed.configureTestingModule({
+      imports: [ResultsPage],
+      providers: [
+        provideRouter([]),
+        { provide: ActivatedRoute, useValue: { snapshot: { data: {} } } },
+        { provide: ResultsService, useValue: api },
+        { provide: LocalHistory, useValue: api },
+      ],
+    });
+    const fixture = TestBed.createComponent(ResultsPage);
+    fixture.detectChanges();
     const component = fixture.componentInstance as any;
     expect(fixture.nativeElement.textContent).toContain('Transcribing approved pages');
     expect(fixture.nativeElement.querySelector('.stats')).toBeNull();
     expect(fixture.nativeElement.querySelector('a[href="/appointment"]')).toBeNull();
     reject(new Error('Results processing did not finish. Please try again.'));
-    await vi.waitFor(() => expect(component.error()).toContain('Please try again'));
+    await settled(() => expect(component.error()).toContain('Please try again'));
     fixture.detectChanges();
     expect(component.data()).toBeNull();
     expect(fixture.nativeElement.querySelector('.stats')).toBeNull();
-    const retry = [...fixture.nativeElement.querySelectorAll('button')].find((button: any) => button.textContent.trim() === 'Try again') as HTMLButtonElement;
+    const retry = [...fixture.nativeElement.querySelectorAll('button')].find(
+      (button: any) => button.textContent.trim() === 'Try again',
+    ) as HTMLButtonElement;
     retry.click();
-    await vi.waitFor(() => expect(component.data()).toBe(DEMO_RECORDS));
+    await settled(() => expect(component.data()).toBe(DEMO_RECORDS));
     fixture.detectChanges();
     expect(api.retryRecords).toHaveBeenCalledOnce();
     expect(component.error()).toBeNull();
@@ -40,13 +65,33 @@ describe('results view lifecycle', () => {
 
   it('discards delayed results after leaving the page', async () => {
     let resolve!: (value: unknown) => void;
-    const api = { prepareBatch: vi.fn(), processing: signal({ stage: 'idle', completed: 0, total: 0, error: null }), results: vi.fn().mockResolvedValue(DEMO_RESULTS), records: vi.fn().mockReturnValue(new Promise((done) => { resolve = done; })) };
-    TestBed.configureTestingModule({ imports: [ResultsPage], providers: [provideRouter([]), { provide: ActivatedRoute, useValue: { snapshot: { data: {} } } }, { provide: DocumentsApi, useValue: api }] });
-    const fixture = TestBed.createComponent(ResultsPage); fixture.detectChanges();
-    await vi.waitFor(() => expect(api.records).toHaveBeenCalledOnce());
+    const api = {
+      prepareBatch: vi.fn(),
+      processing: signal({ stage: 'idle', completed: 0, total: 0, error: null }),
+      results: vi.fn().mockResolvedValue(DEMO_RESULTS),
+      records: vi.fn().mockReturnValue(
+        new Promise((done) => {
+          resolve = done;
+        }),
+      ),
+    };
+    TestBed.configureTestingModule({
+      imports: [ResultsPage],
+      providers: [
+        provideRouter([]),
+        { provide: ActivatedRoute, useValue: { snapshot: { data: {} } } },
+        { provide: ResultsService, useValue: api },
+        { provide: LocalHistory, useValue: api },
+      ],
+    });
+    const fixture = TestBed.createComponent(ResultsPage);
+    fixture.detectChanges();
+    await settled(() => expect(api.records).toHaveBeenCalledOnce());
     const component = fixture.componentInstance as any;
     fixture.destroy();
-    resolve(DEMO_RECORDS); await Promise.resolve(); await Promise.resolve();
+    resolve(DEMO_RECORDS);
+    await Promise.resolve();
+    await Promise.resolve();
     expect(component.data()).toBeNull();
   });
 });

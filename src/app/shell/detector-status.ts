@@ -1,4 +1,15 @@
-import { afterNextRender, Component, computed, effect, ElementRef, inject, Injector, signal, untracked, viewChild } from '@angular/core';
+import {
+  afterNextRender,
+  Component,
+  computed,
+  effect,
+  ElementRef,
+  inject,
+  Injector,
+  signal,
+  untracked,
+  viewChild,
+} from '@angular/core';
 import { Router } from '@angular/router';
 import { DocumentQueueService } from '../core/document-queue.service';
 import { LocalDocument } from '../core/models';
@@ -20,11 +31,17 @@ export class DetectorStatus {
   private readonly injector = inject(Injector);
   private readonly dialog = viewChild<ElementRef<HTMLDialogElement>>('dialog');
   private readonly now = signal(Date.now());
-  protected readonly active = computed(() => this.queue.batch().find((doc) => ['reading', 'detecting'].includes(doc.status)));
-  protected readonly errors = computed(() => this.queue.batch().filter((doc) => doc.status === 'error'));
+  protected readonly active = computed(() =>
+    this.queue.batch().find((doc) => ['reading', 'detecting'].includes(doc.status)),
+  );
+  protected readonly errors = computed(() =>
+    this.queue.batch().filter((doc) => doc.status === 'error'),
+  );
   protected readonly selected = computed(() => {
     const doc = this.queue.byId(this.queue.reviewId() ?? '');
-    return doc && ['review', 'saving', 'detecting'].includes(doc.status) && doc.pages.length ? [doc] : [];
+    return doc && ['review', 'saving', 'detecting'].includes(doc.status) && doc.pages.length
+      ? [doc]
+      : [];
   });
   protected readonly title = computed(() => {
     const batch = this.queue.batchProgress();
@@ -38,11 +55,16 @@ export class DetectorStatus {
     if (!doc) return '';
     if (doc.status === 'reading') return doc.message || 'Reading document';
     switch (this.ner.phase()) {
-      case 'preparing': return 'Choosing the privacy checker';
-      case 'downloading': return 'Downloading the privacy checker · ' + Math.round(this.ner.progress() * 100) + '%';
-      case 'starting': return 'Starting the privacy checker';
-      case 'checking': return 'Checking page ' + this.ner.pageNumber() + ' of ' + this.ner.pageCount();
-      default: return doc.message || 'Preparing document';
+      case 'preparing':
+        return 'Choosing the privacy checker';
+      case 'downloading':
+        return 'Downloading the privacy checker · ' + Math.round(this.ner.progress() * 100) + '%';
+      case 'starting':
+        return 'Starting the privacy checker';
+      case 'checking':
+        return 'Checking page ' + this.ner.pageNumber() + ' of ' + this.ner.pageCount();
+      default:
+        return doc.message || 'Preparing document';
     }
   });
   protected readonly estimate = computed(() => {
@@ -51,11 +73,22 @@ export class DetectorStatus {
     if (!['preparing', 'downloading', 'starting', 'checking'].includes(phase)) return '';
     if (phase === 'starting') return 'Starting the checker on your device…';
     if (phase === 'preparing') return 'Checking this device before downloading…';
-    if (this.now() - this.ner.lastProgressAt() > 15_000) return 'Still working — updating the estimate…';
+    if (this.now() - this.ner.lastProgressAt() > 15_000)
+      return 'Still working — updating the estimate…';
     const seconds = this.ner.remainingSeconds();
-    if (seconds === null) return phase === 'downloading' ? 'Measuring your download speed…' : 'Estimating from this page…';
-    const duration = seconds < 60 ? Math.max(5, Math.ceil(seconds / 5) * 5) + ' sec' : Math.ceil(seconds / 60) + ' min';
-    return 'About ' + duration + (phase === 'downloading' ? ' left to download' : ' left for this document');
+    if (seconds === null)
+      return phase === 'downloading'
+        ? 'Measuring your download speed…'
+        : 'Estimating from this page…';
+    const duration =
+      seconds < 60
+        ? Math.max(5, Math.ceil(seconds / 5) * 5) + ' sec'
+        : Math.ceil(seconds / 60) + ' min';
+    return (
+      'About ' +
+      duration +
+      (phase === 'downloading' ? ' left to download' : ' left for this document')
+    );
   });
 
   constructor() {
@@ -65,7 +98,8 @@ export class DetectorStatus {
       // A later file becoming ready must never replace the page being edited.
       if (!selected || !['review', 'saving', 'detecting'].includes(selected.status)) {
         const next = docs.find((doc) => doc.status === 'review');
-        if (this.queue.reviewId() !== (next?.localId ?? null)) this.queue.reviewId.set(next?.localId ?? null);
+        if (this.queue.reviewId() !== (next?.localId ?? null))
+          this.queue.reviewId.set(next?.localId ?? null);
       }
       if (!docs.length && this.queue.recoveryReady()) this.queue.closeReview();
     });
@@ -88,28 +122,45 @@ export class DetectorStatus {
       this.queue.reviewId();
       // Approving removes the focused button. Keep keyboard focus in the dialog
       // and announce the next document (or the wait for the rest of the batch).
-      afterNextRender(() => {
-        if (!this.queue.reviewOpened()) return;
-        const dialog = this.dialog()?.nativeElement;
-        const target = dialog?.querySelector<HTMLElement>('app-review [role="region"]') ?? dialog?.querySelector<HTMLElement>('#privacy-title');
-        target?.focus({ preventScroll: true });
-      }, { injector: this.injector });
+      afterNextRender(
+        () => {
+          if (!this.queue.reviewOpened()) return;
+          const dialog = this.dialog()?.nativeElement;
+          const target =
+            dialog?.querySelector<HTMLElement>('app-review [role="region"]') ??
+            dialog?.querySelector<HTMLElement>('#privacy-title');
+          target?.focus({ preventScroll: true });
+        },
+        { injector: this.injector },
+      );
     });
   }
 
   protected status(doc: LocalDocument) {
     switch (doc.status) {
-      case 'review': return 'Ready to check';
-      case 'saved': return 'Approved';
-      case 'saving': return 'Saving';
-      case 'reading': return 'Reading';
-      case 'detecting': return 'Checking';
-      case 'error': return 'Needs attention';
-      default: return 'Waiting';
+      case 'review':
+        return 'Ready to check';
+      case 'saved':
+        return 'Approved';
+      case 'saving':
+        return 'Saving';
+      case 'reading':
+        return 'Reading';
+      case 'detecting':
+        return 'Checking';
+      case 'error':
+        return 'Needs attention';
+      default:
+        return 'Waiting';
     }
   }
-  protected dismiss(event?: Event) { event?.preventDefault(); this.queue.closeReview(); }
-  protected switchMode() { this.queue.useLightweightReview(); }
+  protected dismiss(event?: Event) {
+    event?.preventDefault();
+    this.queue.closeReview();
+  }
+  protected switchMode() {
+    this.queue.useLightweightReview();
+  }
   protected results() {
     if (this.queue.resultsBlocked()) return;
     this.queue.closeReview();

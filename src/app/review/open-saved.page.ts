@@ -1,6 +1,7 @@
 import { Component, inject, input, OnInit, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { describeHttpError, DocumentQueueService } from '../core/document-queue.service';
+import { DocumentQueueService } from '../core/document-queue.service';
+import { errorMessage } from '../core/errors';
 
 /** Downloads a saved (already redacted) document so more can be hidden, then opens the review. */
 @Component({
@@ -12,7 +13,9 @@ import { describeHttpError, DocumentQueueService } from '../core/document-queue.
         <div class="card bg-base-200">
           <div class="card-body items-center text-center gap-4">
             <h1 class="font-display text-2xl font-semibold">This document could not be opened</h1>
-            <div role="alert" class="alert alert-error alert-soft"><span>{{ error() }}</span></div>
+            <div role="alert" class="alert alert-error alert-soft">
+              <span>{{ error() }}</span>
+            </div>
             <a routerLink="/documents" class="btn btn-primary rounded-full">Back to documents</a>
           </div>
         </div>
@@ -36,7 +39,7 @@ export class OpenSavedPage implements OnInit {
       const localId = await this.queue.openSaved(this.serverId());
       await this.router.navigate(['/review', localId], { replaceUrl: true });
     } catch (e) {
-      this.error.set(describeHttpError(e));
+      this.error.set(errorMessage(e));
     }
   }
 }

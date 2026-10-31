@@ -8,9 +8,17 @@ export function createCanvas(width: number, height: number): HTMLCanvasElement {
   return canvas;
 }
 
-export function canvasToBlob(canvas: HTMLCanvasElement, type = 'image/jpeg', quality = 0.88): Promise<Blob> {
+export function canvasToBlob(
+  canvas: HTMLCanvasElement,
+  type = 'image/jpeg',
+  quality = 0.88,
+): Promise<Blob> {
   return new Promise((resolve, reject) =>
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not encode the page image.'))), type, quality),
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error('Could not encode the page image.'))),
+      type,
+      quality,
+    ),
   );
 }
 

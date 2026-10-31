@@ -1,0 +1,11 @@
+dist
+coverage
+node_modules
+.angular
+api/dist
+api/.test-build
+artifacts
+output
+public/vendor
+package-lock.json
+api/package-lock.json

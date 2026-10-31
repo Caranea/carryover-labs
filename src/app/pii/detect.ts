@@ -36,7 +36,8 @@ export function applyDetections(
   if (hints.size) {
     const inResults = new Set<string>();
     for (const page of pages) {
-      for (const line of groupLines(page.words)) if (isResultLine(line)) line.forEach((w) => inResults.add(normalizeToken(w.text)));
+      for (const line of groupLines(page.words))
+        if (isResultLine(line)) line.forEach((w) => inResults.add(normalizeToken(w.text)));
     }
     hints = new Set([...hints].filter((h) => !inResults.has(h)));
   }
@@ -45,7 +46,7 @@ export function applyDetections(
     const resultLines = new Set<number>();
     const medical = medicalWords(page.words);
     const lines = groupLines(page.words);
-    const labels = new Set(lines.flatMap(line => [...identityLabelWordIds(line)]));
+    const labels = new Set(lines.flatMap((line) => [...identityLabelWordIds(line)]));
     for (const line of lines) {
       const result = isResultLine(line);
       if (result) resultLines.add(line[0].line);
@@ -55,7 +56,15 @@ export function applyDetections(
     const words = page.words.map((w): WorkingWord => {
       if (w.locked || w.userSet || w.text === null) return w;
       const pred = preds?.get(w.id);
-      w = { ...w, hidden: false, kind: undefined, source: undefined, score: undefined, candidate: undefined, prediction: pred };
+      w = {
+        ...w,
+        hidden: false,
+        kind: undefined,
+        source: undefined,
+        score: undefined,
+        candidate: undefined,
+        prediction: pred,
+      };
       // Explicit identity fields still win when OCR merges them with result cells.
       if (labels.has(w.id)) return w;
       const hit = hits.get(w.id);
@@ -65,7 +74,11 @@ export function applyDetections(
 
       if (pred) {
         const decision = decideLabel(pred.label);
-        if (decision.hide && pred.score >= settings.threshold && supportsIdentity(w, decision, lines.find(line => line[0].line === w.line) ?? [], hits)) {
+        if (
+          decision.hide &&
+          pred.score >= settings.threshold &&
+          supportsIdentity(w, decision, lines.find((line) => line[0].line === w.line) ?? [], hits)
+        ) {
           return { ...w, hidden: true, kind: decision.kind, source: 'model', score: pred.score };
         }
         if ((decision.hide || decision.review) && pred.score >= settings.reviewThreshold) {
@@ -82,18 +95,31 @@ export function applyDetections(
 }
 
 /** A confident category must agree with the text's shape and its field context. */
-function supportsIdentity(word: WorkingWord, decision: LabelDecision, line: WorkingWord[], hits: Map<number, Hit>): boolean {
-  const text = (word.text ?? '').replace(/^[\s:;,(\[]+|[\s,;)\]]+$/g, '');
+function supportsIdentity(
+  word: WorkingWord,
+  decision: LabelDecision,
+  line: WorkingWord[],
+  hits: Map<number, Hit>,
+): boolean {
+  const text = (word.text ?? '').replace(/^[\s:;,([]+|[\s,;)\]]+$/g, '');
   if (decision.kind === 'person') return /^\p{Lu}[\p{L} .,'’-]*$/u.test(text);
   if (decision.kind === 'id-number' || decision.kind === 'national-id') {
     return /\d/.test(text) && text.replace(/[^\p{L}\p{N}]/gu, '').length >= 7 && !isDateToken(text);
   }
   if (decision.kind === 'birth-date' || decision.kind === 'age') {
-    return line.some(w => ['person', 'birth-date', 'age'].includes(hits.get(w.id)?.kind ?? ''))
-      && !/\b(requested|collected|reported|performed|collection)\b/i.test(line.map(w => w.text).join(' '));
+    return (
+      line.some((w) => ['person', 'birth-date', 'age'].includes(hits.get(w.id)?.kind ?? '')) &&
+      !/\b(requested|collected|reported|performed|collection)\b/i.test(
+        line.map((w) => w.text).join(' '),
+      )
+    );
   }
-  if (decision.kind === 'contact') return /@|https?:\/\/|www\./i.test(text)
-    || text.replace(/\D/g, '').length >= 7 || /^(?:\d{1,3}\.){3}\d{1,3}$/.test(text);
+  if (decision.kind === 'contact')
+    return (
+      /@|https?:\/\/|www\./i.test(text) ||
+      text.replace(/\D/g, '').length >= 7 ||
+      /^(?:\d{1,3}\.){3}\d{1,3}$/.test(text)
+    );
   return true;
 }
 
@@ -108,12 +134,26 @@ export function propagate(pages: WorkingPage[]): WorkingPage[] {
 /** Drop obsolete automatic masks, leaving every explicit user choice and drawn region intact. */
 export function clearAutomaticDetections(pages: WorkingPage[]): WorkingPage[] {
   let changed = false;
-  const updated = pages.map(page => {
+  const updated = pages.map((page) => {
     let pageChanged = false;
-    const words = page.words.map(word => {
-      if (word.locked || word.userSet || word.text === null || !(word.hidden || word.source || word.kind || word.prediction || word.candidate)) return word;
+    const words = page.words.map((word) => {
+      if (
+        word.locked ||
+        word.userSet ||
+        word.text === null ||
+        !(word.hidden || word.source || word.kind || word.prediction || word.candidate)
+      )
+        return word;
       pageChanged = true;
-      return { ...word, hidden: false, source: undefined, kind: undefined, score: undefined, candidate: undefined, prediction: undefined };
+      return {
+        ...word,
+        hidden: false,
+        source: undefined,
+        kind: undefined,
+        score: undefined,
+        candidate: undefined,
+        prediction: undefined,
+      };
     });
     if (!pageChanged) return page;
     changed = true;
@@ -124,7 +164,9 @@ export function clearAutomaticDetections(pages: WorkingPage[]): WorkingPage[] {
 
 /** Text of every hidden word, used to clean the file name. Stays on the device. */
 export function hiddenWords(pages: WorkingPage[]): string[] {
-  return pages.flatMap((p) => p.words.filter((w) => w.hidden && w.text !== null).map((w) => w.text as string));
+  return pages.flatMap((p) =>
+    p.words.filter((w) => w.hidden && w.text !== null).map((w) => w.text as string),
+  );
 }
 
 export function countHidden(pages: WorkingPage[]): number {

@@ -57,12 +57,15 @@ export class HeroStack {
         return;
       }
 
-      const observer = new IntersectionObserver((entries) => {
-        if (entries.some((entry) => entry.isIntersecting && entry.intersectionRatio >= 0.75)) {
-          this.started.set(true);
-          observer.disconnect();
-        }
-      }, { threshold: 0.75, rootMargin: '-80px 0px -16px 0px' });
+      const observer = new IntersectionObserver(
+        (entries) => {
+          if (entries.some((entry) => entry.isIntersecting && entry.intersectionRatio >= 0.75)) {
+            this.started.set(true);
+            observer.disconnect();
+          }
+        },
+        { threshold: 0.75, rootMargin: '-80px 0px -16px 0px' },
+      );
 
       observer.observe(this.host.nativeElement);
       this.destroyRef.onDestroy(() => observer.disconnect());

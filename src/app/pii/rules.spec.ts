@@ -67,7 +67,9 @@ describe('detectWithRules', () => {
   });
 
   it('hides a name printed on the line below its label', () => {
-    expect(hiddenTexts(['Nazwisko i imię:', '                      NOWAK                     ANNA'])).toEqual(['NOWAK', 'ANNA']);
+    expect(
+      hiddenTexts(['Nazwisko i imię:', '                      NOWAK                     ANNA']),
+    ).toEqual(['NOWAK', 'ANNA']);
   });
 
   it('splits names below two labels by column', () => {
@@ -96,13 +98,27 @@ describe('detectWithRules', () => {
   });
 
   it('hides Australian report fields: birthdate, telephone, surname-first doctors', () => {
-    const hidden = hiddenTexts(['Birthdate: 01/01/1990 Age:', 'Phone (02) 9123 4567', 'Copy To : SMITH,DR.', 'Addressee : BROWN, DR. A']);
-    expect(hidden).toEqual(expect.arrayContaining(['01/01/1990', '(02)', '9123', '4567', 'SMITH,DR.', 'BROWN,']));
+    const hidden = hiddenTexts([
+      'Birthdate: 01/01/1990 Age:',
+      'Phone (02) 9123 4567',
+      'Copy To : SMITH,DR.',
+      'Addressee : BROWN, DR. A',
+    ]);
+    expect(hidden).toEqual(
+      expect.arrayContaining(['01/01/1990', '(02)', '9123', '4567', 'SMITH,DR.', 'BROWN,']),
+    );
   });
 
   it('takes a same-line name after a wide gap, and leaves the next line alone', () => {
-    expect(hiddenTexts(['Patientenname           Doe, Jane         Geschlecht w', 'Letzter Einsender demo'])).toEqual(['Doe,', 'Jane']);
-    expect(hiddenTexts(['URN: ne Patient Name Ane-Nuckear DOE, Ab JANE'])).toEqual(expect.arrayContaining(['DOE,', 'JANE']));
+    expect(
+      hiddenTexts([
+        'Patientenname           Doe, Jane         Geschlecht w',
+        'Letzter Einsender demo',
+      ]),
+    ).toEqual(['Doe,', 'Jane']);
+    expect(hiddenTexts(['URN: ne Patient Name Ane-Nuckear DOE, Ab JANE'])).toEqual(
+      expect.arrayContaining(['DOE,', 'JANE']),
+    );
   });
 
   it('hides the name after the German "Patientenname" label', () => {
@@ -165,7 +181,12 @@ describe('decideLabel', () => {
     expect(decideLabel('B-ORGANIZATION').hide).toBe(false);
     expect(decideLabel('O').hide).toBe(false);
     expect(decideLabel('B-SOMETHING_NEW')).toMatchObject({ hide: false, review: true });
-    for (const label of ['PROPER_NAME', 'PERSON_ATTRIBUTE', 'PERSON_ROLE_OR_TITLE', 'DOCUMENT_REFERENCE']) {
+    for (const label of [
+      'PROPER_NAME',
+      'PERSON_ATTRIBUTE',
+      'PERSON_ROLE_OR_TITLE',
+      'DOCUMENT_REFERENCE',
+    ]) {
       expect(decideLabel(label)).toMatchObject({ hide: false, review: true });
     }
     expect(decideLabel('PHONE_NUMBER')).toEqual({ hide: true, kind: 'contact' });
@@ -174,16 +195,33 @@ describe('decideLabel', () => {
 
 describe('applyDetections', () => {
   const page = (lines: string[]): WorkingPage => ({
-    index: 0, width: 1000, height: 1000, image: null, imageUrl: null, words: wordsFrom(lines), regions: [], ocr: false,
+    index: 0,
+    width: 1000,
+    height: 1000,
+    image: null,
+    imageUrl: null,
+    words: wordsFrom(lines),
+    regions: [],
+    ocr: false,
   });
 
   it('treats a file name as a suggestion, never proof of identity', () => {
     const hints = fileNameHints('Jane_Doe_morfologia_2012.png');
     expect([...hints]).toEqual(['jane', 'doe']);
-    const [p] = applyDetections([page(['JANE DOE', 'Hemoglobin 13 g/dl 12-16'])], [null], NORMAL, hints);
+    const [p] = applyDetections(
+      [page(['JANE DOE', 'Hemoglobin 13 g/dl 12-16'])],
+      [null],
+      NORMAL,
+      hints,
+    );
     expect(p.words.filter((w) => w.hidden)).toEqual([]);
-    expect(p.words.filter(w => w.candidate).map(w => w.text)).toEqual(['JANE', 'DOE']);
-    const [q] = applyDetections([page(['TSH 1,5 mIU/l 0,3-4', 'TSH'])], [null], NORMAL, fileNameHints('TSH_wyniki.pdf'));
+    expect(p.words.filter((w) => w.candidate).map((w) => w.text)).toEqual(['JANE', 'DOE']);
+    const [q] = applyDetections(
+      [page(['TSH 1,5 mIU/l 0,3-4', 'TSH'])],
+      [null],
+      NORMAL,
+      fileNameHints('TSH_wyniki.pdf'),
+    );
     expect(q.words.filter((w) => w.hidden)).toEqual([]);
   });
 
@@ -199,11 +237,18 @@ describe('applyDetections', () => {
       [2, { label: 'I-PERSON', score: 0.4 }],
       [5, { label: 'B-ID_NUMBER', score: 0.95 }], // "245" in a result row
     ]);
-    const normal = applyDetections([p], [preds], NORMAL)[0].words.filter((w) => w.hidden).map((w) => w.text);
+    const normal = applyDetections([p], [preds], NORMAL)[0]
+      .words.filter((w) => w.hidden)
+      .map((w) => w.text);
     expect(normal).toEqual(['Marek']);
-    const strict = applyDetections([p], [preds], STRICT)[0].words.filter((w) => w.hidden).map((w) => w.text);
+    const strict = applyDetections([p], [preds], STRICT)[0]
+      .words.filter((w) => w.hidden)
+      .map((w) => w.text);
     expect(strict).toEqual(['Marek']);
-    expect(applyDetections([p], [preds], STRICT)[0].words[2]).toMatchObject({ hidden: false, candidate: 'person' });
+    expect(applyDetections([p], [preds], STRICT)[0].words[2]).toMatchObject({
+      hidden: false,
+      candidate: 'person',
+    });
   });
 
   it('propagates a hidden name to every page and respects user choices', () => {
@@ -224,8 +269,9 @@ describe('applyDetections', () => {
 
 describe('sanitizeFileName', () => {
   it('removes words hidden in the document and long numbers from file names', () => {
-    expect(sanitizeFileName('Kowalska_Jane_morfologia_2021-03-12.pdf', ['Jane', 'Kowalskiej']))
-      .toBe('▇▇▇_▇▇▇_morfologia_2021-03-12');
+    expect(
+      sanitizeFileName('Kowalska_Jane_morfologia_2021-03-12.pdf', ['Jane', 'Kowalskiej']),
+    ).toBe('▇▇▇_▇▇▇_morfologia_2021-03-12');
     expect(sanitizeFileName('wynik 44051401359.jpg')).toBe('wynik ▇▇▇');
     expect(sanitizeFileName('morfologia.pdf', ['Nowak'])).toBe('morfologia');
   });

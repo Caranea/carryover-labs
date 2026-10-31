@@ -30,11 +30,47 @@ import { DEMO_RECORDS } from '../core/demo-data';
 describe('chart reading access', () => {
   it('keeps a comparator visible after unit conversion', () => {
     const point = DEMO_RECORDS.domains[0].charts[0].series[0].points[0];
-    expect(pointDisplay({ ...point, value: 4.5, comparator: '<', conversion: { from: 'original', factor: 2 }, printedValue: '<2.25' })).toBe('<4.5');
+    expect(
+      pointDisplay({
+        ...point,
+        value: 4.5,
+        comparator: '<',
+        conversion: { from: 'original', factor: 2 },
+        printedValue: '<2.25',
+      }),
+    ).toBe('<4.5');
   });
   it('selects a touched point without a preceding hover and ignores empty space', () => {
-    const points = [{ x: 100, y: 50 }, { x: 100, y: 120 }, { x: 220, y: 85 }];
+    const points = [
+      { x: 100, y: 50 },
+      { x: 100, y: 120 },
+      { x: 220, y: 85 },
+    ];
     expect(nearestPointIndex(points, 101, 118)).toBe(1);
     expect(nearestPointIndex(points, 160, 85)).toBe(-1);
+  });
+});
+
+import { TestBed } from '@angular/core/testing';
+import { LineChart } from './line-chart';
+
+describe('chart keyboard access', () => {
+  it('has one tab stop per chart and moves between readings with the arrow keys', () => {
+    globalThis.ResizeObserver ??= class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    } as unknown as typeof ResizeObserver;
+    const fixture = TestBed.createComponent(LineChart);
+    fixture.componentRef.setInput('chart', DEMO_RECORDS.domains[0].charts[0]);
+    fixture.detectChanges();
+    const hits = [...(fixture.nativeElement as HTMLElement).querySelectorAll<SVGElement>('.hit')];
+    expect(hits.length).toBeGreaterThan(2);
+    expect(hits.filter((h) => h.getAttribute('tabindex') === '0')).toHaveLength(1);
+    hits[0].focus();
+    hits[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    fixture.detectChanges();
+    expect(document.activeElement).toBe(hits[1]);
+    expect(hits.filter((h) => h.getAttribute('tabindex') === '0')).toEqual([hits[1]]);
   });
 });

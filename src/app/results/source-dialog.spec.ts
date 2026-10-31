@@ -1,10 +1,17 @@
 import { TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
-import { DocumentsApi } from '../core/documents-api';
+import { LocalHistory } from '../core/local-history';
+import { ResultsService } from '../core/results.service';
 import { DEMO_RESULTS } from '../core/demo-data';
 import { SourceDialog, correctionDraft, sourceText } from './source-dialog';
 
-const observation = { ...DEMO_RESULTS.observations[0], valueText: '<2.5', unit: null, date: null, revision: 'revision-1' };
+const observation = {
+  ...DEMO_RESULTS.observations[0],
+  valueText: '<2.5',
+  unit: null,
+  date: null,
+  revision: 'revision-1',
+};
 
 describe('source checking', () => {
   it('retains comparison signs and unknown fields when opening a correction', () => {
@@ -17,60 +24,130 @@ describe('source checking', () => {
   });
 
   it('never places hidden words in the accessible source text', () => {
-    const text = sourceText([{ t: 'Private Name', l: 0, h: true }, { t: null, l: 0 }, { t: 'TSH', l: 1 }, { t: '2.5', l: 1 }]);
+    const text = sourceText([
+      { t: 'Private Name', l: 0, h: true },
+      { t: null, l: 0 },
+      { t: 'TSH', l: 1 },
+      { t: '2.5', l: 1 },
+    ]);
     expect(text).toBe('[hidden] [hidden]\nTSH 2.5');
     expect(text).not.toContain('Private Name');
   });
 
-  async function setup(api: Partial<DocumentsApi>) {
-    TestBed.configureTestingModule({ imports: [SourceDialog], providers: [{ provide: DocumentsApi, useValue: api }] });
+  async function setup(api: Partial<ResultsService & LocalHistory>) {
+    TestBed.configureTestingModule({
+      imports: [SourceDialog],
+      providers: [
+        { provide: ResultsService, useValue: api },
+        { provide: LocalHistory, useValue: api },
+      ],
+    });
     const fixture = TestBed.createComponent(SourceDialog);
     fixture.detectChanges();
     const dialog = fixture.nativeElement.querySelector('dialog') as HTMLDialogElement;
-    dialog.showModal = () => { dialog.setAttribute('open', ''); };
-    dialog.close = () => { dialog.removeAttribute('open'); dialog.dispatchEvent(new Event('close')); };
+    dialog.showModal = () => {
+      dialog.setAttribute('open', '');
+    };
+    dialog.close = () => {
+      dialog.removeAttribute('open');
+      dialog.dispatchEvent(new Event('close'));
+    };
     return fixture;
   }
 
   it('opens a fictional source without an account or any API request', async () => {
-    const get = vi.fn(); const pageImage = vi.fn();
+    const get = vi.fn();
+    const pageImage = vi.fn();
     const fixture = await setup({ get, pageImage });
-    await fixture.componentInstance.open({ documentId: 'sample', documentName: 'Fictional document', page: 0, bbox: null, title: 'TSH', detail: '2.5', demoText: 'Fictional TSH 2.5' });
+    await fixture.componentInstance.open({
+      documentId: 'sample',
+      documentName: 'Fictional document',
+      page: 0,
+      bbox: null,
+      title: 'TSH',
+      detail: '2.5',
+      demoText: 'Fictional TSH 2.5',
+    });
     fixture.detectChanges();
-    expect(get).not.toHaveBeenCalled(); expect(pageImage).not.toHaveBeenCalled();
+    expect(get).not.toHaveBeenCalled();
+    expect(pageImage).not.toHaveBeenCalled();
     expect(fixture.nativeElement.textContent).toContain('Fictional TSH 2.5');
     expect(fixture.nativeElement.textContent).not.toContain('Check or correct this reading');
   });
 
   it('shows text sources and saves a checked reading with its revision', async () => {
     const corrected = { ...observation, confirmed: true };
-    const get = vi.fn().mockResolvedValue({ pages: [{ index: 0, width: 0, height: 0, hasImage: false, words: [{ t: 'TSH <2.5', l: 0 }] }] });
+    const get = vi.fn().mockResolvedValue({
+      pages: [{ index: 0, width: 0, height: 0, hasImage: false, words: [{ t: 'TSH <2.5', l: 0 }] }],
+    });
     const correct = vi.fn().mockResolvedValue(corrected);
     const fixture = await setup({ get, correct });
-    await fixture.componentInstance.open({ documentId: observation.documentId, documentName: 'Document', page: 0, bbox: null, title: 'TSH', detail: '<2.5', observation });
+    await fixture.componentInstance.open({
+      documentId: observation.documentId,
+      documentName: 'Document',
+      page: 0,
+      bbox: null,
+      title: 'TSH',
+      detail: '<2.5',
+      observation,
+    });
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('TSH <2.5');
-    const edit = [...fixture.nativeElement.querySelectorAll('button')].find((b: any) => b.textContent.includes('Check or correct')) as HTMLButtonElement;
-    edit.click(); fixture.detectChanges(); await fixture.whenStable();
-    const note = fixture.nativeElement.querySelector('textarea') as HTMLTextAreaElement;
-    note.value = 'Checked against printed row'; note.dispatchEvent(new Event('input'));
+    const edit = [...fixture.nativeElement.querySelectorAll('button')].find((b: any) =>
+      b.textContent.includes('Check or correct'),
+    ) as HTMLButtonElement;
+    edit.click();
+    fixture.detectChanges();
     await fixture.whenStable();
-    const emitted = vi.fn(); fixture.componentInstance.corrected.subscribe(emitted);
-    fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    const note = fixture.nativeElement.querySelector('textarea') as HTMLTextAreaElement;
+    note.value = 'Checked against printed row';
+    note.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+    const emitted = vi.fn();
+    fixture.componentInstance.corrected.subscribe(emitted);
+    fixture.nativeElement
+      .querySelector('form')
+      .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     await fixture.whenStable();
     expect(correct).toHaveBeenCalledWith(observation.documentId, observation.id, {
-      name: observation.name, valueText: '<2.5', unit: null, date: null, note: 'Checked against printed row', expectedRevision: 'revision-1',
+      name: observation.name,
+      valueText: '<2.5',
+      unit: null,
+      date: null,
+      note: 'Checked against printed row',
+      expectedRevision: 'revision-1',
     });
     expect(emitted).toHaveBeenCalledWith(corrected);
   });
 
   it('discards a delayed source reply after its dialog closes', async () => {
     let resolve!: (value: unknown) => void;
-    const get = vi.fn().mockReturnValue(new Promise((done) => { resolve = done; }));
+    const get = vi.fn().mockReturnValue(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
     const fixture = await setup({ get });
-    const opening = fixture.componentInstance.open({ documentId: 'private-a', documentName: 'Account A source', page: 0, bbox: null, title: 'Private reading', detail: '2.5' });
+    const opening = fixture.componentInstance.open({
+      documentId: 'private-a',
+      documentName: 'Account A source',
+      page: 0,
+      bbox: null,
+      title: 'Private reading',
+      detail: '2.5',
+    });
     fixture.componentInstance.close();
-    resolve({ pages: [{ index: 0, width: 0, height: 0, hasImage: false, words: [{ t: 'Account A secret', l: 0 }] }] });
+    resolve({
+      pages: [
+        {
+          index: 0,
+          width: 0,
+          height: 0,
+          hasImage: false,
+          words: [{ t: 'Account A secret', l: 0 }],
+        },
+      ],
+    });
     expect(await opening).toBe(false);
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('dialog').open).toBe(false);
@@ -79,18 +156,33 @@ describe('source checking', () => {
 
   it('discards a correction reply after the source view is destroyed', async () => {
     let resolve!: (value: unknown) => void;
-    const get = vi.fn().mockResolvedValue({ pages: [{ index: 0, width: 0, height: 0, hasImage: false, words: [{ t: 'TSH', l: 0 }] }] });
-    const correct = vi.fn().mockReturnValue(new Promise((done) => { resolve = done; }));
+    const get = vi.fn().mockResolvedValue({
+      pages: [{ index: 0, width: 0, height: 0, hasImage: false, words: [{ t: 'TSH', l: 0 }] }],
+    });
+    const correct = vi.fn().mockReturnValue(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
     const fixture = await setup({ get, correct });
     const component = fixture.componentInstance as any;
-    await component.open({ documentId: observation.documentId, documentName: 'Private source', page: 0, bbox: null, title: 'TSH', detail: '<2.5', observation });
+    await component.open({
+      documentId: observation.documentId,
+      documentName: 'Private source',
+      page: 0,
+      bbox: null,
+      title: 'TSH',
+      detail: '<2.5',
+      observation,
+    });
     component.form = { ...correctionDraft(observation), note: 'Private correction note' };
-    const emitted = vi.fn(); component.corrected.subscribe(emitted);
+    const emitted = vi.fn();
+    component.corrected.subscribe(emitted);
     const saving = component.save();
     fixture.destroy();
-    resolve({ ...observation, confirmed: true }); await saving;
+    resolve({ ...observation, confirmed: true });
+    await saving;
     expect(emitted).not.toHaveBeenCalled();
     expect(component.form.note).toBe('');
   });
 });
-

@@ -1,8 +1,8 @@
 import { Box, DocumentManifest, LocalDocument, StoredPage, WorkingPage } from '../core/models';
 import { blobToCanvas, canvasToBlob } from '../extraction/render';
 import { fromTuple, toTuple } from './geometry';
-import { maskGeometry, pixelBox } from '../../../api/src/documents/mask-geometry';
-export { redactionPadding } from '../../../api/src/documents/mask-geometry';
+import { maskGeometry, pixelBox } from '@shared/mask-geometry';
+export { redactionPadding } from '@shared/mask-geometry';
 
 /** Boxes are grown a little so OCR boxes that hug the glyphs still cover them fully. */
 export function redactionPlan(page: WorkingPage) {
@@ -10,7 +10,11 @@ export function redactionPlan(page: WorkingPage) {
 }
 
 /** Covered neighbours undo their initiating mask, without becoming new permanent masks. */
-export function redactionAction(page: WorkingPage, index: number, plan = redactionPlan(page)): { wordId: number } | { regionIndex: number } | null {
+export function redactionAction(
+  page: WorkingPage,
+  index: number,
+  plan = redactionPlan(page),
+): { wordId: number } | { regionIndex: number } | null {
   if (!page.words[index]) return null;
   const origin = plan.origins.get(index) ?? index;
   if (origin >= 0) return page.words[origin]?.locked ? null : { wordId: page.words[origin].id };
@@ -75,7 +79,10 @@ function pageBox(page: WorkingPage, box: Box): Box {
 
 export function buildManifest(doc: LocalDocument, name: string): DocumentManifest {
   const pages = doc.pages.map(toStoredPage);
-  const hiddenCount = pages.reduce((n, p) => n + p.words.filter((w) => w.h).length + p.regions.length, 0);
+  const hiddenCount = pages.reduce(
+    (n, p) => n + p.words.filter((w) => w.h).length + p.regions.length,
+    0,
+  );
   return { name, sourceKind: doc.sourceKind, pages, hiddenCount };
 }
 

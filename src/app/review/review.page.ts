@@ -47,11 +47,32 @@ export class ReviewPage {
     return s === 'detecting' || s === 'saving';
   });
   protected readonly hasImages = computed(() => this.doc()?.pages.some((p) => p.image) ?? false);
-  private readonly plannedPages = computed(() => (this.doc()?.pages ?? []).map((page) => ({ page, plan: redactionPlan(page) })));
-  protected readonly hiddenCount = computed(() => this.plannedPages().reduce((count, { page, plan }) => count + plan.hidden.size + page.regions.length, 0));
-  protected readonly candidateCount = computed(() => this.plannedPages().reduce((count, { page, plan }) => count
-    + page.words.filter((word, index) => word.candidate && !word.userSet && !plan.hidden.has(index)).length, 0));
-  protected readonly nearbyCount = computed(() => this.plannedPages().reduce((count, { page, plan }) => count + [...plan.hidden].filter((index) => !page.words[index].hidden).length, 0));
+  private readonly plannedPages = computed(() =>
+    (this.doc()?.pages ?? []).map((page) => ({ page, plan: redactionPlan(page) })),
+  );
+  protected readonly hiddenCount = computed(() =>
+    this.plannedPages().reduce(
+      (count, { page, plan }) => count + plan.hidden.size + page.regions.length,
+      0,
+    ),
+  );
+  protected readonly candidateCount = computed(() =>
+    this.plannedPages().reduce(
+      (count, { page, plan }) =>
+        count +
+        page.words.filter(
+          (word, index) => word.candidate && !word.userSet && !plan.hidden.has(index),
+        ).length,
+      0,
+    ),
+  );
+  protected readonly nearbyCount = computed(() =>
+    this.plannedPages().reduce(
+      (count, { page, plan }) =>
+        count + [...plan.hidden].filter((index) => !page.words[index].hidden).length,
+      0,
+    ),
+  );
   protected readonly lockedCount = computed(
     () =>
       this.doc()?.pages.reduce(
@@ -69,7 +90,14 @@ export class ReviewPage {
       for (const w of page.words) {
         if (!w.hidden || w.locked || w.text === null) continue;
         const key = w.text.toLowerCase();
-        const g = map.get(key) ?? { key, text: w.text, kind: w.kind ?? 'other', count: 0, refs: [], byYou: false };
+        const g = map.get(key) ?? {
+          key,
+          text: w.text,
+          kind: w.kind ?? 'other',
+          count: 0,
+          refs: [],
+          byYou: false,
+        };
         g.count++;
         g.refs.push({ page: p, id: w.id });
         g.byYou ||= w.source === 'you';
@@ -128,7 +156,9 @@ export class ReviewPage {
     const ok = await this.queue.approve(this.localId());
     if (!ok) return;
     this.toast.show(
-      before?.serverId ? `Saved changes to “${before.fileName}”` : `Saved “${before?.fileName ?? 'document'}”`,
+      before?.serverId
+        ? `Saved changes to “${before.fileName}”`
+        : `Saved “${before?.fileName ?? 'document'}”`,
       `${removed} ${removed === 1 ? 'detail' : 'details'} removed. The approved copy is saved in this browser.`,
     );
     if (this.embedded()) return;
@@ -148,6 +178,3 @@ export class ReviewPage {
     return this.doc()?.pages[page]?.words.find((w) => w.id === id);
   }
 }
-
-
-

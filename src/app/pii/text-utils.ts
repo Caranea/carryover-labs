@@ -70,7 +70,12 @@ const UNIT_RE =
 export function isUnitToken(raw: string): boolean {
   // OCR and PDF text may use superscripts, a multiplication sign, or separate
   // words for the exponent and slash: "× 10⁹ / L" is the same unit as "x10^9/L".
-  return UNIT_RE.test(raw.normalize('NFKC').replace(/[×·]/g, 'x').replace(/[\s()[\],;]/g, ''));
+  return UNIT_RE.test(
+    raw
+      .normalize('NFKC')
+      .replace(/[×·]/g, 'x')
+      .replace(/[\s()[\],;]/g, ''),
+  );
 }
 
 /** Word indices belonging to a complete unit, including units split by OCR. */
@@ -91,7 +96,9 @@ export function isResultFlag(raw: string): boolean {
 
 /** A lab value: optional comparator, number with . or , decimals. */
 export function isNumericValue(raw: string): boolean {
-  return /^[<>≤≥]?\d+(?:[.,]\d+)?(?:[*!]|H{1,2}|L{1,2}|↑{1,2}|↓{1,2})?$/i.test(raw.replace(/[()[\],;]$/g, ''));
+  return /^[<>≤≥]?\d+(?:[.,]\d+)?(?:[*!]|H{1,2}|L{1,2}|↑{1,2}|↓{1,2})?$/i.test(
+    raw.replace(/[()[\],;]$/g, ''),
+  );
 }
 
 /** A reference range written in one token, e.g. 150-400 or 4,0-10,0. */

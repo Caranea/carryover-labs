@@ -83,9 +83,7 @@
                 "output": "vendor/ort"
               }
             ],
-            "styles": [
-              "src/styles.css"
-            ],
+            "styles": ["src/styles.css"],
             "webWorkerTsConfig": "tsconfig.worker.json",
             "allowedCommonJsDependencies": [
               "@xmldom/xmldom",
@@ -97,7 +95,8 @@
               "xmlbuilder",
               "heic2any",
               "tesseract.js",
-              "regenerator-runtime"
+              "regenerator-runtime",
+              "pdfmake"
             ]
           },
           "configurations": {
@@ -140,7 +139,10 @@
           }
         },
         "test": {
-          "builder": "@angular/build:unit-test"
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "runnerConfig": true
+          }
         }
       }
     }

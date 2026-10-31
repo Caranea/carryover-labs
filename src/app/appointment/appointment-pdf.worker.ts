@@ -7,7 +7,8 @@ addEventListener('message', async ({ data }: MessageEvent<AppointmentPdfInput>) 
     const pdf = await createAppointmentPdf(data);
     postMessage({ pdf: pdf.buffer }, [pdf.buffer]);
   } catch (error) {
-    postMessage({ error: error instanceof Error ? error.message : 'Could not make the PDF. Try fewer groups.' });
+    postMessage({
+      error: error instanceof Error ? error.message : 'Could not make the PDF. Try fewer groups.',
+    });
   }
 });
-

@@ -1,6 +1,6 @@
 type Tuple4 = [number, number, number, number];
 
-/** Mirrors the public recovery contract in api/src/recovery/contract.ts. */
+/** Browser-only state for the "Find missed readings" panel. */
 export interface RecoveryEvidence {
   name: number[];
   value: number[];
@@ -10,7 +10,7 @@ export interface RecoveryEvidence {
 }
 
 export interface RecoveryProposal {
-  sourceObservation?: import('./results').Observation;
+  sourceObservation?: import('@shared/results').Observation;
   id: string;
   page: number;
   name: string;
@@ -50,6 +50,14 @@ export interface RecoveryResponse {
   limits: RecoveryLimits;
 }
 
-export interface RecoveryStartRequest { page: number; expectedRevision: string }
-export interface RecoveryAcceptRequest { expectedRevision: string; note: string }
-export interface RecoveryRejectRequest { expectedRevision: string }
+export interface RecoveryStartRequest {
+  page: number;
+  expectedRevision: string;
+}
+export interface RecoveryAcceptRequest {
+  expectedRevision: string;
+  note: string;
+}
+export interface RecoveryRejectRequest {
+  expectedRevision: string;
+}

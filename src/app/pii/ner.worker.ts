@@ -32,18 +32,36 @@ addEventListener('message', async ({ data }: MessageEvent<NerRequest>) => {
       await load(data.modelId, data.wasmBase, data.gpuModelBase, data.forceCpu);
       post({ type: 'ready' });
     } catch (e) {
-      post({ type: e instanceof GpuLoadError ? 'gpu-load-error' : 'load-error', message: e instanceof Error ? e.message : String(e) });
+      post({
+        type: e instanceof GpuLoadError ? 'gpu-load-error' : 'load-error',
+        message: e instanceof Error ? e.message : String(e),
+      });
     }
   } else if (data.type === 'predict') {
     try {
-      post({ type: 'result', id: data.id, predictions: await predict(data.lines, (completed, total) => post({ type: 'predict-progress', id: data.id, completed, total })) });
+      post({
+        type: 'result',
+        id: data.id,
+        predictions: await predict(data.lines, (completed, total) =>
+          post({ type: 'predict-progress', id: data.id, completed, total }),
+        ),
+      });
     } catch (e) {
-      post({ type: 'predict-error', id: data.id, message: e instanceof Error ? e.message : String(e) });
+      post({
+        type: 'predict-error',
+        id: data.id,
+        message: e instanceof Error ? e.message : String(e),
+      });
     }
   }
 });
 
-async function load(modelId: string, wasmBase: string, gpuModelBase: string, forceCpu = false): Promise<void> {
+async function load(
+  modelId: string,
+  wasmBase: string,
+  gpuModelBase: string,
+  forceCpu = false,
+): Promise<void> {
   const onnx = env.backends.onnx as { wasm?: { wasmPaths?: unknown; numThreads?: number } };
   if (onnx.wasm) {
     // Serve the ONNX runtime from this app instead of a CDN.
@@ -56,7 +74,12 @@ async function load(modelId: string, wasmBase: string, gpuModelBase: string, for
   }
 
   let cachedWeights = false;
-  const progress_callback = (p: { status: string; file?: string; loaded?: number; total?: number }) => {
+  const progress_callback = (p: {
+    status: string;
+    file?: string;
+    loaded?: number;
+    total?: number;
+  }) => {
     // Transformers also emits "download" progress while reading Cache Storage.
     // Do not present a local cache read as a second network download.
     if (cachedWeights) return;
@@ -71,13 +94,19 @@ async function load(modelId: string, wasmBase: string, gpuModelBase: string, for
 
   post({ type: 'load-stage', stage: 'preparing' });
   // No model/config/tokenizer downloads occur until WebGPU is checked.
-  const gpu = !forceCpu && await selectDetectorVariant(navigator as unknown as ModelDevice) === 'gpu-fp16'
-    && await gpuExportAvailable(gpuModelBase);
+  const gpu =
+    !forceCpu &&
+    (await selectDetectorVariant(navigator as unknown as ModelDevice)) === 'gpu-fp16' &&
+    (await gpuExportAvailable(gpuModelBase));
   const initialize = async (useGpu: boolean) => {
-    const weightsUrl = useGpu ? new URL('onnx/model_fp16.onnx', gpuModelBase).href
+    const weightsUrl = useGpu
+      ? new URL('onnx/model_fp16.onnx', gpuModelBase).href
       : `https://huggingface.co/${modelId}/resolve/main/onnx/model_quantized.onnx`;
-    try { cachedWeights = typeof caches !== 'undefined' && !!await caches.match(weightsUrl); }
-    catch { cachedWeights = false; }
+    try {
+      cachedWeights = typeof caches !== 'undefined' && !!(await caches.match(weightsUrl));
+    } catch {
+      cachedWeights = false;
+    }
     post({ type: 'backend', variant: useGpu ? 'gpu-fp16' : 'cpu-q8', cached: cachedWeights });
     post({ type: 'load-stage', stage: 'preparing' });
     env.allowLocalModels = useGpu;
@@ -86,7 +115,9 @@ async function load(modelId: string, wasmBase: string, gpuModelBase: string, for
     tokenizer = await AutoTokenizer.from_pretrained(source, options);
     post({ type: 'load-stage', stage: cachedWeights ? 'starting' : 'downloading' });
     model = await AutoModelForTokenClassification.from_pretrained(source, {
-      ...options, dtype: useGpu ? 'fp16' : 'q8', device: useGpu ? 'webgpu' : 'wasm',
+      ...options,
+      dtype: useGpu ? 'fp16' : 'q8',
+      device: useGpu ? 'webgpu' : 'wasm',
     });
     post({ type: 'load-stage', stage: 'starting' });
     // Test actual execution as well as adapter availability before declaring ready.
@@ -96,13 +127,20 @@ async function load(modelId: string, wasmBase: string, gpuModelBase: string, for
       const outputs = await model({ input_ids, attention_mask });
       try {
         const logits = outputs['logits'] as Tensor;
-        if (!logits || !Array.from(logits.data as Float32Array).every(Number.isFinite)) throw new Error('Invalid model output');
-      } finally { for (const value of Object.values(outputs)) if (value instanceof Tensor) value.dispose(); }
-    } finally { input_ids.dispose(); attention_mask.dispose(); }
+        if (!logits || !Array.from(logits.data as Float32Array).every(Number.isFinite))
+          throw new Error('Invalid model output');
+      } finally {
+        for (const value of Object.values(outputs)) if (value instanceof Tensor) value.dispose();
+      }
+    } finally {
+      input_ids.dispose();
+      attention_mask.dispose();
+    }
   };
   if (gpu) {
-    try { await initialize(true); }
-    catch (error) {
+    try {
+      await initialize(true);
+    } catch (error) {
       console.warn('GPU privacy checker setup failed; falling back to CPU.', error);
       // A failed WebGPU session may poison this runtime. The service must
       // terminate this worker and start CPU in a fresh one, not reuse it.
@@ -111,7 +149,9 @@ async function load(modelId: string, wasmBase: string, gpuModelBase: string, for
   } else await initialize(false);
 
   const config = model!.config as unknown as { id2label?: Record<string, string> };
-  id2label = Object.fromEntries(Object.entries(config.id2label ?? {}).map(([k, v]) => [Number(k), v]));
+  id2label = Object.fromEntries(
+    Object.entries(config.id2label ?? {}).map(([k, v]) => [Number(k), v]),
+  );
 
   const withSpecial = tokenizer!.encode('', { add_special_tokens: true });
   const bos = withSpecial.length >= 2 ? withSpecial.slice(0, 1) : [];
@@ -119,10 +159,18 @@ async function load(modelId: string, wasmBase: string, gpuModelBase: string, for
   suffix = withSpecial.slice(bos.length);
 }
 
-async function predict(lines: string[][], progress: (completed: number, total: number) => void): Promise<[string, number][]> {
+async function predict(
+  lines: string[][],
+  progress: (completed: number, total: number) => void,
+): Promise<[string, number][]> {
   if (!tokenizer || !model) throw new Error('Model not loaded');
   const tok = tokenizer;
-  const sequences = buildSequences(lines, (w) => tok.encode(w, { add_special_tokens: false }), prefix, suffix);
+  const sequences = buildSequences(
+    lines,
+    (w) => tok.encode(w, { add_special_tokens: false }),
+    prefix,
+    suffix,
+  );
   const total = lines.reduce((n, l) => n + l.length, 0);
   const out: [string, number][] = Array.from({ length: total }, () => ['O', 0]);
 
@@ -132,8 +180,12 @@ async function predict(lines: string[][], progress: (completed: number, total: n
     const input_ids = new Tensor('int64', BigInt64Array.from(seq.ids.map(BigInt)), [1, n]);
     const attention_mask = new Tensor('int64', new BigInt64Array(n).fill(1n), [1, n]);
     let logits: Tensor;
-    try { ({ logits } = (await model({ input_ids, attention_mask })) as { logits: Tensor }); }
-    finally { input_ids.dispose(); attention_mask.dispose(); }
+    try {
+      ({ logits } = (await model({ input_ids, attention_mask })) as { logits: Tensor });
+    } finally {
+      input_ids.dispose();
+      attention_mask.dispose();
+    }
     const data = logits.data as Float32Array;
     const classes = logits.dims[2];
 

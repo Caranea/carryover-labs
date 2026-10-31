@@ -89,7 +89,12 @@
 
   /* A highlighter stroke behind kept text. */
   .highlight {
-    background: linear-gradient(transparent 18%, var(--color-accent) 18%, var(--color-accent) 88%, transparent 88%);
+    background: linear-gradient(
+      transparent 18%,
+      var(--color-accent) 18%,
+      var(--color-accent) 88%,
+      transparent 88%
+    );
     padding-inline: 0.15em;
     border-radius: 2px;
   }
@@ -106,39 +111,137 @@
 }
 
 /* Comfortable controls, visible keyboard focus and an immediate route past navigation. */
-:root { --app-header-height: 4.5rem; }
-html { scroll-padding-top: calc(var(--app-header-height) + 1rem); }
-@media (max-width: 55.999rem) {
-  :root { --app-header-height: 4rem; }
+:root {
+  --app-header-height: 4.5rem;
 }
-:focus-visible { outline: 3px solid #0d7a68; outline-offset: 3px; }
-.btn, summary, .menu a { min-height: 44px; }
-.input, .select, .textarea { font-size: 1rem; }
-label.btn:focus-within { outline: 3px solid #0d7a68; outline-offset: 3px; }
-.stat-title, .stat-desc { color: #405651; }
-.skip-link { position: absolute; left: 1rem; top: -6rem; z-index: 100; padding: 0.75rem 1rem; background: white; border: 2px solid #0d7a68; border-radius: 0.5rem; }
-.skip-link:focus { top: 0.5rem; }
+html {
+  scroll-padding-top: calc(var(--app-header-height) + 1rem);
+}
+@media (max-width: 55.999rem) {
+  :root {
+    --app-header-height: 4rem;
+  }
+}
+:focus-visible {
+  outline: 3px solid #0d7a68;
+  outline-offset: 3px;
+}
+.btn,
+summary,
+.menu a {
+  min-height: 44px;
+}
+.input,
+.select,
+.textarea {
+  font-size: 1rem;
+}
+label.btn:focus-within {
+  outline: 3px solid #0d7a68;
+  outline-offset: 3px;
+}
+.stat-title,
+.stat-desc {
+  color: #405651;
+}
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -6rem;
+  z-index: 100;
+  padding: 0.75rem 1rem;
+  background: white;
+  border: 2px solid #0d7a68;
+  border-radius: 0.5rem;
+}
+.skip-link:focus {
+  top: 0.5rem;
+}
 @media (max-width: 480px) {
-  .table { font-size: 0.875rem; }
+  .table {
+    font-size: 0.875rem;
+  }
 }
 @media print {
-  @page { size: A4; margin: 14mm; }
-  .app-header, .app-footer, app-step-rail, .no-print, app-toasts, app-source-dialog, .skip-link { display: none !important; }
-  html, body, app-root, main { display: block !important; background: white !important; color: #16302c !important; }
-  .appointment { max-width: none; padding: 0; display: block; font-size: 10pt; }
-  .appointment > * { margin-bottom: 6mm; }
-  .appointment h1 { font-size: 24pt; }
-  .appointment h2 { font-size: 17pt; break-after: avoid; }
-  .appointment h3 { font-size: 12pt; break-after: avoid; }
-  .appointment-chart { break-inside: avoid; box-shadow: none; margin-bottom: 5mm; }
-  .appointment .chart-table { break-inside: auto; }
-  .chart-table > summary { display: none; }
-  .chart-table > div { display: block !important; overflow: visible; }
-  .appointment table { width: 100%; font-size: 9pt; }
-  .appointment th, .appointment td { white-space: normal !important; padding: 2mm; }
-  .appointment tr { break-inside: avoid; }
-  .appointment thead { display: table-header-group; }
-  .appointment .tip { display: none; }
-  .appointment svg { max-width: 100%; }
-  .appointment * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+  .app-header,
+  .app-footer,
+  app-step-rail,
+  .no-print,
+  app-toasts,
+  app-source-dialog,
+  .skip-link {
+    display: none !important;
+  }
+  html,
+  body,
+  app-root,
+  main {
+    display: block !important;
+    background: white !important;
+    color: #16302c !important;
+  }
+  .appointment {
+    max-width: none;
+    padding: 0;
+    display: block;
+    font-size: 10pt;
+  }
+  .appointment > * {
+    margin-bottom: 6mm;
+  }
+  .appointment h1 {
+    font-size: 24pt;
+  }
+  .appointment h2 {
+    font-size: 17pt;
+    break-after: avoid;
+  }
+  .appointment h3 {
+    font-size: 12pt;
+    break-after: avoid;
+  }
+  .appointment-chart {
+    break-inside: avoid;
+    box-shadow: none;
+    margin-bottom: 5mm;
+  }
+  .appointment .chart-table {
+    break-inside: auto;
+  }
+  .chart-table > summary {
+    display: none;
+  }
+  .chart-table > div {
+    display: block !important;
+    overflow: visible;
+  }
+  .appointment table {
+    width: 100%;
+    font-size: 9pt;
+  }
+  .appointment th,
+  .appointment td {
+    white-space: normal !important;
+    padding: 2mm;
+  }
+  .appointment tr {
+    break-inside: avoid;
+  }
+  .appointment thead {
+    display: table-header-group;
+  }
+  .appointment .tip {
+    display: none;
+  }
+  .appointment svg {
+    max-width: 100%;
+  }
+  .appointment * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
 }

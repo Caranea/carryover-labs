@@ -1,4 +1,12 @@
-import { afterNextRender, Component, ElementRef, inject, Injector, signal, viewChild } from '@angular/core';
+import {
+  afterNextRender,
+  Component,
+  ElementRef,
+  inject,
+  Injector,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { DetectorStatus } from './shell/detector-status';
@@ -37,9 +45,12 @@ export class App {
   protected toggleMenu() {
     this.menuOpen.update((open) => !open);
     if (this.menuOpen()) {
-      afterNextRender(() => {
-        if (this.menuOpen()) this.navigation()?.nativeElement.querySelector('a')?.focus();
-      }, { injector: this.injector });
+      afterNextRender(
+        () => {
+          if (this.menuOpen()) this.navigation()?.nativeElement.querySelector('a')?.focus();
+        },
+        { injector: this.injector },
+      );
     }
   }
 
@@ -55,7 +66,9 @@ export class App {
     }
   }
 
-  protected skipHref() { return this.router.url.split('#')[0] + '#main-content'; }
+  protected skipHref() {
+    return this.router.url.split('#')[0] + '#main-content';
+  }
   protected skipToContent(event: Event) {
     event.preventDefault();
     document.getElementById('main-content')?.focus();
@@ -64,5 +77,4 @@ export class App {
   protected scrollToStart() {
     document.getElementById('start')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
-
 }

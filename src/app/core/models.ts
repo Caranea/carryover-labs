@@ -12,14 +12,7 @@ export type PrivacyMode = 'automatic' | 'lightweight';
 
 /** What kind of personal data a hidden word was. Never the data itself. */
 export type PiiKind =
-  | 'person'
-  | 'address'
-  | 'national-id'
-  | 'id-number'
-  | 'contact'
-  | 'birth-date'
-  | 'age'
-  | 'other';
+  'person' | 'address' | 'national-id' | 'id-number' | 'contact' | 'birth-date' | 'age' | 'other';
 
 /** Who decided a word is hidden. */
 export type DetectionSource = 'model' | 'rule' | 'you' | 'remembered';
@@ -61,13 +54,7 @@ export interface WorkingPage {
 }
 
 export type LocalStatus =
-  | 'queued'
-  | 'reading'
-  | 'detecting'
-  | 'review'
-  | 'saving'
-  | 'saved'
-  | 'error';
+  'queued' | 'reading' | 'detecting' | 'review' | 'saving' | 'saved' | 'error';
 
 export interface LocalDocument {
   localId: string;
@@ -90,8 +77,6 @@ export interface LocalDocument {
   privacyCheck?: 'complete' | 'incomplete' | 'manual';
   privacyMessage?: string;
   privacyMode?: PrivacyMode;
-  /** Legacy queue metadata; the Approve action is now the only confirmation. */
-  privacyAcknowledged?: boolean;
   /** Version of the rules and model interpretation used for these OCR words. */
   privacyVersion?: number;
   pages: WorkingPage[];

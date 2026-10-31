@@ -16,7 +16,12 @@ import { Icon } from '../ui/icon';
               <p class="text-sm opacity-90">{{ t.detail }}</p>
             }
           </div>
-          <button type="button" class="btn btn-ghost btn-sm btn-circle" (click)="toasts.dismiss(t.id)" aria-label="Dismiss">
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm btn-circle"
+            (click)="toasts.dismiss(t.id)"
+            aria-label="Dismiss"
+          >
             <app-icon name="x" size="1rem" />
           </button>
         </div>

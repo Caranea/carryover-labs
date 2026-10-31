@@ -9,30 +9,58 @@ class FakeWorker {
   onerror: (() => void) | null = null;
   requests: NerRequest[] = [];
   terminated = false;
-  constructor() { FakeWorker.latest = this; }
-  postMessage(request: NerRequest) { this.requests.push(request); }
-  terminate() { this.terminated = true; }
-  respond(data: NerResponse) { this.onmessage?.({ data } as MessageEvent<NerResponse>); }
+  constructor() {
+    FakeWorker.latest = this;
+  }
+  postMessage(request: NerRequest) {
+    this.requests.push(request);
+  }
+  terminate() {
+    this.terminated = true;
+  }
+  respond(data: NerResponse) {
+    this.onmessage?.({ data } as MessageEvent<NerResponse>);
+  }
 }
-const pages = (): WorkingPage[] => [{ index: 0, width: 0, height: 0, image: null, imageUrl: null, ocr: false, regions: [], words: [
-  { id: 1, text: 'Synthetic', line: 0, hidden: false },
-] }];
+const pages = (): WorkingPage[] => [
+  {
+    index: 0,
+    width: 0,
+    height: 0,
+    image: null,
+    imageUrl: null,
+    ocr: false,
+    regions: [],
+    words: [{ id: 1, text: 'Synthetic', line: 0, hidden: false }],
+  },
+];
 
 describe('bounded local privacy detection', () => {
-  beforeEach(() => { vi.useFakeTimers(); vi.stubGlobal('Worker', FakeWorker); });
-  afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.stubGlobal('Worker', FakeWorker);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
 
   it('restarts in a fresh CPU worker after GPU setup fails', async () => {
-    const service = new NerService(); const loading = service.load();
+    const service = new NerService();
+    const loading = service.load();
     const gpu = FakeWorker.latest;
     gpu.respond({ type: 'backend', variant: 'gpu-fp16' });
     gpu.respond({ type: 'gpu-load-error', message: 'GPU session failed' });
     const cpu = FakeWorker.latest;
-    expect(cpu).not.toBe(gpu); expect(gpu.terminated).toBe(true);
+    expect(cpu).not.toBe(gpu);
+    expect(gpu.terminated).toBe(true);
     expect(cpu.requests[0]).toMatchObject({ type: 'load', forceCpu: true });
-    gpu.respond({ type: 'ready' }); expect(service.state()).toBe('loading');
-    cpu.respond({ type: 'backend', variant: 'cpu-q8' }); cpu.respond({ type: 'ready' });
-    expect(await loading).toBe(true); expect(service.variant()).toBe('cpu-q8');
+    gpu.respond({ type: 'ready' });
+    expect(service.state()).toBe('loading');
+    cpu.respond({ type: 'backend', variant: 'cpu-q8' });
+    cpu.respond({ type: 'ready' });
+    expect(await loading).toBe(true);
+    expect(service.variant()).toBe('cpu-q8');
     expect(vi.getTimerCount()).toBe(0);
   });
 
@@ -59,7 +87,8 @@ describe('bounded local privacy detection', () => {
   });
 
   it('lets an actively progressing download continue past the idle timeout', async () => {
-    const service = new NerService(); const loading = service.load();
+    const service = new NerService();
+    const loading = service.load();
     await vi.advanceTimersByTimeAsync(100_000);
     FakeWorker.latest.respond({ type: 'progress', fraction: 0.1, loaded: 10, total: 100 });
     await vi.advanceTimersByTimeAsync(30_000);
@@ -70,7 +99,8 @@ describe('bounded local privacy detection', () => {
   });
 
   it('tracks page checking separately from the download and clears estimates on completion', async () => {
-    const service = new NerService(); const prediction = service.predict(pages());
+    const service = new NerService();
+    const prediction = service.predict(pages());
     FakeWorker.latest.respond({ type: 'ready' });
     await vi.advanceTimersByTimeAsync(4000);
     FakeWorker.latest.respond({ type: 'predict-progress', id: 0, completed: 1, total: 2 });

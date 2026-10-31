@@ -4,10 +4,19 @@ import { mkdir, writeFile, stat } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
 import { createServer } from 'node:http';
 import { resolve, join, extname } from 'node:path';
-const root = resolve(import.meta.dirname, '..'), out = join(root, 'artifacts/pipeline-verification');
+const root = resolve(import.meta.dirname, '..'),
+  out = join(root, 'artifacts/pipeline-verification');
 await mkdir(out, { recursive: true });
-await build({ entryPoints: [join(root, 'src/app/pii/ner.worker.ts')], outfile: join(out, 'ner.worker.js'), bundle: true, platform: 'browser', format: 'esm' });
-await writeFile(join(out, 'privacy.ts'), `
+await build({
+  entryPoints: [join(root, 'src/app/pii/ner.worker.ts')],
+  outfile: join(out, 'ner.worker.js'),
+  bundle: true,
+  platform: 'browser',
+  format: 'esm',
+});
+await writeFile(
+  join(out, 'privacy.ts'),
+  `
 import '@angular/compiler';
 import { OcrService } from '../../src/app/extraction/ocr.service';
 import { applyDetections, NORMAL } from '../../src/app/pii/detect';
@@ -72,19 +81,64 @@ document.querySelector('button').onclick = async () => {
  log({stage:'complete'});
  } catch {log({stage:'failed'});await save(results);} finally {worker.terminate();await ocr.terminate();}
 };
-`);
-await build({ entryPoints:[join(out,'privacy.ts')],outfile:join(out,'privacy.js'),bundle:true,platform:'browser',format:'esm',tsconfig:join(root,'tsconfig.app.json') });
-await writeFile(join(out,'privacy.html'), '<!doctype html><meta charset="utf-8"><title>Pipeline privacy verification</title><h1>Synthetic privacy orientation checks</h1><button>Run local checks</button><pre style="white-space:pre-wrap;max-width:960px"></pre><script type="module" src="/privacy.js"></script>');
+`,
+);
+await build({
+  entryPoints: [join(out, 'privacy.ts')],
+  outfile: join(out, 'privacy.js'),
+  bundle: true,
+  platform: 'browser',
+  format: 'esm',
+  tsconfig: join(root, 'tsconfig.app.json'),
+});
+await writeFile(
+  join(out, 'privacy.html'),
+  '<!doctype html><meta charset="utf-8"><title>Pipeline privacy verification</title><h1>Synthetic privacy orientation checks</h1><button>Run local checks</button><pre style="white-space:pre-wrap;max-width:960px"></pre><script type="module" src="/privacy.js"></script>',
+);
 if (process.argv.includes('--build-only')) process.exit(0);
-const types={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.wasm':'application/wasm','.json':'application/json'};
-createServer(async(req,res)=>{
- try {
-  const path=decodeURIComponent(new URL(req.url,'http://localhost').pathname);
-  if(req.method==='POST'&&path==='/report'){const chunks=[];for await(const chunk of req)chunks.push(chunk);await writeFile(join(out,'privacy-timings.json'),Buffer.concat(chunks));res.end('ok');return;}
-  let file=path==='/'?join(out,'privacy.html'):join(out,path.slice(1));
-  for(const [prefix,dir] of [['/models/','public/models'],['/vendor/ort/','node_modules/onnxruntime-web/dist'],['/vendor/tesseract-core/','node_modules/tesseract.js-core'],['/vendor/tesseract/','node_modules/tesseract.js/dist']]) if(path.startsWith(prefix))file=join(root,dir,path.slice(prefix.length));
-  if(path.startsWith('/vendor/tessdata/')){const name=path.split('/').at(-1),lang=name.split('.')[0];file=join(root,'node_modules/@tesseract.js-data',lang,'4.0.0_best_int',name);}
-  if(!resolve(file).startsWith(root + (process.platform==='win32'?'\\':'/'))){res.writeHead(403).end();return;}
-  const size=await stat(file);res.writeHead(200,{'Content-Type':types[extname(file)]??'application/octet-stream','Content-Length':size.size});createReadStream(file).pipe(res);
- }catch{res.writeHead(404).end();}
-}).listen(4294,'127.0.0.1',()=>console.log('Synthetic privacy verification at http://localhost:4294'));
+const types = {
+  '.html': 'text/html',
+  '.js': 'text/javascript',
+  '.mjs': 'text/javascript',
+  '.wasm': 'application/wasm',
+  '.json': 'application/json',
+};
+createServer(async (req, res) => {
+  try {
+    const path = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+    if (req.method === 'POST' && path === '/report') {
+      const chunks = [];
+      for await (const chunk of req) chunks.push(chunk);
+      await writeFile(join(out, 'privacy-timings.json'), Buffer.concat(chunks));
+      res.end('ok');
+      return;
+    }
+    let file = path === '/' ? join(out, 'privacy.html') : join(out, path.slice(1));
+    for (const [prefix, dir] of [
+      ['/models/', 'public/models'],
+      ['/vendor/ort/', 'node_modules/onnxruntime-web/dist'],
+      ['/vendor/tesseract-core/', 'node_modules/tesseract.js-core'],
+      ['/vendor/tesseract/', 'node_modules/tesseract.js/dist'],
+    ])
+      if (path.startsWith(prefix)) file = join(root, dir, path.slice(prefix.length));
+    if (path.startsWith('/vendor/tessdata/')) {
+      const name = path.split('/').at(-1),
+        lang = name.split('.')[0];
+      file = join(root, 'node_modules/@tesseract.js-data', lang, '4.0.0_best_int', name);
+    }
+    if (!resolve(file).startsWith(root + (process.platform === 'win32' ? '\\' : '/'))) {
+      res.writeHead(403).end();
+      return;
+    }
+    const size = await stat(file);
+    res.writeHead(200, {
+      'Content-Type': types[extname(file)] ?? 'application/octet-stream',
+      'Content-Length': size.size,
+    });
+    createReadStream(file).pipe(res);
+  } catch {
+    res.writeHead(404).end();
+  }
+}).listen(4294, '127.0.0.1', () =>
+  console.log('Synthetic privacy verification at http://localhost:4294'),
+);

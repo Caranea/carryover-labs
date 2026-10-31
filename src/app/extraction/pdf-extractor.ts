@@ -15,11 +15,16 @@ export interface RenderedPdfPage {
 const TARGET_WIDTH = 2000;
 
 export class PdfPageLimitError extends Error {
-  constructor(limit: number) { super(`This PDF has more than ${limit} pages. Split it into smaller files.`); }
+  constructor(limit: number) {
+    super(`This PDF has more than ${limit} pages. Split it into smaller files.`);
+  }
 }
 
 /** Render each page; its borrowed canvas is released when the consumer advances or closes the iterator. */
-export async function* readPdf(file: File, maxPages = Infinity): AsyncGenerator<RenderedPdfPage & { pageCount: number }> {
+export async function* readPdf(
+  file: File,
+  maxPages = Infinity,
+): AsyncGenerator<RenderedPdfPage & { pageCount: number }> {
   const pdfjs = await import('pdfjs-dist');
   pdfjs.GlobalWorkerOptions.workerSrc = assetUrl(ASSETS.pdfWorker);
 
@@ -56,9 +61,7 @@ export async function* readPdf(file: File, maxPages = Infinity): AsyncGenerator<
   }
 }
 
-async function renderPage(
-  page: PDFPageProxy,
-): Promise<Omit<RenderedPdfPage, 'index'>> {
+async function renderPage(page: PDFPageProxy): Promise<Omit<RenderedPdfPage, 'index'>> {
   const base = page.getViewport({ scale: 1 });
   let scale = Math.min(3, Math.max(1.5, TARGET_WIDTH / base.width));
   if (Math.max(base.width, base.height) * scale > MAX_SIDE * 1.2) {

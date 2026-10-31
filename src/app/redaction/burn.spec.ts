@@ -1,6 +1,14 @@
 import { LocalDocument, WorkingPage } from '../core/models';
-import { applyRegion, boxesToBurn, buildManifest, redactionAction, redactionPlan, removeRegion, toStoredPage } from './burn';
-import { storedMaskGeometry } from '../../../api/src/documents/mask-geometry';
+import {
+  applyRegion,
+  boxesToBurn,
+  buildManifest,
+  redactionAction,
+  redactionPlan,
+  removeRegion,
+  toStoredPage,
+} from './burn';
+import { storedMaskGeometry } from '@shared/mask-geometry';
 
 const page = (): WorkingPage => ({
   index: 0,
@@ -12,7 +20,16 @@ const page = (): WorkingPage => ({
   regions: [],
   words: [
     { id: 0, text: 'Pacjent:', line: 0, hidden: false, box: { x: 10, y: 10, w: 80, h: 20 } },
-    { id: 1, text: 'Kowalska', line: 0, hidden: true, kind: 'person', source: 'model', score: 0.9, box: { x: 100, y: 10, w: 90, h: 20 } },
+    {
+      id: 1,
+      text: 'Kowalska',
+      line: 0,
+      hidden: true,
+      kind: 'person',
+      source: 'model',
+      score: 0.9,
+      box: { x: 100, y: 10, w: 90, h: 20 },
+    },
     { id: 2, text: 'PLT', line: 1, hidden: false, box: { x: 10, y: 50, w: 40, h: 20 } },
   ],
 });
@@ -53,7 +70,9 @@ describe('upload contract', () => {
 
   it('uses matching integer geometry at fractional pixel boundaries', () => {
     const p = page();
-    p.words = [{ id: 0, text: 'private', line: 0, hidden: false, box: { x: 10.4, y: 10, w: 10, h: 10 } }];
+    p.words = [
+      { id: 0, text: 'private', line: 0, hidden: false, box: { x: 10.4, y: 10, w: 10, h: 10 } },
+    ];
     p.regions = [{ x: 0.6, y: 10, w: 9.8, h: 10 }];
     // Raw boxes only touch, but transmitted pixel boxes overlap: the text must be omitted.
     expect(toStoredPage(p).words[0].t).toBeNull();
@@ -61,7 +80,13 @@ describe('upload contract', () => {
 
   it('stops padding at neighbours and uses identical preview, payload and server masks', () => {
     const p = page();
-    p.words = [10, 22, 34, 50].map((x, id) => ({ id, text: `word${id}`, line: 0, hidden: id === 0, box: { x, y: 10, w: 10, h: 10 } }));
+    p.words = [10, 22, 34, 50].map((x, id) => ({
+      id,
+      text: `word${id}`,
+      line: 0,
+      hidden: id === 0,
+      box: { x, y: 10, w: 10, h: 10 },
+    }));
     const plan = redactionPlan(p);
     const stored = toStoredPage(p);
     expect(stored.words.map((word) => word.t)).toEqual([null, 'word1', 'word2', 'word3']);
@@ -78,14 +103,28 @@ describe('upload contract', () => {
 
   it('keeps dates touching an ID box readable, while burning the complete ID', () => {
     const p = page();
-    p.width = 1958; p.height = 2600;
+    p.width = 1958;
+    p.height = 2600;
     p.words = [
-      { id: 0, text: '14-Jul-2012', line: 0, hidden: false, box: { x: 527, y: 2269, w: 159, h: 43 } },
+      {
+        id: 0,
+        text: '14-Jul-2012',
+        line: 0,
+        hidden: false,
+        box: { x: 527, y: 2269, w: 159, h: 43 },
+      },
       { id: 1, text: '123123123', line: 1, hidden: true, box: { x: 523, y: 2312, w: 159, h: 27 } },
-      { id: 2, text: '14-Jul-2012', line: 2, hidden: false, box: { x: 520, y: 2391, w: 171, h: 28 } },
+      {
+        id: 2,
+        text: '14-Jul-2012',
+        line: 2,
+        hidden: false,
+        box: { x: 520, y: 2391, w: 171, h: 28 },
+      },
     ];
-    const stored = toStoredPage(p), plan = redactionPlan(p);
-    expect(stored.words.map(w => w.t)).toEqual(['14-Jul-2012', null, '14-Jul-2012']);
+    const stored = toStoredPage(p),
+      plan = redactionPlan(p);
+    expect(stored.words.map((w) => w.t)).toEqual(['14-Jul-2012', null, '14-Jul-2012']);
     expect(plan.boxes[0].y).toBe(2312);
     expect(plan.boxes[0].x).toBeLessThanOrEqual(523);
     expect(plan.boxes[0].x + plan.boxes[0].w).toBeGreaterThanOrEqual(682);
@@ -95,9 +134,15 @@ describe('upload contract', () => {
 
   it('still removes text that overlaps the actual identity box or a drawn region', () => {
     const p = page();
-    p.words = [10, 18, 26].map((x, id) => ({ id, text: `private${id}`, line: 0, hidden: id === 0, box: { x, y: 10, w: 10, h: 10 } }));
+    p.words = [10, 18, 26].map((x, id) => ({
+      id,
+      text: `private${id}`,
+      line: 0,
+      hidden: id === 0,
+      box: { x, y: 10, w: 10, h: 10 },
+    }));
     const stored = toStoredPage(p);
-    expect(stored.words.every(w => w.t === null)).toBe(true);
+    expect(stored.words.every((w) => w.t === null)).toBe(true);
     expect(storedMaskGeometry(stored).boxes).toEqual(redactionPlan(p).boxes);
   });
 

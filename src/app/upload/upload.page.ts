@@ -1,5 +1,14 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, effect, ElementRef, inject, OnInit, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  computed,
+  effect,
+  ElementRef,
+  inject,
+  OnInit,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { DocumentQueueService } from '../core/document-queue.service';
 import { LocalDocument, PrivacyMode, SavedDocumentSummary, SourceKind } from '../core/models';
@@ -10,8 +19,18 @@ import { StepRail } from '../shell/step-rail';
 import { StorageNotice } from '../shell/storage-notice';
 import { Icon, IconName } from '../ui/icon';
 
-const KIND_TAG: Record<SourceKind, string> = { pdf: 'PDF', image: 'Photo', docx: 'Word', text: 'Text' };
-const KIND_ICON: Record<SourceKind, IconName> = { pdf: 'file-text', image: 'file-image', docx: 'file-type', text: 'file-text' };
+const KIND_TAG: Record<SourceKind, string> = {
+  pdf: 'PDF',
+  image: 'Photo',
+  docx: 'Word',
+  text: 'Text',
+};
+const KIND_ICON: Record<SourceKind, IconName> = {
+  pdf: 'file-text',
+  image: 'file-image',
+  docx: 'file-type',
+  text: 'file-text',
+};
 
 @Component({
   selector: 'app-upload',
@@ -33,15 +52,21 @@ export class UploadPage implements OnInit {
   protected readonly privacyMode = this.queue.privacyMode;
   private dragDepth = 0;
 
-  protected readonly local = computed(() => this.queue.documents().filter((d) => d.status !== 'saved'));
-  protected readonly readyCount = computed(() => this.local().filter((d) => d.status === 'review').length);
+  protected readonly local = computed(() =>
+    this.queue.documents().filter((d) => d.status !== 'saved'),
+  );
+  protected readonly readyCount = computed(
+    () => this.local().filter((d) => d.status === 'review').length,
+  );
 
   constructor() {
     effect(() => {
       const advice = this.device.assessment();
       // Apply a default only before the user has chosen or added any documents.
       if (!this.queue.privacyModeChosen() && advice.recommendation) {
-        this.queue.privacyMode.set(advice.recommendation === 'manual' ? 'lightweight' : 'automatic');
+        this.queue.privacyMode.set(
+          advice.recommendation === 'manual' ? 'lightweight' : 'automatic',
+        );
       }
     });
   }
@@ -132,7 +157,8 @@ export class UploadPage implements OnInit {
       case 'queued':
         return 'Waits for the file before it';
       case 'review': {
-        if (doc.privacyCheck === 'manual') return 'Ready for you to click or tap personal details to hide them';
+        if (doc.privacyCheck === 'manual')
+          return 'Ready for you to click or tap personal details to hide them';
         const n = this.hidden(doc);
         return `${n} ${n === 1 ? 'detail' : 'details'} blacked out across ${doc.pages.length} ${doc.pages.length === 1 ? 'page' : 'pages'}`;
       }
@@ -143,4 +169,3 @@ export class UploadPage implements OnInit {
     }
   }
 }
-

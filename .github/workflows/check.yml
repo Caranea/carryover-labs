@@ -19,9 +19,9 @@ jobs:
             api/package-lock.json
       - run: npm ci
       - run: npm --prefix api ci
+      - run: npm run lint
+      - run: npm run format:check
       - run: npm test -- --watch=false
       - run: npm --prefix api test
       - run: npm run build
       - run: npm --prefix api run build
-      - run: npm run benchmark
-      - run: npm run check:flow

@@ -1,6 +1,6 @@
 # Template only. Review paths, service account and memory limits on the target host.
 [Unit]
-Description=Carryover Labs API (single writer)
+Description=Carryover Labs API
 After=network-online.target
 Wants=network-online.target
 
@@ -13,7 +13,6 @@ ExecStart=/usr/bin/node /opt/carryover/api/dist/main.js
 Environment=NODE_ENV=production
 Environment=HOST=127.0.0.1
 Environment=TRUST_LOOPBACK_PROXY=true
-Environment=STORAGE_DIR=/var/lib/carryover/live
 # Root-owned 0600 file, injected by the secret-management system. Never keep it in source or backups of the store.
 EnvironmentFile=/etc/carryover/runtime.env
 Restart=on-failure
@@ -23,7 +22,6 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/lib/carryover
 LimitCORE=0
 MemoryMax=2G
 TasksMax=128

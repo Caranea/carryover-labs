@@ -27,7 +27,8 @@ export function pageToWords(page: Tesseract.Page, startId: number): WorkingWord[
   const out: WorkingWord[] = [];
   let id = startId;
   for (const row of rows) {
-    for (const w of row.words) out.push({ id: id++, text: w.text, box: w.box, line: row.line, hidden: false });
+    for (const w of row.words)
+      out.push({ id: id++, text: w.text, box: w.box, line: row.line, hidden: false });
   }
   return out;
 }

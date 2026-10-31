@@ -1,9 +1,27 @@
-:host { display: block; min-width: 0; }
-.review-embedded { padding: var(--review-top-space, 1.25rem) 0 0; max-width: none; }
-.review-embedded .review-columns { margin-top: 0; }
-.review-embedded .review-tools { top: 0; }
-.review-embedded .review-decision { top: 0; max-height: none; }
+:host {
+  display: block;
+  min-width: 0;
+}
+.review-embedded {
+  padding: var(--review-top-space, 1.25rem) 0 0;
+  max-width: none;
+}
+.review-embedded .review-columns {
+  margin-top: 0;
+}
+.review-embedded .review-tools {
+  top: 0;
+}
+.review-embedded .review-decision {
+  top: 0;
+  max-height: none;
+}
 @media (min-width: 1024px) {
-  .review-embedded .review-columns { grid-template-columns: minmax(0, 1fr) 19rem; gap: 1rem; }
-  .review-embedded .review-decision { max-height: max(20rem, calc(100dvh - 24rem)); }
+  .review-embedded .review-columns {
+    grid-template-columns: minmax(0, 1fr) 19rem;
+    gap: 1rem;
+  }
+  .review-embedded .review-decision {
+    max-height: max(20rem, calc(100dvh - 24rem));
+  }
 }

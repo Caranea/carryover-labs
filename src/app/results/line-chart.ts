@@ -1,9 +1,19 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, ElementRef, inject, input, OnDestroy, OnInit, output, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  ElementRef,
+  inject,
+  input,
+  OnDestroy,
+  OnInit,
+  output,
+  signal,
+} from '@angular/core';
 import { calendarTimestamp } from './calendar-date';
 import { niceScale } from './chart-scale';
 export { niceScale } from './chart-scale';
-import { RecordChart, RecordPoint, RecordSeries } from '../core/records';
+import { RecordChart, RecordPoint, RecordSeries } from '@shared/records';
 
 /** Series use colour, dash patterns, labels and a table; colour is never the only identifier. */
 const SERIES_COLORS = ['#205ca0', '#ad431c', '#14714f', '#855e00'];
@@ -39,47 +49,98 @@ interface Dot {
   imports: [DatePipe],
   template: `
     @if (chart().series.length > 1) {
-      <ul class="flex flex-wrap gap-x-4 gap-y-1 mb-2 text-sm text-base-content/80" aria-label="Lines on this chart">
+      <ul
+        class="flex flex-wrap gap-x-4 gap-y-1 mb-2 text-sm text-base-content/80"
+        aria-label="Lines on this chart"
+      >
         @for (s of chart().series; track s.key; let i = $index) {
           <li class="flex items-center gap-1.5">
-            <svg width="24" height="8" aria-hidden="true"><line x1="0" y1="4" x2="24" y2="4" [attr.stroke]="colorOf(i)" stroke-width="2" [attr.stroke-dasharray]="dashOf(i)" /></svg>{{ s.label }}
+            <svg width="24" height="8" aria-hidden="true">
+              <line
+                x1="0"
+                y1="4"
+                x2="24"
+                y2="4"
+                [attr.stroke]="colorOf(i)"
+                stroke-width="2"
+                [attr.stroke-dasharray]="dashOf(i)"
+              /></svg
+            >{{ s.label }}
           </li>
         }
       </ul>
     }
     <div class="relative" (pointerleave)="hover.set(null)">
+      <!-- Pointer convenience only: every dot is also reachable by keyboard. -->
+      <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
       <svg
         [attr.width]="width()"
         [attr.height]="height"
         [attr.viewBox]="'0 0 ' + width() + ' ' + height"
         class="block w-full overflow-visible select-none"
         role="group"
-        [attr.aria-label]="summary()"
+        [attr.aria-label]="summary() + ' Use the arrow keys to move between readings.'"
         (pointermove)="onMove($event)"
         (click)="onClick($event)"
       >
         <!-- Grid and y ticks -->
         @for (tick of geometry().yTicks; track tick.v) {
-          <line [attr.x1]="m.left" [attr.x2]="width() - m.right" [attr.y1]="tick.y" [attr.y2]="tick.y" class="grid" />
-          <text [attr.x]="m.left - 8" [attr.y]="tick.y" class="tick" text-anchor="end" dominant-baseline="middle">{{ tick.label }}</text>
+          <line
+            [attr.x1]="m.left"
+            [attr.x2]="width() - m.right"
+            [attr.y1]="tick.y"
+            [attr.y2]="tick.y"
+            class="grid"
+          />
+          <text
+            [attr.x]="m.left - 8"
+            [attr.y]="tick.y"
+            class="tick"
+            text-anchor="end"
+            dominant-baseline="middle"
+          >
+            {{ tick.label }}
+          </text>
         }
         <!-- x ticks -->
         @for (tick of geometry().xTicks; track tick.t) {
-          <text [attr.x]="tick.x" [attr.y]="height - 8" class="tick" text-anchor="middle">{{ tick.label }}</text>
+          <text [attr.x]="tick.x" [attr.y]="height - 8" class="tick" text-anchor="middle">
+            {{ tick.label }}
+          </text>
         }
-        <line [attr.x1]="m.left" [attr.x2]="width() - m.right" [attr.y1]="height - m.bottom" [attr.y2]="height - m.bottom" class="axis" />
+        <line
+          [attr.x1]="m.left"
+          [attr.x2]="width() - m.right"
+          [attr.y1]="height - m.bottom"
+          [attr.y2]="height - m.bottom"
+          class="axis"
+        />
 
         <!-- Crosshair -->
         @if (hovered(); as h) {
-          <line [attr.x1]="h.x" [attr.x2]="h.x" [attr.y1]="m.top" [attr.y2]="height - m.bottom" class="crosshair" />
+          <line
+            [attr.x1]="h.x"
+            [attr.x2]="h.x"
+            [attr.y1]="m.top"
+            [attr.y2]="height - m.bottom"
+            class="crosshair"
+          />
         }
 
         <!-- Lines -->
         @for (line of geometry().lines; track line.key) {
-          <path [attr.d]="line.d" fill="none" [attr.stroke]="line.color" [attr.stroke-dasharray]="line.dash" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+          <path
+            [attr.d]="line.d"
+            fill="none"
+            [attr.stroke]="line.color"
+            [attr.stroke-dasharray]="line.dash"
+            stroke-width="2"
+            stroke-linejoin="round"
+            stroke-linecap="round"
+          />
         }
-        <!-- Dots: the visible mark, then a larger invisible target that takes focus -->
-        @for (d of geometry().dots; track d.key) {
+        <!-- Dots: the visible mark, then a larger invisible target. One dot per chart is a tab stop; arrows move between them. -->
+        @for (d of geometry().dots; track d.key; let i = $index) {
           <circle
             [attr.cx]="d.x"
             [attr.cy]="d.y"
@@ -94,12 +155,12 @@ interface Dot {
             r="22"
             fill="transparent"
             class="hit"
-            tabindex="0"
+            [attr.tabindex]="i === activeDot() ? 0 : -1"
             role="button"
             [attr.aria-label]="d.label"
-            (focus)="hover.set(d.t)"
+            (focus)="hover.set(d.t); activeDot.set(i)"
             (blur)="hover.set(null)"
-            (keydown)="onKey($event, d)"
+            (keydown)="onKey($event, d, i)"
             (click)="$event.stopPropagation(); pick.emit({ series: d.series, point: d.point })"
           />
         }
@@ -107,49 +168,96 @@ interface Dot {
 
       @if (hovered(); as h) {
         <div class="tip" [style.left.px]="h.tipLeft" [style.top.px]="m.top" role="status">
-          <p class="text-xs text-base-content/80 mb-1.5">{{ h.date | date: 'd MMM y':'UTC' }}</p>
+          <p class="text-xs text-base-content/80 mb-1.5">{{ h.date | date: 'd MMM y' : 'UTC' }}</p>
           @for (d of h.dots; track d.key) {
             <div class="flex items-start gap-2 py-0.5">
-              <span class="inline-block w-3 h-0.5 rounded-full mt-2 shrink-0" [style.background]="d.color"></span>
+              <span
+                class="inline-block w-3 h-0.5 rounded-full mt-2 shrink-0"
+                [style.background]="d.color"
+              ></span>
               <div class="min-w-0">
                 <p>
                   <span class="font-semibold tabular-nums">{{ display(d) }}</span>
                   <span class="text-base-content/80"> {{ unitLabel(d.series.unit) }}</span>
-                  @if (chart().series.length > 1) { <span class="text-base-content/80"> · {{ d.series.label }}</span> }
+                  @if (chart().series.length > 1) {
+                    <span class="text-base-content/80"> · {{ d.series.label }}</span>
+                  }
                 </p>
                 <p class="text-xs text-base-content/80 truncate">
-                  Printed “{{ d.point.printedName }}” {{ d.point.printedValue }} {{ d.point.printedUnit ?? '' }}
+                  Printed “{{ d.point.printedName }}” {{ d.point.printedValue }}
+                  {{ d.point.printedUnit ?? '' }}
                 </p>
                 <p class="text-xs text-base-content/80 truncate">
                   {{ d.point.documentName }}, page {{ d.point.page + 1 }}
-                  @if (d.point.alsoIn.length) { (and {{ d.point.alsoIn.length }} more) }
+                  @if (d.point.alsoIn.length) {
+                    (and {{ d.point.alsoIn.length }} more)
+                  }
                 </p>
               </div>
             </div>
           }
-          <p class="text-xs text-primary mt-1.5">Tap a dot or use the values table to open its source</p>
+          <p class="text-xs text-primary mt-1.5">
+            Tap a dot or use the values table to open its source
+          </p>
         </div>
       }
     </div>
-    @if (hasLimits()) { <p class="text-sm text-base-content/80 mt-2">Hollow markers are reported limits, not exact values. Check &lt;, &gt;, ≤ or ≥ in the table.</p> }
+    @if (hasLimits()) {
+      <p class="text-sm text-base-content/80 mt-2">
+        Hollow markers are reported limits, not exact values. Check &lt;, &gt;, ≤ or ≥ in the table.
+      </p>
+    }
     <details class="chart-table mt-3 border-t border-base-300 pt-2" [open]="showTable()">
-      <summary class="cursor-pointer font-medium text-primary py-2">View values and sources</summary>
+      <summary class="cursor-pointer font-medium text-primary py-2">
+        View values and sources
+      </summary>
       <div class="overflow-x-auto" tabindex="0" aria-label="Chart values and source documents">
         <table class="table table-sm w-full">
-          <caption class="sr-only">{{ summary() }} Values and original source references.</caption>
-          <thead><tr><th scope="col">Test</th><th scope="col">Date</th><th scope="col">Result</th><th scope="col">Source</th></tr></thead>
+          <caption class="sr-only">
+            {{
+              summary()
+            }}
+            Values and original source references.
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Test</th>
+              <th scope="col">Date</th>
+              <th scope="col">Result</th>
+              <th scope="col">Source</th>
+            </tr>
+          </thead>
           <tbody>
             @for (s of chart().series; track s.key) {
               @for (p of s.points; track p.documentId + ':' + p.observationId) {
                 <tr>
                   <th scope="row" class="font-medium">{{ s.label }}</th>
-                  <td class="whitespace-nowrap">{{ calendarDate(p.date) | date:'d MMM y':'UTC' }}</td>
-                  <td class="tabular-nums">{{ valueText(p) }} {{ unitLabel(s.unit) }}
-                    @if (p.conversion) { <span class="block text-xs text-base-content/80">Converted from {{ p.printedValue }} {{ p.printedUnit }}</span> }
-                    @if (p.confirmed) { <span class="block text-xs text-base-content/80">Checked against source by user</span> }
+                  <td class="whitespace-nowrap">
+                    {{ calendarDate(p.date) | date: 'd MMM y' : 'UTC' }}
                   </td>
-                  <td><span class="block">{{ p.documentName }}, page {{ p.page + 1 }}</span>
-                    <button type="button" class="btn btn-ghost btn-sm no-print" (click)="pick.emit({ series: s, point: p })" [attr.aria-label]="'Open source for ' + s.label + ' on ' + p.date">View source</button>
+                  <td class="tabular-nums">
+                    {{ valueText(p) }} {{ unitLabel(s.unit) }}
+                    @if (p.conversion) {
+                      <span class="block text-xs text-base-content/80"
+                        >Converted from {{ p.printedValue }} {{ p.printedUnit }}</span
+                      >
+                    }
+                    @if (p.confirmed) {
+                      <span class="block text-xs text-base-content/80"
+                        >Checked against source by user</span
+                      >
+                    }
+                  </td>
+                  <td>
+                    <span class="block">{{ p.documentName }}, page {{ p.page + 1 }}</span>
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-sm no-print"
+                      (click)="pick.emit({ series: s, point: p })"
+                      [attr.aria-label]="'Open source for ' + s.label + ' on ' + p.date"
+                    >
+                      View source
+                    </button>
                   </td>
                 </tr>
               }
@@ -206,7 +314,9 @@ export class LineChart implements OnInit, OnDestroy {
   readonly chart = input.required<RecordChart>();
   readonly pick = output<PointPick>();
   readonly showTable = input(false);
-  protected readonly hasLimits = computed(() => this.chart().series.some((s) => s.points.some((p) => p.comparator)));
+  protected readonly hasLimits = computed(() =>
+    this.chart().series.some((s) => s.points.some((p) => p.comparator)),
+  );
 
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private observer: ResizeObserver | null = null;
@@ -215,13 +325,17 @@ export class LineChart implements OnInit, OnDestroy {
   protected readonly m = M;
   protected readonly height = HEIGHT;
   protected readonly width = signal(600);
+  /** The dot that is the chart's single tab stop. */
+  protected readonly activeDot = signal(0);
   /** Hovered or focused date (ms). */
   protected readonly hover = signal<number | null>(null);
 
   protected readonly geometry = computed(() => {
     const series = this.chart().series;
     const w = this.width();
-    const all = series.flatMap((s) => s.points.map((p) => ({ t: calendarTimestamp(p.date), v: p.value })));
+    const all = series.flatMap((s) =>
+      s.points.map((p) => ({ t: calendarTimestamp(p.date), v: p.value })),
+    );
     let t0 = Math.min(...all.map((p) => p.t));
     let t1 = Math.max(...all.map((p) => p.t));
     if (t1 - t0 < 60 * DAY) {
@@ -231,7 +345,10 @@ export class LineChart implements OnInit, OnDestroy {
     const tPad = (t1 - t0) * 0.04;
     t0 -= tPad;
     t1 += tPad;
-    const { lo, hi, ticks } = niceScale(Math.min(...all.map((p) => p.v)), Math.max(...all.map((p) => p.v)));
+    const { lo, hi, ticks } = niceScale(
+      Math.min(...all.map((p) => p.v)),
+      Math.max(...all.map((p) => p.v)),
+    );
     const x = (t: number) => M.left + ((t - t0) / (t1 - t0)) * (w - M.left - M.right);
     const y = (v: number) => M.top + (1 - (v - lo) / (hi - lo)) * (HEIGHT - M.top - M.bottom);
 
@@ -253,7 +370,17 @@ export class LineChart implements OnInit, OnDestroy {
         dots.push(dot);
         return dot;
       });
-      return { key: s.key, color, dash: this.dashOf(i), d: pts.map((p, k) => `${k && !p.point.comparator && !pts[k - 1].point.comparator ? 'L' : 'M'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join('') };
+      return {
+        key: s.key,
+        color,
+        dash: this.dashOf(i),
+        d: pts
+          .map(
+            (p, k) =>
+              `${k && !p.point.comparator && !pts[k - 1].point.comparator ? 'L' : 'M'}${p.x.toFixed(1)},${p.y.toFixed(1)}`,
+          )
+          .join(''),
+      };
     });
 
     return {
@@ -277,14 +404,18 @@ export class LineChart implements OnInit, OnDestroy {
   });
 
   protected readonly summary = computed(() => {
-    const parts = this.chart().series.map((s) => `${s.label}: ${s.points.length} ${s.points.length === 1 ? 'value' : 'values'}`);
+    const parts = this.chart().series.map(
+      (s) => `${s.label}: ${s.points.length} ${s.points.length === 1 ? 'value' : 'values'}`,
+    );
     return `Chart in ${this.chart().unit}. ${parts.join('; ')}.`;
   });
 
   ngOnInit() {
     const el = this.host.nativeElement;
     this.width.set(Math.max(160, el.clientWidth || 600));
-    this.observer = new ResizeObserver(([entry]) => this.width.set(Math.max(160, Math.floor(entry.contentRect.width))));
+    this.observer = new ResizeObserver(([entry]) =>
+      this.width.set(Math.max(160, Math.floor(entry.contentRect.width))),
+    );
     this.observer.observe(el);
   }
 
@@ -297,7 +428,9 @@ export class LineChart implements OnInit, OnDestroy {
   }
 
   protected colorOf(i: number): string {
-    return this.chart().series.length === 1 ? SINGLE_COLOR : SERIES_COLORS[i % SERIES_COLORS.length];
+    return this.chart().series.length === 1
+      ? SINGLE_COLOR
+      : SERIES_COLORS[i % SERIES_COLORS.length];
   }
 
   protected display(d: Dot): string {
@@ -305,22 +438,43 @@ export class LineChart implements OnInit, OnDestroy {
     return pointDisplay(d.point);
   }
 
-  protected valueText(point: RecordPoint): string { return pointDisplay(point); }
-  protected dashOf(i: number): string { return ['', '7 4', '2 4', '9 3 2 3'][i % 4]; }
+  protected valueText(point: RecordPoint): string {
+    return pointDisplay(point);
+  }
+  protected dashOf(i: number): string {
+    return ['', '7 4', '2 4', '9 3 2 3'][i % 4];
+  }
 
-  /** Enter or Space on a focused dot opens its page. */
-  protected onKey(e: KeyboardEvent, d: Dot) {
-    if (e.key !== 'Enter' && e.key !== ' ') return;
+  /** Enter or Space opens the focused dot's page; arrows, Home and End move between dots. */
+  protected onKey(e: KeyboardEvent, d: Dot, index: number) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      this.pick.emit({ series: d.series, point: d.point });
+      return;
+    }
+    const last = this.geometry().dots.length - 1;
+    const next = {
+      ArrowRight: index + 1,
+      ArrowDown: index + 1,
+      ArrowLeft: index - 1,
+      ArrowUp: index - 1,
+      Home: 0,
+      End: last,
+    }[e.key];
+    if (next === undefined) return;
     e.preventDefault();
-    this.pick.emit({ series: d.series, point: d.point });
+    const target = Math.max(0, Math.min(last, next));
+    const hits = (e.target as SVGElement).ownerSVGElement?.querySelectorAll<SVGElement>('.hit');
+    hits?.[target]?.focus();
   }
 
   /** The crosshair snaps to the nearest date with a value. */
   protected onMove(e: PointerEvent) {
     const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
-    const px = (e.clientX - rect.left) * this.width() / rect.width;
+    const px = ((e.clientX - rect.left) * this.width()) / rect.width;
     let best: Dot | null = null;
-    for (const d of this.geometry().dots) if (!best || Math.abs(d.x - px) < Math.abs(best.x - px)) best = d;
+    for (const d of this.geometry().dots)
+      if (!best || Math.abs(d.x - px) < Math.abs(best.x - px)) best = d;
     this.hover.set(best && Math.abs(best.x - px) < 60 ? best.t : null);
   }
 
@@ -328,8 +482,15 @@ export class LineChart implements OnInit, OnDestroy {
   protected onClick(e: MouseEvent) {
     const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
     const dots = this.geometry().dots;
-    const index = nearestPointIndex(dots, (e.clientX - rect.left) * this.width() / rect.width, (e.clientY - rect.top) * HEIGHT / rect.height);
-    if (index >= 0) { const best = dots[index]; this.pick.emit({ series: best.series, point: best.point }); }
+    const index = nearestPointIndex(
+      dots,
+      ((e.clientX - rect.left) * this.width()) / rect.width,
+      ((e.clientY - rect.top) * HEIGHT) / rect.height,
+    );
+    if (index >= 0) {
+      const best = dots[index];
+      this.pick.emit({ series: best.series, point: best.point });
+    }
   }
 }
 
@@ -347,8 +508,15 @@ export function timeTicks(t0: number, t1: number, px: number): { t: number; labe
     const start = new Date(t0);
     const months = Math.max(1, Math.round((t1 - t0) / (30.4 * DAY)));
     const every = [1, 2, 3, 6, 12].find((m) => months / m <= maxTicks) ?? 12;
-    for (let d = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1)); d.getTime() <= t1; d.setUTCMonth(d.getUTCMonth() + every)) {
-      out.push({ t: d.getTime(), label: d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit', timeZone: 'UTC' }) });
+    for (
+      let d = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
+      d.getTime() <= t1;
+      d.setUTCMonth(d.getUTCMonth() + every)
+    ) {
+      out.push({
+        t: d.getTime(),
+        label: d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit', timeZone: 'UTC' }),
+      });
     }
   }
   return out;
@@ -365,20 +533,32 @@ function formatValue(v: number): string {
 
 /** "10^9/L" → "10⁹/L" for display. */
 export function formatUnit(unit: string): string {
-  return unit.replace(/\^(\d+)/g, (_, d: string) => [...d].map((c) => '⁰¹²³⁴⁵⁶⁷⁸⁹'[Number(c)]).join(''));
+  return unit.replace(/\^(\d+)/g, (_, d: string) =>
+    [...d].map((c) => '⁰¹²³⁴⁵⁶⁷⁸⁹'[Number(c)]).join(''),
+  );
 }
 
 /** Keep comparator semantics when changing display units. */
 export function pointDisplay(point: RecordPoint): string {
-  return point.conversion ? `${point.comparator ?? ''}${formatValue(point.value)}` : point.printedValue;
+  return point.conversion
+    ? `${point.comparator ?? ''}${formatValue(point.value)}`
+    : point.printedValue;
 }
 /** Touch selection must not depend on a preceding hover event. */
-export function nearestPointIndex(points: { x: number; y: number }[], x: number, y: number, radius = 24): number {
+export function nearestPointIndex(
+  points: { x: number; y: number }[],
+  x: number,
+  y: number,
+  radius = 24,
+): number {
   let best = -1;
   let distance = radius;
-  points.forEach((point, index) => { const d = Math.hypot(point.x - x, point.y - y); if (d <= distance) { distance = d; best = index; } });
+  points.forEach((point, index) => {
+    const d = Math.hypot(point.x - x, point.y - y);
+    if (d <= distance) {
+      distance = d;
+      best = index;
+    }
+  });
   return best;
 }
-
-
-
