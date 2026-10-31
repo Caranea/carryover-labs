@@ -21,7 +21,7 @@ interface Window {
   writes: number;
 }
 
-// Writes cover one request per page (40-page batches); reads cover long polls of up to 25 s.
+// Writes cover one request per page; reads cover long polls of up to 25 s.
 const DEFAULT_LIMITS = { reads: 240, writes: 120, windowMs: 60_000, maxClients: 10_000 };
 
 /** Per-client request budget. Process-local; a gateway is still needed across replicas. */
@@ -29,7 +29,8 @@ export function requestLimits(limits = DEFAULT_LIMITS) {
   const windows = new Map<string, Window>();
 
   return (req: Request, res: Response, next: NextFunction): void => {
-    if (!req.path.startsWith('/api/')) return next();
+    // Confirming or cancelling a job only frees server memory, so it costs nothing here.
+    if (!req.path.startsWith('/api/') || req.method === 'DELETE') return next();
     const now = Date.now();
     if (windows.size >= limits.maxClients) {
       for (const [key, value] of windows) if (value.expires <= now) windows.delete(key);

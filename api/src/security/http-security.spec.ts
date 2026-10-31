@@ -74,7 +74,12 @@ describe('HTTP privacy and resource limits', () => {
     limit(request('GET'), response().res, () => {
       passed++;
     });
-    assert.equal(passed, 2);
+    // Confirming saved pages must not use up the budget for sending new ones.
+    for (let i = 0; i < 5; i++)
+      limit(request('DELETE'), response().res, () => {
+        passed++;
+      });
+    assert.equal(passed, 7);
     assert.equal(blocked.status(), 429);
   });
 });

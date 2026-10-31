@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { Ajv, type ValidateFunction } from 'ajv';
 import type { ModelEndpoint } from '../config.js';
 
@@ -27,6 +28,11 @@ export interface ModelTask {
 const TIMEOUT_MS = 150_000;
 const MAX_RESPONSE_BYTES = 256 * 1024;
 const FAILED = 'The automatic check could not finish. You can retry it later.';
+/** Meta answers 429 or 5xx when it is busy: ask again, at most this many times. */
+const BUSY_RETRIES = 2;
+
+/** A failure described in our own words: safe to log, it never carries model or page text. */
+export class ModelFailure extends Error {}
 
 interface Usage {
   prompt_tokens?: number;
@@ -51,7 +57,7 @@ export function validateAnswer<T>(task: Pick<ModelTask, 'schema'>, value: unknow
     ajv.removeSchema(task.schema);
     validators.set(key, validate);
   }
-  if (!validate(value)) throw new Error('The model response did not match the required format.');
+  if (!validate(value)) throw new ModelFailure('the answer did not match the required format');
   return value as T;
 }
 
@@ -60,7 +66,11 @@ export class MetaModelClient implements JsonModel {
   readonly name = 'Meta Model API';
   private readonly log = new Logger('MetaModel');
 
-  constructor(private readonly endpoint: ModelEndpoint) {}
+  /** `retryMs` is the first wait after a busy answer (shorter in tests). */
+  constructor(
+    private readonly endpoint: ModelEndpoint,
+    private readonly retryMs = 2000,
+  ) {}
 
   async ask<T>(task: ModelTask, signal?: AbortSignal): Promise<T> {
     const started = Date.now();
@@ -73,9 +83,15 @@ export class MetaModelClient implements JsonModel {
       );
       return answer;
     } catch (error) {
-      // Provider errors can echo submitted content: never log or return their bodies.
+      // Provider errors can echo submitted content: log only failures described in our words.
+      const reason =
+        error instanceof ModelFailure
+          ? error.message
+          : error instanceof Error
+            ? error.name
+            : 'Error';
       this.log.warn(
-        `${task.kind}: ${task.model} failed (${error instanceof Error ? error.name : 'Error'})`,
+        `${task.kind}: ${task.model} failed after ${Date.now() - started} ms: ${reason}`,
       );
       throw new Error(FAILED);
     }
@@ -113,7 +129,7 @@ export class MetaModelClient implements JsonModel {
     }
     if (!res.ok) {
       await res.body?.cancel();
-      throw new Error(`Model request failed (HTTP ${res.status}).`);
+      throw new ModelFailure(`HTTP ${res.status}`);
     }
     const headersMs = Date.now() - sent;
     const data = JSON.parse(await boundedText(res)) as {
@@ -121,12 +137,32 @@ export class MetaModelClient implements JsonModel {
       usage?: Usage;
     };
     const choice = data.choices?.[0];
-    if (choice?.finish_reason === 'length') throw new Error('The model response was truncated.');
+    if (choice?.finish_reason === 'length')
+      throw new ModelFailure(
+        `the answer was cut off at ${data.usage?.completion_tokens ?? '?'} tokens`,
+      );
     const answer = validateAnswer<T>(task, parseJson(choice?.message?.content ?? ''));
     return { answer, headersMs, usage: data.usage };
   }
 
-  private post(body: unknown, signal: AbortSignal): Promise<Response> {
+  private async post(body: unknown, signal: AbortSignal): Promise<Response> {
+    for (let attempt = 0; ; attempt++) {
+      const res = await this.send(body, signal);
+      if (attempt === BUSY_RETRIES || (res.status !== 429 && res.status < 500)) return res;
+      await res.body?.cancel();
+      const after = Number(res.headers.get('retry-after'));
+      this.log.warn(`Meta answered HTTP ${res.status}; asking again`);
+      await sleep(
+        Math.min(after > 0 ? after * 1000 : this.retryMs * 2 ** attempt, 10_000),
+        undefined,
+        {
+          signal,
+        },
+      );
+    }
+  }
+
+  private send(body: unknown, signal: AbortSignal): Promise<Response> {
     return fetch(`${this.endpoint.baseUrl.replace(/\/$/, '')}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -141,7 +177,7 @@ export class MetaModelClient implements JsonModel {
 
 async function boundedText(res: Response): Promise<string> {
   const reader = res.body?.getReader();
-  if (!reader) throw new Error('The model returned an empty response.');
+  if (!reader) throw new ModelFailure('the answer was empty');
   const chunks: Uint8Array[] = [];
   let size = 0;
   try {
@@ -149,7 +185,7 @@ async function boundedText(res: Response): Promise<string> {
       const { done, value } = await reader.read();
       if (done) break;
       size += value.byteLength;
-      if (size > MAX_RESPONSE_BYTES) throw new Error('The model response was too large.');
+      if (size > MAX_RESPONSE_BYTES) throw new ModelFailure('the answer was too large');
       chunks.push(value);
     }
     return Buffer.concat(chunks).toString('utf8');
@@ -162,12 +198,17 @@ async function boundedText(res: Response): Promise<string> {
 /** JSON from a model answer, tolerating code fences and text around it. */
 export function parseJson(content: string): unknown {
   if (typeof content !== 'string' || content.length > MAX_RESPONSE_BYTES) {
-    throw new Error('The model response was not valid text.');
+    throw new ModelFailure('the answer was not text');
   }
   const fenced = /```(?:json)?\s*([\s\S]*?)```/.exec(content);
   const text = fenced ? fenced[1] : content;
   const start = text.search(/[[{]/);
   const end = Math.max(text.lastIndexOf('}'), text.lastIndexOf(']'));
-  if (start < 0 || end < start) throw new Error('The answer had no JSON');
-  return JSON.parse(text.slice(start, end + 1));
+  if (start < 0 || end < start) throw new ModelFailure('the answer had no JSON');
+  try {
+    return JSON.parse(text.slice(start, end + 1));
+  } catch {
+    // JSON.parse quotes the text it failed on; keep it out of the logs.
+    throw new ModelFailure('the answer was not valid JSON');
+  }
 }

@@ -201,6 +201,38 @@ describe('Wonder mappings and verified unit arithmetic', () => {
       normalizeBatch(source, model({ mappings: [...mappings.slice(1), mappings[1]] })),
     );
   });
+  it('charts a proposed new test under one identity, and rejects invented units or contradictions', async () => {
+    const source = await docs([
+      printedRow({ name: 'Lipoprotein(a)', value: '30', unit: 'mg/dL' }),
+      printedRow({ name: 'Lp(a)', value: '35', unit: 'mg/dL' }),
+    ]);
+    const lpa = { key: 'lipoprotein-a', label: 'Lipoprotein(a)', domain: 'lipids', unit: 'mg/dL' };
+    const result = await normalizeBatch(
+      source,
+      model({
+        mappings: [mapping('t0', null, { newTest: lpa }), mapping('t1', null, { newTest: lpa })],
+      }),
+    );
+    const series = result.domains.flatMap((d) => d.charts.flatMap((c) => c.series));
+    assert.equal(series.length, 1);
+    assert.equal(series[0].points.length, 2);
+    assert.equal(series[0].label, 'Lipoprotein(a)');
+    const invented = { ...lpa, unit: 'nmol/L' };
+    await assert.rejects(
+      normalizeBatch(
+        source,
+        model({
+          mappings: [mapping('t0', null, { newTest: invented }), mapping('t1', 'crp')],
+        }),
+      ),
+    );
+    await assert.rejects(
+      normalizeBatch(
+        source,
+        model({ mappings: [mapping('t0', 'crp', { newTest: lpa }), mapping('t1', 'crp')] }),
+      ),
+    );
+  });
   it('rejects obvious form conflicts and never lets catalogue aliases override unresolved Wonder mappings', async () => {
     const source = await docs([
       printedRow({ name: 'Monocytes', unit: '%' }),

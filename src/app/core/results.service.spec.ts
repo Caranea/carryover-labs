@@ -287,6 +287,20 @@ describe('page transcription as jobs', () => {
     expect((await history.results()).observations).toHaveLength(1);
   });
 
+  it('keeps at most 16 pages on the server and sends the next as results arrive', async () => {
+    await create(20);
+    server.pageOutcome = () => 'hold';
+    const api = newService();
+    const pending = api.records();
+    await settled(() => expect(server.submitted).toHaveLength(16));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(server.submitted).toHaveLength(16);
+    server.pageOutcome = () => 'done';
+    server.release();
+    expect((await pending).model.state).toBe('ready');
+    expect(server.submitted).toHaveLength(20);
+  });
+
   it('does not ask the server anything while no page is approved', async () => {
     const api = newService();
     for (let i = 0; i < 5; i++) api.prepareBatch('queue-batch', false);

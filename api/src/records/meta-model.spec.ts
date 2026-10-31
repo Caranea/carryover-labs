@@ -15,7 +15,7 @@ const task: ModelTask = {
   },
 };
 const client = () =>
-  new MetaModelClient({ baseUrl: 'https://example.invalid/v1', apiKey: 'test-only' });
+  new MetaModelClient({ baseUrl: 'https://example.invalid/v1', apiKey: 'test-only' }, 1);
 
 describe('model answer boundary', () => {
   it('rejects malformed shape, extra fields and numeric strings', () => {
@@ -25,8 +25,27 @@ describe('model answer boundary', () => {
     }
   });
 
-  it('parses JSON wrapped in a code fence', () => {
+  it('parses JSON wrapped in a code fence, and never quotes broken JSON in its error', () => {
     assert.deepEqual(parseJson('Sure:\n```json\n{"a":1}\n```'), { a: 1 });
+    assert.throws(
+      () => parseJson('{"name": "PRIVATE-NAME", oops}'),
+      (error: Error) => !error.message.includes('PRIVATE'),
+    );
+  });
+
+  it('asks again when Meta is busy, and gives up after two more tries', async (context) => {
+    const statuses = [429, 503];
+    const fetch = context.mock.method(globalThis, 'fetch', async () =>
+      statuses.length
+        ? new Response('{}', { status: statuses.shift() })
+        : Response.json({ choices: [{ message: { content: '{"factor":2}' } }] }),
+    );
+    assert.deepEqual(await client().ask(task), { factor: 2 });
+    assert.equal(fetch.mock.callCount(), 3);
+    fetch.mock.mockImplementation(async () => new Response('{}', { status: 503 }));
+    fetch.mock.resetCalls();
+    await assert.rejects(client().ask(task), /could not finish/);
+    assert.equal(fetch.mock.callCount(), 3);
   });
 
   it('falls back to plain JSON and still validates the answer', async (context) => {

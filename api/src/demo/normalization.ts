@@ -1,14 +1,15 @@
+import { Logger } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { buildRecords, type BuildDocument } from '../records/build.js';
-import { CATALOGUE, DOMAINS, type CatalogueTest } from '../shared/catalogue.js';
-import { decideName, type NameAnswer } from '../records/decisions.js';
+import { CATALOGUE, DOMAINS, type CatalogueTest, type Domain } from '../shared/catalogue.js';
 import { validateAnswer, type JsonModel, type ModelTask } from '../records/meta-model.js';
 import { parseUnit } from '../records/units.js';
 
+/** The model's answer for one printed test: a catalogue key, a proposed new test, or neither. */
 interface Mapping {
   ref: string;
   key: string | null;
-  newTest: NameAnswer['newTest'];
+  newTest: { key: string; label: string; domain: Domain; unit: string } | null;
   specimen: string | null;
   method: string | null;
   form: 'absolute' | 'percentage' | 'total' | 'free' | 'other' | 'unknown';
@@ -73,6 +74,14 @@ export function normalizationTask(combinations: unknown[]): ModelTask {
   };
 }
 
+const log = new Logger('Normalization');
+
+/** An answer that passed the schema but cannot be used. The reason names no test or value. */
+function unusable(reason: string): never {
+  log.warn(`normalize-batch: ${reason}`);
+  throw new Error(reason);
+}
+
 /** Model identities only; every number and conversion remains server-owned. */
 export type SourceDocument = Omit<BuildDocument, 'mappings'>;
 
@@ -117,7 +126,7 @@ export async function normalizeBatch(
     answer.mappings.length !== combinations.length ||
     combinations.some((c) => !mapped.has(c.ref))
   )
-    throw new Error('Incomplete normalization');
+    unusable(`${answer.mappings.length} mappings for ${combinations.length} tests`);
   const contextTests: CatalogueTest[] = [];
   const resolved = new Map<string, BuildDocument['mappings'][string]>();
   const tests = [...CATALOGUE];
@@ -127,20 +136,17 @@ export async function normalizeBatch(
       resolved.set(m.ref, { test: null, reason: m.reason || 'Ambiguous test identity.' });
       continue;
     }
-    const decision = decideName({ ...m, name: context.name, notATest: false }, tests);
-    if (!decision?.key) throw new Error('Invalid test mapping');
-    if (decision.newTest) {
+    const base = chosenTest(m, tests) ?? unusable('a mapping named no usable test');
+    if (!tests.includes(base)) {
       if (
-        decision.newTest.unit &&
+        base.unit &&
         !combinations.some(
-          (c) =>
-            mapped.get(c.ref)?.newTest?.key === decision.key && c.unit === decision.newTest!.unit,
+          (c) => mapped.get(c.ref)?.newTest?.key === base.key && c.unit === base.unit,
         )
       )
-        throw new Error('Invented unit');
-      tests.push(decision.newTest);
+        unusable('a new test had a unit that was not printed');
+      tests.push(base);
     }
-    const base = tests.find((t) => t.key === decision.key)!;
     // Reject overt form conflicts. Unknown/incompatible units are left to verified arithmetic below.
     const dim = parseUnit(context.unit)?.dim,
       home = parseUnit(base.unit)?.dim;
@@ -200,6 +206,27 @@ export async function normalizeBatch(
     normalization: answer,
     model: { state: 'ready' as const, name: 'muse-wonder-1.0', waiting: 0, message: null },
   };
+}
+
+/**
+ * The test a mapping names: a known one, or its proposed new test (the schema has already
+ * checked the key, label, domain and unit). Null when the mapping is contradictory.
+ */
+function chosenTest(m: Mapping, tests: CatalogueTest[]): CatalogueTest | null {
+  if (m.key) return m.newTest ? null : (tests.find((t) => t.key === m.key) ?? null);
+  const proposed = m.newTest!;
+  const label = proposed.label.trim();
+  if (!label) return null;
+  // Another printed name may already have proposed the same new test.
+  return (
+    tests.find((t) => t.key === proposed.key) ?? {
+      key: proposed.key,
+      label,
+      domain: proposed.domain,
+      unit: proposed.unit,
+      aliases: [],
+    }
+  );
 }
 
 /** Recognised translations can share a specimen; unfamiliar explicit contexts stay separate. */

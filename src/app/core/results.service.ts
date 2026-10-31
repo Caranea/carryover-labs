@@ -26,6 +26,11 @@ const IDLE: ProcessingState = {
 };
 /** Consecutive connection failures tolerated (with backoff) before reporting an error. */
 const MAX_CONNECTION_FAILURES = 6;
+/**
+ * Pages kept on the server at once; the next is sent as each result arrives. Twice the
+ * server's default model concurrency keeps it busy without ever hitting its batch limit.
+ */
+const MAX_IN_FLIGHT = 16;
 
 type Source = ReturnType<LocalHistory['recordSnapshot']>['sources'][number];
 const key = (page: { pageId: string; revision: string }) => `${page.pageId}/${page.revision}`;
@@ -44,8 +49,8 @@ export class ResultsService {
   private transcribing: Promise<void> | null = null;
   /** Ends the current long poll early, so a newly approved page is sent at once. */
   private nudge: AbortController | null = null;
-  /** Pages sent in the current run. */
-  private readonly sent = new Set<string>();
+  /** Pages the server is reading or will read: from the last view, plus pages sent since. */
+  private onServer = new Set<string>();
   private check: { fingerprint: string; promise: Promise<RecordsResponse> } | null = null;
   /** Pages whose job failed; they are sent again only on an explicit retry. */
   private readonly failed = new Map<string, string>();
@@ -132,7 +137,7 @@ export class ResultsService {
   private transcribe(retry = false): Promise<void> {
     if (retry) this.failed.clear();
     // Already collecting: a newly approved page interrupts the wait so it is sent at once.
-    if (this.transcribing && this.waiting().some((source) => !this.sent.has(key(source))))
+    if (this.transcribing && this.unsent().length && this.onServer.size < MAX_IN_FLIGHT)
       this.nudge?.abort();
     this.transcribing ??= this.collectPages().finally(() => {
       this.transcribing = null;
@@ -146,11 +151,14 @@ export class ResultsService {
     return this.history.recordSnapshot().sources.filter((source) => !this.failed.has(key(source)));
   }
 
+  private unsent(): Source[] {
+    return this.waiting().filter((source) => !this.onServer.has(key(source)));
+  }
+
   private async collectPages(): Promise<void> {
     let view: RecordsView | undefined;
-    let held = new Set<string>();
     let connectionFailures = 0;
-    this.sent.clear();
+    this.onServer = new Set();
     // Nothing approved and unsaved: the server has nothing for us, so do not ask it.
     while (this.waiting().length) {
       const nudge = (this.nudge = new AbortController());
@@ -173,9 +181,10 @@ export class ResultsService {
       }
       if (fresh) {
         view = fresh;
-        held = await this.takeResults(view);
+        this.onServer = await this.takeResults(view);
       }
-      const busy = await this.submit(this.waiting().filter((source) => !held.has(key(source))));
+      const room = MAX_IN_FLIGHT - this.onServer.size;
+      const busy = await this.submit(this.unsent().slice(0, Math.max(room, 0)));
       await this.report(view, this.history.recordSnapshot().sources);
       // The server's queue is full: give it a moment before offering the pages again.
       if (busy) await pause(this.retryDelay(2));
@@ -239,7 +248,7 @@ export class ResultsService {
           revision: source.revision,
           image,
         });
-        this.sent.add(key(source));
+        this.onServer.add(key(source));
       } catch (error) {
         if (error instanceof BusyError) return true;
         this.failed.set(key(source), error instanceof Error ? error.message : String(error));
