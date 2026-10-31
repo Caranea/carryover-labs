@@ -4,6 +4,7 @@ import { deviceTransaction } from './device-storage';
 import type { RememberedDetails } from '../pii/remembered-details';
 
 export const QUEUE_PROGRESS_KEY = 'carryover.queue.progress.v1';
+const QUEUE_LOCK = 'carryover.queue';
 export interface QueueSnapshot {
   batchId?: string;
   documents: LocalDocument[];
@@ -18,7 +19,6 @@ export interface QueueSnapshot {
 }
 interface QueueHead extends Omit<QueueSnapshot, 'documents'> {
   version: 1;
-  revision: string;
   ids: string[];
 }
 
@@ -54,11 +54,21 @@ function equal(a: QueueSnapshot | undefined, b: QueueSnapshot): boolean {
   );
 }
 
+/**
+ * Saves the queue on this device. One tab owns the saved queue at a time: another copy of
+ * the page (a second tab, or the old page during a reload) waits until it closes, so two
+ * pages never write over each other.
+ */
 @Injectable({ providedIn: 'root' })
 export class QueueRecovery {
   readonly status = signal<'loading' | 'saving' | 'saved' | 'error' | 'unavailable'>('loading');
   readonly error = signal<string | null>(null);
-  private revision: string | undefined;
+  /** True while another tab holds the saved queue. */
+  readonly otherTab = signal(false);
+  private noticed: () => void = () => {};
+  /** Settles when this page starts waiting for another tab. */
+  readonly blocked = new Promise<void>((resolve) => (this.noticed = resolve));
+  private owned: Promise<void> | undefined;
   private stored: QueueSnapshot | undefined;
   private latest: QueueSnapshot | undefined;
   private writing: Promise<void> | undefined;
@@ -72,12 +82,50 @@ export class QueueRecovery {
   load(): Promise<QueueSnapshot | null> {
     if (!this.loading)
       this.loading = (async () => {
+        await this.own();
         await this.writing;
         return this.readCheckpoint();
       })().finally(() => {
         this.loading = undefined;
       });
     return this.loading;
+  }
+
+  /**
+   * Restoring rebuilds File objects and image URLs. That is not a change, so the restored
+   * documents count as saved and are not written again.
+   */
+  restored(snapshot: QueueSnapshot) {
+    if (!this.stored) return;
+    const loaded = new Map(this.stored.documents.map((doc) => [doc.localId, doc]));
+    this.stored = {
+      ...this.stored,
+      documents: snapshot.documents.map((doc) => {
+        const before = loaded.get(doc.localId);
+        return before && sameDocument(before, { ...doc, file: before.file, pages: before.pages })
+          ? doc
+          : (before ?? doc);
+      }),
+    };
+  }
+
+  /** Wait for this tab to own the saved queue; the lock is released when the page closes. */
+  private own(): Promise<void> {
+    if (typeof navigator === 'undefined' || !navigator.locks) return Promise.resolve();
+    this.owned ??= new Promise<void>((owned) => {
+      // A reload releases the old page's lock almost at once; only a real tab waits longer.
+      const notice = setTimeout(() => {
+        this.otherTab.set(true);
+        this.noticed();
+      }, 2000);
+      void navigator.locks.request(QUEUE_LOCK, () => {
+        clearTimeout(notice);
+        this.otherTab.set(false);
+        owned();
+        return new Promise<never>(() => {});
+      });
+    });
+    return this.owned;
   }
 
   private async readCheckpoint(): Promise<QueueSnapshot | null> {
@@ -99,7 +147,6 @@ export class QueueRecovery {
             }
             if (
               head.version !== 1 ||
-              typeof head.revision !== 'string' ||
               !Array.isArray(head.ids) ||
               !head.ids.every((id) => typeof id === 'string') ||
               new Set(head.ids).size !== head.ids.length ||
@@ -152,11 +199,16 @@ export class QueueRecovery {
           };
         },
       );
-      this.revision = loaded.head?.revision;
       this.status.set('saved');
       this.error.set(null);
       if (!loaded.head) return null;
-      const { ids: _ids, version: _version, revision: _revision, ...state } = loaded.head;
+      // `revision` is left over from older checkpoints.
+      const {
+        ids: _ids,
+        version: _version,
+        revision: _revision,
+        ...state
+      } = loaded.head as QueueHead & { revision?: string };
       this.stored = { ...state, documents: loaded.docs };
       return this.stored;
     } catch (error) {
@@ -178,20 +230,14 @@ export class QueueRecovery {
 
   private async drain() {
     try {
-      // A delayed restore must finish before a save uses its revision.
+      // A restore in progress would replace what this save compares against: let it finish.
       await this.loading;
       while (this.latest) {
         const snapshot = this.latest;
         this.latest = undefined;
         const oldDocs = new Map(this.stored?.documents.map((doc) => [doc.localId, doc]));
-        const nextRevision = crypto.randomUUID();
         const { documents, ...state } = snapshot;
-        const head: QueueHead = {
-          ...state,
-          version: 1,
-          revision: nextRevision,
-          ids: documents.map((doc) => doc.localId),
-        };
+        const head: QueueHead = { ...state, version: 1, ids: documents.map((doc) => doc.localId) };
         await deviceTransaction<void>(
           ['queue-state', 'queue-documents'],
           'readwrite',
@@ -200,14 +246,6 @@ export class QueueRecovery {
             const request = heads.get('active');
             request.onsuccess = () => {
               try {
-                if (request.result?.revision !== this.revision) {
-                  fail(
-                    new Error(
-                      'Saved progress changed while this queue was open. Keep this page open to protect your unsaved work.',
-                    ),
-                  );
-                  return;
-                }
                 const store = tx.objectStore('queue-documents');
                 for (const doc of documents) {
                   if (!sameDocument(oldDocs.get(doc.localId), doc)) {
@@ -231,7 +269,6 @@ export class QueueRecovery {
             };
           },
         );
-        this.revision = nextRevision;
         this.stored = snapshot;
         // Small progress checkpoint only. Files and page text stay in IndexedDB.
         const { rememberedDetails: _privateDetails, ...progress } = head;

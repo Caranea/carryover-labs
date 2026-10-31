@@ -117,7 +117,10 @@
   </fieldset>
   @if (!queue.recoveryReady()) {
     <div class="alert alert-info alert-soft" role="status">
-      @if (queue.restoring()) {
+      @if (queue.recovery.otherTab()) {
+        <span class="loading loading-spinner loading-sm"></span
+        ><span>Carryover is open in another tab. Close it to continue here.</span>
+      } @else if (queue.restoring()) {
         <span class="loading loading-spinner loading-sm"></span
         ><span>Restoring your saved progress…</span>
       } @else {

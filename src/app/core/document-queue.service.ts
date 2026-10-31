@@ -288,6 +288,7 @@ export class DocumentQueueService {
         this.reviewOpened.set(snapshot.reviewOpened);
         this.privacyMode.set(snapshot.privacyMode);
         this.privacyModeChosen.set(snapshot.privacyModeChosen);
+        this.recovery.restored(this.snapshot());
       }
       this.recoveryReady.set(true);
       void this.run();

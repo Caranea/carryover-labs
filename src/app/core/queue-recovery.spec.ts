@@ -73,6 +73,25 @@ function queueSetup() {
   return { queue: TestBed.inject(DocumentQueueService), extraction, ner };
 }
 
+/** Web Locks for one origin: the holder keeps its lock until its tab closes. */
+class FakeLocks {
+  private held = false;
+  private readonly waiting: (() => void)[] = [];
+  request(_name: string, granted: () => Promise<unknown>): Promise<unknown> {
+    const take = () => {
+      this.held = true;
+      void granted();
+    };
+    if (this.held) this.waiting.push(take);
+    else take();
+    return new Promise(() => {});
+  }
+  close() {
+    this.held = false;
+    this.waiting.shift()?.();
+  }
+}
+
 describe('queue recovery after refresh', () => {
   beforeEach(async () => {
     vi.stubGlobal('Blob', NativeBlob);
@@ -238,19 +257,42 @@ describe('queue recovery after refresh', () => {
     expect((await new QueueRecovery().load())!.documents[0].name).toBe('Thyroid tests');
   });
 
-  it('does not let a stale second tab overwrite newer progress', async () => {
-    const first = new QueueRecovery();
-    const second = new QueueRecovery();
-    await first.load();
-    await second.load();
-    await first.save(snapshot());
-    await expect(second.save(snapshot([document('different')]))).rejects.toThrow(
-      'Saved progress changed',
-    );
-    expect((await new QueueRecovery().load())!.documents[0].localId).toBe('one');
+  it('lets only one tab own the saved queue; another copy waits until it closes', async () => {
+    const locks = new FakeLocks();
+    Object.defineProperty(navigator, 'locks', { value: locks, configurable: true });
+    try {
+      const first = new QueueRecovery();
+      await first.load();
+      await first.save(snapshot());
+      const second = new QueueRecovery();
+      let restored: QueueSnapshot | null | undefined;
+      void second.load().then((value) => (restored = value));
+      await second.blocked;
+      expect(second.otherTab()).toBe(true);
+      expect(restored).toBeUndefined();
+      await first.save(snapshot([document('newer')]));
+      locks.close();
+      await settled(() => expect(restored?.documents[0].localId).toBe('newer'));
+      expect(second.otherTab()).toBe(false);
+    } finally {
+      delete (navigator as { locks?: unknown }).locks;
+    }
   });
 
-  it('does not let a delayed restore roll back the revision of this same page’s newer autosave', async () => {
+  it('does not write restored files again just because the page reloaded', async () => {
+    const writer = new QueueRecovery();
+    await writer.load();
+    await writer.save(snapshot([{ ...document(), privacyVersion: PRIVACY_VERSION }]));
+    const { queue } = queueSetup();
+    await queue.ready;
+    expect(queue.byId('one')?.status).toBe('review');
+    const put = vi.spyOn(IDBObjectStore.prototype, 'put');
+    await queue.recovery.save((queue as unknown as { snapshot(): QueueSnapshot }).snapshot());
+    expect(put.mock.calls.filter(([, key]) => key === 'one')).toHaveLength(0);
+    expect(queue.recovery.status()).toBe('saved');
+  });
+
+  it('does not let a delayed restore roll back this same page’s newer autosave', async () => {
     const writer = new QueueRecovery();
     await writer.load();
     const state = snapshot();
@@ -284,8 +326,7 @@ describe('queue recovery after refresh', () => {
     await read;
     const changed = snapshot([{ ...state.documents[0], name: 'Thyroid tests' }]);
     const saving = writer.save(changed);
-    // A transaction barrier lets a premature write commit before the delayed
-    // restore returns. Previously the restore then put the old revision back.
+    // A transaction barrier lets a premature write commit before the delayed restore returns.
     await deviceTransaction(['queue-state'], 'readonly', () => {});
     release();
     await loading;
