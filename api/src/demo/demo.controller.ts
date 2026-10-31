@@ -2,21 +2,24 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   HttpException,
   Inject,
-  Logger,
+  Param,
   Post,
+  Query,
+  Req,
 } from '@nestjs/common';
-import type { JsonModel } from '../records/meta-model.js';
-import { normalizeBatch } from './normalization.js';
+import type { Request } from 'express';
+import { QueueFullError, type JobQueue } from '../jobs/job-queue.js';
+import { MAX_WAIT_SECONDS } from '../shared/jobs.js';
+import type { RecordsResult } from './normalization.js';
 import { InvalidRequest, parseRecordsRequest } from './records-request.js';
-import { processPage } from './source-processing.js';
+import { ID, parsePageRequest } from './source-processing.js';
 
-export const DEMO_MODEL = Symbol('DEMO_MODEL');
-
-/** At most this many model requests run at once in this process. */
-const MAX_ACTIVE = 4;
+export const DEMO_QUEUE = Symbol('DEMO_QUEUE');
 
 @Controller()
 export class HealthController {
@@ -26,83 +29,101 @@ export class HealthController {
   }
 }
 
-/** Request-scoped inference only: nothing is stored on the server. */
+/**
+ * Page transcription and normalization as jobs. Requests return at once; the browser
+ * collects results with one long poll per batch. Nothing is written to disk.
+ */
 @Controller('demo')
 export class DemoController {
-  private active = 0;
-  private readonly log = new Logger('Demo');
-
-  constructor(@Inject(DEMO_MODEL) private readonly model: JsonModel | null) {}
+  constructor(@Inject(DEMO_QUEUE) private readonly queue: JobQueue<RecordsResult> | null) {}
 
   @Get('config')
   config() {
-    return { modelName: this.model?.name ?? null };
+    return { modelName: this.queue ? 'Meta Model API' : null };
   }
 
-  /** Muse Spark transcribes one approved, redacted page image. */
-  @Post('extract')
-  async extract(@Body() body: unknown) {
-    const model = this.requireModel();
-    return this.bounded(
-      'transcription',
-      'This page could not finish transcription. Please try again.',
-      async () => {
-        const result = await processPage(body, model);
-        return { result, detail: `page=${result.pageId}, rows=${result.observations.length}` };
-      },
-    );
-  }
-
-  /** Muse Wonder normalizes test identities for a complete batch; the server builds the charts. */
-  @Post('records')
-  async records(@Body() body: unknown) {
+  /** Queue one approved, redacted page for Muse Spark. */
+  @Post('batches/:batchId/pages')
+  @HttpCode(202)
+  submitPage(@Param('batchId') batchId: string, @Body() body: unknown) {
+    const queue = this.requireQueue();
+    const id = validBatch(batchId);
     let request;
     try {
-      request = parseRecordsRequest(body);
+      request = parsePageRequest({ ...(body as object), batchId: id });
+    } catch {
+      throw new BadRequestException(
+        'This page could not be sent. Reopen the document and try again.',
+      );
+    }
+    return limited(() => queue.submitPage(id, request));
+  }
+
+  /** Queue Muse Wonder normalization of the complete batch. */
+  @Post('batches/:batchId/normalize')
+  @HttpCode(202)
+  submitNormalization(@Param('batchId') batchId: string, @Body() body: unknown) {
+    const queue = this.requireQueue();
+    let documents;
+    try {
+      documents = parseRecordsRequest(body);
     } catch (error) {
       if (error instanceof InvalidRequest) throw new BadRequestException(error.message);
       throw error;
     }
-    const model = this.requireModel();
-    return this.bounded(
-      'normalization',
-      'Results normalization did not finish. Please try again.',
-      async () => {
-        const result = await normalizeBatch(request.documents, model);
-        const rows = request.documents.reduce((n, d) => n + d.observations.length, 0);
-        return {
-          result,
-          detail: `batch=${request.batchId}, documents=${request.documents.length}, rows=${rows}`,
-        };
-      },
-    );
+    return limited(() => queue.submitNormalization(validBatch(batchId), documents));
   }
 
-  private requireModel(): JsonModel {
-    if (!this.model)
+  /** The batch's jobs. With `wait`, answers on the next change or after at most 25 s. */
+  @Get('batches/:batchId')
+  async batch(
+    @Param('batchId') batchId: string,
+    @Query('since') since: string | undefined,
+    @Query('wait') wait: string | undefined,
+    @Req() req: Request,
+  ) {
+    const queue = this.requireQueue();
+    const seconds = Math.min(Math.max(Number(wait) || 0, 0), MAX_WAIT_SECONDS);
+    const closed = new AbortController();
+    req.once('close', () => closed.abort());
+    return queue.wait(validBatch(batchId), Number(since) || 0, seconds * 1000, closed.signal);
+  }
+
+  /** Confirm a saved page, or cancel it. */
+  @Delete('batches/:batchId/pages/:pageId')
+  @HttpCode(204)
+  removePage(
+    @Param('batchId') batchId: string,
+    @Param('pageId') pageId: string,
+    @Query('revision') revision: string | undefined,
+  ) {
+    this.requireQueue().removePage(validBatch(batchId), pageId, revision);
+  }
+
+  /** Cancel and forget the whole batch. */
+  @Delete('batches/:batchId')
+  @HttpCode(204)
+  removeBatch(@Param('batchId') batchId: string) {
+    this.requireQueue().removeBatch(validBatch(batchId));
+  }
+
+  private requireQueue(): JobQueue<RecordsResult> {
+    if (!this.queue)
       throw new HttpException('Results processing is unavailable. Please try again.', 503);
-    return this.model;
+    return this.queue;
   }
+}
 
-  private async bounded<T>(
-    stage: string,
-    failure: string,
-    work: () => Promise<{ result: T; detail: string }>,
-  ): Promise<T> {
-    if (this.active >= MAX_ACTIVE)
-      throw new HttpException('AI checks are busy. Try again shortly.', 429);
-    this.active++;
-    const started = Date.now();
-    try {
-      const { result, detail } = await work();
-      this.log.log(`${stage}: ${detail}, elapsedMs=${Date.now() - started}`);
-      return result;
-    } catch {
-      // Never log request or provider content.
-      this.log.warn(`${stage} failed: elapsedMs=${Date.now() - started}`);
-      throw new HttpException(failure, 502);
-    } finally {
-      this.active--;
-    }
+function validBatch(batchId: string): string {
+  if (!ID.test(batchId)) throw new BadRequestException('Invalid batch');
+  return batchId;
+}
+
+function limited<T>(submit: () => T): T {
+  try {
+    return submit();
+  } catch (error) {
+    if (error instanceof QueueFullError) throw new HttpException(error.message, 429);
+    throw error;
   }
 }

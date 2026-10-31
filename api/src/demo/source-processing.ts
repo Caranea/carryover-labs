@@ -87,11 +87,11 @@ export function extractionTask(image: string): ModelTask {
   };
 }
 
-const ID = /^[a-zA-Z0-9-]{1,80}$/;
+export const ID = /^[a-zA-Z0-9-]{1,80}$/;
 const IMAGE = /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/]+=*$/;
 
 /** Only the known request fields; anything else (filenames, OCR text) is dropped here. */
-function parsePageRequest(body: unknown): PageRequest {
+export function parsePageRequest(body: unknown): PageRequest {
   const input = (body ?? {}) as Partial<PageRequest>;
   const { batchId, documentId, pageId, page, revision, image } = input;
   if (
@@ -116,8 +116,11 @@ function parsePageRequest(body: unknown): PageRequest {
 }
 
 /** Only freshly encoded pixels enter inference; original PDFs and metadata cannot pass this boundary. */
-export async function processPage(body: unknown, model: JsonModel): Promise<PageTranscription> {
-  const input = parsePageRequest(body);
+export async function processPage(
+  input: PageRequest,
+  model: JsonModel,
+  signal?: AbortSignal,
+): Promise<PageTranscription> {
   const bytes = Buffer.from(input.image.split(',')[1], 'base64');
   const source = sharp(bytes, { limitInputPixels: 60_000_000, animated: false });
   const meta = await source.metadata();
@@ -134,7 +137,7 @@ export async function processPage(body: unknown, model: JsonModel): Promise<Page
     rows: PrintedRow[];
     issues: string[];
     suggestedName: string | null;
-  }>(task, await model.ask(task));
+  }>(task, await model.ask(task, signal));
   for (const row of answer.rows) {
     for (const field of [row.collectionDate, row.orderDate, row.reportDate]) {
       if (field.iso && (!field.printed || toIsoDate(field.iso, 'YMD') !== field.iso))

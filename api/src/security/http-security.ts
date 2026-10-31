@@ -21,7 +21,8 @@ interface Window {
   writes: number;
 }
 
-const DEFAULT_LIMITS = { reads: 240, writes: 30, windowMs: 60_000, maxClients: 10_000 };
+// Writes cover one request per page (40-page batches); reads cover long polls of up to 25 s.
+const DEFAULT_LIMITS = { reads: 240, writes: 120, windowMs: 60_000, maxClients: 10_000 };
 
 /** Per-client request budget. Process-local; a gateway is still needed across replicas. */
 export function requestLimits(limits = DEFAULT_LIMITS) {

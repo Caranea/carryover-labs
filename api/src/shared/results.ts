@@ -63,21 +63,6 @@ export interface Observation {
   revision?: string;
   /** True only after the user has checked this reading against its source. */
   confirmed?: boolean;
-  /** An explicitly accepted recovery suggestion, still tied to its unchanged source words. */
-  recovery?: {
-    proposalId: string;
-    sourceRevision: string;
-    model: string;
-    acceptedAt: string;
-    note: string;
-    evidence: {
-      name: number[];
-      value: number[];
-      unit: number[];
-      date: number[];
-      reference: number[];
-    };
-  };
   /** OCR slips corrected on scanned pages, with what OCR actually read. Absent when nothing was changed. */
   ocrFixes?: OcrFix[];
 }

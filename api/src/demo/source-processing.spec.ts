@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import sharp from 'sharp';
-import { processPage } from './source-processing.js';
+import { parsePageRequest, processPage } from './source-processing.js';
 import { normalizeBatch } from './normalization.js';
 import type { PageRequest, PrintedRow } from '../shared/processing.js';
 import type { JsonModel, ModelTask } from '../records/meta-model.js';
@@ -67,11 +67,11 @@ describe('Spark literal image transcription', () => {
   it('uses only a fresh raster, strips metadata, preserves fields and links coordinates to original image pixels', async () => {
     const tasks: ModelTask[] = [];
     const result = await processPage(
-      {
+      parsePageRequest({
         ...(await pageRequest()),
         originalFileName: 'PRIVATE-FILENAME',
         document: { words: 'PRIVATE-OCR' },
-      } as any,
+      }),
       model(
         {
           rows: [
@@ -118,9 +118,11 @@ describe('Spark literal image transcription', () => {
       await assert.rejects(docs([row]));
     }
     const request = await pageRequest();
-    await assert.rejects(
-      processPage({ ...request, image: 'data:application/pdf;base64,JVBERg==' }, model({})),
+    assert.throws(() =>
+      parsePageRequest({ ...request, image: 'data:application/pdf;base64,JVBERg==' }),
     );
+    const notAnImage = parsePageRequest({ ...request, image: 'data:image/png;base64,JVBERg==' });
+    await assert.rejects(processPage(notAnImage, model({})));
   });
 });
 

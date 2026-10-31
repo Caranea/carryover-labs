@@ -1,134 +1,69 @@
 import { inject, Injectable, signal } from '@angular/core';
-import { LocalHistory } from './local-history';
+import { MAX_WAIT_SECONDS } from '@shared/jobs';
+import { PROCESSING_VERSION } from '@shared/processing';
 import type { RecordsResponse } from '@shared/records';
-import type {
-  RecoveryResponse,
-  RecoveryStartRequest,
-  RecoveryAcceptRequest,
-  RecoveryRejectRequest,
-} from './recovery';
-import { PROCESSING_VERSION, type PageTranscription } from '@shared/processing';
+import { BusyError, JobClient, type RecordsView } from './job-client';
+import { LocalHistory } from './local-history';
 
-const LIMITS = {
-  maxWordsPerPage: 800,
-  maxCharactersPerPage: 24000,
-  maxProposalsPerCall: 250,
-  maxCallsPerDocument: 12,
-  maxAttemptsPerPage: 2,
+export interface ProcessingState {
+  stage: 'idle' | 'transcribing' | 'waiting' | 'normalizing' | 'ready' | 'error';
+  /** Pages saved with their transcription. */
+  completed: number;
+  total: number;
+  /** Pages the server is reading right now, and pages waiting their turn. */
+  running: number;
+  queued: number;
+  error: string | null;
+}
+
+const IDLE: ProcessingState = {
+  stage: 'idle',
+  completed: 0,
+  total: 0,
+  running: 0,
+  queued: 0,
+  error: null,
 };
+/** Consecutive connection failures tolerated (with backoff) before reporting an error. */
+const MAX_CONNECTION_FAILURES = 6;
+
+type Source = ReturnType<LocalHistory['recordSnapshot']>['sources'][number];
+const key = (page: { pageId: string; revision: string }) => `${page.pageId}/${page.revision}`;
 
 /**
- * Sends approved, redacted page images to Meta's models through our API and keeps
- * the results in the local history. Sources never leave the browser any other way.
+ * Sends approved, redacted page images to Meta's models as jobs and keeps the results in
+ * the local history. Requests return at once; results arrive through one long poll.
  */
 @Injectable({ providedIn: 'root' })
 export class ResultsService {
   private readonly history = inject(LocalHistory);
-  private check: { fingerprint: string; promise: Promise<RecordsResponse> } | null = null;
-  private readonly recovering = new Set<string>();
+  private readonly jobs = new JobClient();
 
-  readonly processing = signal({
-    stage: 'idle',
-    completed: 0,
-    total: 0,
-    error: null as string | null,
-  });
-  private transcribing: Promise<void> | null = null;
-  private batchId: string = crypto.randomUUID();
+  readonly processing = signal<ProcessingState>(IDLE);
   private batchReady = true;
-  private readonly failedPages = new Set<string>();
+  private transcribing: Promise<void> | null = null;
+  /** Ends the current long poll early, so a newly approved page is sent at once. */
+  private nudge: AbortController | null = null;
+  /** Pages sent in the current run. */
+  private readonly sent = new Set<string>();
+  private check: { fingerprint: string; promise: Promise<RecordsResponse> } | null = null;
+  /** Pages whose job failed; they are sent again only on an explicit retry. */
+  private readonly failed = new Map<string, string>();
+  /** Backoff after a dropped connection (overridable in tests). */
+  protected retryDelay = (attempt: number) => Math.min(1000 * 2 ** attempt, 15_000);
 
-  prepareBatch(batchId: string, ready: boolean) {
-    this.batchId = batchId;
+  /** `ready` is false while documents still wait for privacy review: transcribe, but do not normalize. */
+  prepareBatch(_queueBatchId: string, ready: boolean) {
     this.batchReady = ready;
     if (ready) void this.records().catch(() => {});
     else void this.transcribe().catch(() => {});
-  }
-
-  private transcribe(retry = false): Promise<void> {
-    if (retry) this.failedPages.clear();
-    if (this.transcribing) return this.transcribing;
-    const work = async () => {
-      const active = new Set<string>();
-      const key = (source: { pageId: string; revision: string }) =>
-        `${source.pageId}/${source.revision}`;
-      let total = (await this.history.list()).reduce((n, d) => n + d.pageCount, 0);
-      let firstError: unknown;
-      await Promise.all(
-        Array.from({ length: 3 }, async () => {
-          for (;;) {
-            const snapshot = this.history.recordSnapshot();
-            const source = snapshot.sources.find(
-              (s) => !active.has(key(s)) && !this.failedPages.has(key(s)),
-            );
-            if (!source) return;
-            active.add(key(source));
-            total = (await this.history.list()).reduce((n, d) => n + d.pageCount, 0);
-            const current = () =>
-              this.history.pageSourceCurrent(source.documentId, source.revision, source.page);
-            this.processing.set({
-              stage: 'transcribing',
-              total,
-              completed: total - snapshot.sources.length,
-              error: null,
-            });
-            const started = performance.now();
-            try {
-              const blob = await this.history.pageImage(source.documentId, source.page);
-              // Only persisted, approved images are eligible. No manifests, filenames or OCR words leave here.
-              const image = await imageDataUrl(blob);
-              if (!current()) continue;
-              const result = await post<PageTranscription>(
-                '/api/demo/extract',
-                { ...source, batchId: source.batchId ?? this.batchId, image },
-                180000,
-                current,
-              );
-              this.history.savePageProcessing(source.documentId, source.revision, result);
-              console.info('[Carryover timing]', {
-                stage: 'upload-spark',
-                batchId: source.batchId ?? this.batchId,
-                pageId: source.pageId,
-                elapsedMs: Math.round(performance.now() - started),
-                rows: result.observations.length,
-              });
-            } catch (error) {
-              if (!current()) continue;
-              this.failedPages.add(key(source));
-              firstError ??= error;
-            } finally {
-              active.delete(key(source));
-            }
-          }
-        }),
-      );
-      const remaining = this.history.recordSnapshot().sources.length;
-      if (firstError || remaining) {
-        const error =
-          firstError instanceof Error
-            ? firstError.message
-            : 'Some pages still need transcription. Retry or remove the document.';
-        this.processing.set({ stage: 'error', total, completed: total - remaining, error });
-        throw new Error(error);
-      }
-      this.processing.set({
-        stage: this.batchReady ? 'transcribing' : 'waiting',
-        total,
-        completed: total,
-        error: null,
-      });
-    };
-    this.transcribing = work().finally(() => {
-      this.transcribing = null;
-    });
-    return this.transcribing;
   }
 
   async records(retry = false): Promise<RecordsResponse> {
     const snapshot = this.history.recordSnapshot();
     if (!snapshot.documents.length) {
       this.check = null;
-      this.processing.set({ stage: 'idle', completed: 0, total: 0, error: null });
+      this.processing.set(IDLE);
       return {
         domains: [],
         textResults: [],
@@ -144,46 +79,11 @@ export class ResultsService {
       this.processing.update((p) => ({ ...p, stage: 'ready', error: null }));
       return { ...cached, issues: snapshot.issues };
     }
-    const promise: Promise<RecordsResponse> = (async () => {
-      await this.transcribe(retry);
-      if (!this.batchReady)
-        throw new Error(
-          'Finish preparing and approving or removing the remaining documents before normalization.',
-        );
-      const processed = this.history.recordSnapshot();
-      if (processed.sources.length)
-        throw new Error('Some pages still need transcription. Please retry.');
-      const started = performance.now();
-      this.processing.update((p) => ({ ...p, stage: 'normalizing', error: null }));
-      const batchId = this.batchId;
-      const current = () =>
-        this.batchReady &&
-        this.batchId === batchId &&
-        this.history.recordSnapshot().fingerprint === processed.fingerprint;
-      const result = await post<RecordsResponse>(
-        '/api/demo/records',
-        { processingVersion: PROCESSING_VERSION, batchId, documents: processed.documents },
-        180000,
-        current,
-      );
-      if (result.model?.state !== 'ready')
-        throw new Error('Results normalization did not finish. Please try again.');
-      if (!current()) throw new Error('The batch changed. Finish reviewing it and try again.');
-      const records = { ...result, issues: processed.issues };
-      if (!this.history.saveModelRecords(processed.fingerprint, records))
-        throw new Error('The batch changed. Please try again.');
-      console.info('[Carryover timing]', {
-        stage: 'wonder-normalization',
-        batchId: this.batchId,
-        elapsedMs: Math.round(performance.now() - started),
-        documents: processed.documents.length,
-      });
-      this.processing.update((p) => ({ ...p, stage: 'ready', error: null }));
-      return records;
-    })()
-      .catch((error) => {
-        if (this.check?.promise === promise)
+    const promise = this.transcribeAndNormalize(retry)
+      .catch((error: Error) => {
+        if (this.check?.promise === promise) {
           this.processing.update((p) => ({ ...p, stage: 'error', error: error.message }));
+        }
         throw error;
       })
       .finally(() => {
@@ -197,205 +97,249 @@ export class ResultsService {
     return this.records(true);
   }
 
-  async recovery(id: string): Promise<RecoveryResponse> {
-    const snapshot = this.history.recoverySnapshot(id);
-    const state =
-      snapshot.recovery ??
-      ({
-        documentId: id,
-        sourceRevision: snapshot.revision,
-        status: 'idle',
-        modelName: 'muse-spark-1.3',
-        activePage: null,
-        message: null,
-        proposals: [],
-        updatedAt: null,
-        attempts: {},
-        limits: LIMITS,
-      } satisfies RecoveryResponse);
-    if (state.sourceRevision !== snapshot.revision)
-      return {
-        ...state,
-        sourceRevision: snapshot.revision,
-        status: 'idle',
-        proposals: [],
-        message: 'The source changed. Check the current page.',
-      };
-    if (state.status === 'working' && !this.recovering.has(id))
-      return { ...state, status: 'error', message: 'The page check was interrupted. Try again.' };
-    return state;
-  }
-
-  async findMissedReadings(id: string, request: RecoveryStartRequest): Promise<RecoveryResponse> {
-    const snapshot = this.history.recoverySnapshot(id),
-      state = await this.recovery(id);
-    if (request.expectedRevision !== snapshot.revision || this.recovering.has(id))
-      throw new Error('The document changed or a check is already running. Reopen it.');
-    if (!snapshot.document.pages[request.page]?.hasImage)
-      throw new Error('Reopen this source and save a redacted page image first.');
-    if (
-      (state.attempts[request.page] ?? 0) >= LIMITS.maxAttemptsPerPage ||
-      Object.values(state.attempts).reduce((a, b) => a + b, 0) >= LIMITS.maxCallsPerDocument
-    )
+  private async transcribeAndNormalize(retry: boolean): Promise<RecordsResponse> {
+    await this.transcribe(retry);
+    if (!this.batchReady) {
       throw new Error(
-        'This source has reached its automatic check limit. Review the existing suggestions.',
+        'Finish preparing and approving or removing the remaining documents before normalization.',
       );
-    const working: RecoveryResponse = {
-      ...state,
-      sourceRevision: snapshot.revision,
-      status: 'working',
-      activePage: request.page,
-      message: 'Spark is checking the approved page image.',
-      attempts: { ...state.attempts, [request.page]: (state.attempts[request.page] ?? 0) + 1 },
-      updatedAt: new Date().toISOString(),
-    };
-    this.history.saveRecovery(id, snapshot.revision, working);
-    this.recovering.add(id);
-    const current = () => {
-      try {
-        return this.history.recoverySnapshot(id).revision === snapshot.revision;
-      } catch {
-        return false;
-      }
-    };
-    void (async () => {
-      const image = await imageDataUrl(await this.history.pageImage(id, request.page));
-      const result = await post<PageTranscription>(
-        '/api/demo/extract',
-        {
-          batchId: this.batchId,
-          documentId: id,
-          pageId: `${id}:${request.page}`,
-          page: request.page,
-          revision: snapshot.revision,
-          image,
-        },
-        180000,
-        current,
-      );
-      if (!current()) return;
-      const same = (
-        a: (typeof snapshot.observations)[number],
-        b: (typeof snapshot.observations)[number],
-      ) =>
-        a.page === b.page &&
-        a.name === b.name &&
-        a.valueText === b.valueText &&
-        a.unit === b.unit &&
-        a.date === b.date &&
-        a.transcription?.specimen === b.transcription?.specimen &&
-        a.transcription?.method === b.transcription?.method;
-      const added = result.observations
-        .filter(
-          (o) =>
-            !snapshot.observations.some((old) => same(old, o)) &&
-            !working.proposals.some((p) => p.sourceObservation && same(p.sourceObservation, o)),
-        )
-        .map((o) => ({
-          id: crypto.randomUUID(),
-          page: o.page,
-          name: o.name,
-          valueText: o.valueText,
-          unit: o.unit,
-          date: o.date,
-          dateText: o.transcription?.collectionDate.printed ?? null,
-          refText: o.refText,
-          bbox: o.bbox,
-          words: [],
-          evidence: { name: [], value: [], unit: [], date: [], reference: [] },
-          sourceObservation: o,
-          issues: o.transcription?.uncertainty ?? [],
-          state: 'pending' as const,
-          revision: crypto.randomUUID(),
-          decidedAt: null,
-          note: null,
-        }));
-      this.history.saveRecovery(id, snapshot.revision, {
-        ...working,
-        status: 'ready',
-        proposals: [...working.proposals, ...added],
-        message: added.length
-          ? 'Check each proposed reading against its source before accepting it.'
-          : 'No additional readings found.',
-      });
-    })()
-      .catch(() => {
-        try {
-          this.history.saveRecovery(id, snapshot.revision, {
-            ...working,
-            status: 'error',
-            message: 'The page check did not finish. Please try again.',
-          });
-        } catch {
-          /* Preserve prior data on quota errors. */
-        }
-      })
-      .finally(() => this.recovering.delete(id));
-    return working;
+    }
+    const processed = this.history.recordSnapshot();
+    if (processed.sources.length)
+      throw new Error('Some pages still need transcription. Please retry.');
+    const started = performance.now();
+    this.processing.update((p) => ({ ...p, stage: 'normalizing', error: null }));
+    const current = () =>
+      this.batchReady && this.history.recordSnapshot().fingerprint === processed.fingerprint;
+
+    const result = await this.normalize(processed.documents, current);
+    if (result.model?.state !== 'ready')
+      throw new Error('Results normalization did not finish. Please try again.');
+    const records = { ...result, issues: processed.issues };
+    if (!current() || !this.history.saveModelRecords(processed.fingerprint, records)) {
+      throw new Error('The batch changed. Finish reviewing it and try again.');
+    }
+    console.info('[Carryover timing]', {
+      stage: 'normalization',
+      elapsedMs: Math.round(performance.now() - started),
+      documents: processed.documents.length,
+    });
+    this.processing.update((p) => ({ ...p, stage: 'ready', error: null }));
+    return records;
   }
 
-  async acceptRecoveredReading(id: string, proposal: string, request: RecoveryAcceptRequest) {
-    return this.history.decideRecovery(
-      id,
-      proposal,
-      request.expectedRevision,
-      'accepted',
-      request.note,
-    );
+  /** Send every unsaved page and collect results until each is saved or has failed. */
+  private transcribe(retry = false): Promise<void> {
+    if (retry) this.failed.clear();
+    // Already collecting: a newly approved page interrupts the wait so it is sent at once.
+    if (this.transcribing && this.waiting().some((source) => !this.sent.has(key(source))))
+      this.nudge?.abort();
+    this.transcribing ??= this.collectPages().finally(() => {
+      this.transcribing = null;
+      this.nudge = null;
+    });
+    return this.transcribing;
   }
-  async rejectRecoveredReading(id: string, proposal: string, request: RecoveryRejectRequest) {
-    return this.history.decideRecovery(id, proposal, request.expectedRevision, 'rejected');
+
+  /** Approved pages that are not saved yet and have not failed. */
+  private waiting(): Source[] {
+    return this.history.recordSnapshot().sources.filter((source) => !this.failed.has(key(source)));
+  }
+
+  private async collectPages(): Promise<void> {
+    let view: RecordsView | undefined;
+    let held = new Set<string>();
+    let connectionFailures = 0;
+    this.sent.clear();
+    // Nothing approved and unsaved: the server has nothing for us, so do not ask it.
+    while (this.waiting().length) {
+      const nudge = (this.nudge = new AbortController());
+      let fresh: RecordsView | undefined;
+      try {
+        // Asking from version 0 answers at once, so a refresh sees what the server already holds.
+        fresh = await this.jobs.view(view?.version ?? 0, MAX_WAIT_SECONDS, nudge.signal);
+        connectionFailures = 0;
+      } catch {
+        if (!nudge.signal.aborted) {
+          // A locked phone or a dropped connection: back off and try again.
+          if (++connectionFailures > MAX_CONNECTION_FAILURES) {
+            throw new Error(
+              'The connection was lost while reading your pages. Check your connection and retry.',
+            );
+          }
+          await pause(this.retryDelay(connectionFailures));
+          continue;
+        }
+      }
+      if (fresh) {
+        view = fresh;
+        held = await this.takeResults(view);
+      }
+      const busy = await this.submit(this.waiting().filter((source) => !held.has(key(source))));
+      await this.report(view, this.history.recordSnapshot().sources);
+      // The server's queue is full: give it a moment before offering the pages again.
+      if (busy) await pause(this.retryDelay(2));
+    }
+    const remaining = this.history.recordSnapshot().sources.length;
+    if (remaining) {
+      const reason =
+        [...this.failed.values()][0] ??
+        'Some pages still need transcription. Retry or remove the document.';
+      throw new Error(reason);
+    }
+    this.processing.update((p) => ({
+      ...p,
+      stage: this.batchReady ? 'transcribing' : 'waiting',
+      running: 0,
+      queued: 0,
+    }));
+  }
+
+  /**
+   * Save finished pages, then tell the server to forget them. Jobs for pages that were
+   * deleted or re-redacted meanwhile are cancelled. Returns the jobs still in progress.
+   */
+  private async takeResults(view: RecordsView): Promise<Set<string>> {
+    const held = new Set<string>();
+    const sources = new Map(this.history.recordSnapshot().sources.map((s) => [key(s), s]));
+    for (const job of view.pages) {
+      const source = sources.get(key(job));
+      if (source && (job.state === 'queued' || job.state === 'running')) {
+        held.add(key(job));
+        continue;
+      }
+      if (source && job.state === 'done' && job.result) {
+        try {
+          this.history.savePageProcessing(source.documentId, source.revision, job.result);
+        } catch (error) {
+          this.failed.set(key(job), error instanceof Error ? error.message : String(error));
+        }
+      }
+      if (source && job.state === 'failed')
+        this.failed.set(key(job), job.error ?? 'This page could not be read.');
+      await this.jobs.removePage(job.pageId, job.revision);
+    }
+    return held;
+  }
+
+  /** Queue pages the server does not have yet. Returns true when the server's queue was full. */
+  private async submit(sources: Source[]): Promise<boolean> {
+    for (const source of sources) {
+      if (!this.history.pageSourceCurrent(source.documentId, source.revision, source.page))
+        continue;
+      try {
+        // Only persisted, approved images are eligible. No manifests, filenames or OCR words leave here.
+        const image = await imageDataUrl(
+          await this.history.pageImage(source.documentId, source.page),
+        );
+        await this.jobs.submitPage({
+          documentId: source.documentId,
+          pageId: source.pageId,
+          page: source.page,
+          revision: source.revision,
+          image,
+        });
+        this.sent.add(key(source));
+      } catch (error) {
+        if (error instanceof BusyError) return true;
+        this.failed.set(key(source), error instanceof Error ? error.message : String(error));
+      }
+    }
+    return false;
+  }
+
+  private async report(view: RecordsView | undefined, remaining: Source[]) {
+    const total = (await this.history.list()).reduce((n, d) => n + d.pageCount, 0);
+    const current = new Set(remaining.map(key));
+    const pages = (view?.pages ?? []).filter((p) => current.has(key(p)));
+    this.processing.set({
+      stage: 'transcribing',
+      total,
+      completed: total - remaining.length,
+      running: pages.filter((p) => p.state === 'running').length,
+      queued: pages.filter((p) => p.state === 'queued').length,
+      error: null,
+    });
+  }
+
+  /** Queue normalization and wait for it; the batch is forgotten on the server afterwards. */
+  private async normalize(documents: unknown[], current: () => boolean): Promise<RecordsResponse> {
+    let connectionFailures = 0;
+    for (;;) {
+      try {
+        await this.jobs.submitNormalization({ processingVersion: PROCESSING_VERSION, documents });
+        break;
+      } catch (error) {
+        if (!(error instanceof BusyError) || ++connectionFailures > MAX_CONNECTION_FAILURES)
+          throw error;
+        await pause(this.retryDelay(connectionFailures));
+      }
+    }
+    let version = 0;
+    connectionFailures = 0;
+    for (;;) {
+      if (!current()) throw new Error('The batch changed. Finish reviewing it and try again.');
+      let view: RecordsView;
+      try {
+        view = await this.jobs.view(version, MAX_WAIT_SECONDS);
+        connectionFailures = 0;
+      } catch {
+        if (++connectionFailures > MAX_CONNECTION_FAILURES) {
+          throw new Error(
+            'The connection was lost while organizing your results. Check your connection and retry.',
+          );
+        }
+        await pause(this.retryDelay(connectionFailures));
+        continue;
+      }
+      version = view.version;
+      const job = view.normalization;
+      if (job.state === 'done' && job.result) {
+        await this.jobs.removeBatch();
+        return job.result;
+      }
+      if (job.state === 'failed' || job.state === 'idle') {
+        throw new Error(job.error ?? 'Results normalization did not finish. Please try again.');
+      }
+    }
   }
 }
 
-async function post<T>(
-  url: string,
-  body: unknown,
-  timeout: number,
-  current = () => true,
-): Promise<T> {
-  let response: Response;
-  for (let attempt = 0; ; attempt++) {
-    if (!current()) throw new Error('The source changed.');
-    try {
-      response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(timeout),
-      });
-    } catch {
-      throw new Error('We couldn’t finish processing. Please try again.');
-    }
-    if (response.status !== 429 || attempt >= 4) break;
-    // Respect server capacity/rate limits; an otherwise healthy large import
-    // should wait briefly instead of making the user restart it.
-    const seconds = Number(response.headers.get('Retry-After'));
-    const delay =
-      seconds > 0 && Number.isFinite(seconds)
-        ? Math.min(seconds * 1000, 60000)
-        : 1000 * 2 ** attempt;
-    await response.body?.cancel();
-    await new Promise((resolve) => setTimeout(resolve, delay));
-  }
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      typeof error.message === 'string'
-        ? error.message
-        : 'The Meta AI check failed. Try again shortly.',
-    );
-  }
-  return (await response.json()) as T;
+/** Wait, but wake early when the tab becomes visible again (a phone was unlocked). */
+function pause(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+      resolve();
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') done();
+    };
+    const timer = setTimeout(done, ms);
+    document.addEventListener('visibilitychange', onVisible);
+  });
 }
 
 function imageDataUrl(blob: Blob): Promise<string> {
-  if (!['image/png', 'image/jpeg'].includes(blob.type))
+  if (!['image/png', 'image/jpeg'].includes(blob.type)) {
     throw new Error('This saved source needs a redacted page image. Open it for review.');
+  }
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
     reader.onerror = () => reject(new Error('The saved page could not be read.'));
     reader.readAsDataURL(blob);
   });
+}
+
+/** One plain sentence about page reading, for the Documents and Results pages. */
+export function progressText(state: ProcessingState): string {
+  if (!state.total) return 'Preparing your results…';
+  const parts = [
+    `${state.completed} of ${state.total} ${state.total === 1 ? 'page' : 'pages'} read`,
+  ];
+  if (state.running) parts.push(`${state.running} being read now`);
+  if (state.queued) parts.push(`${state.queued} waiting`);
+  return `${parts.join(', ')}.`;
 }

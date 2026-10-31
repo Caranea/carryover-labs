@@ -68,7 +68,14 @@ async function setup() {
         useValue: {
           create,
           prepareBatch: vi.fn(),
-          processing: signal({ stage: 'idle', completed: 0, total: 0, error: null }),
+          processing: signal({
+            stage: 'idle',
+            completed: 0,
+            total: 0,
+            running: 0,
+            queued: 0,
+            error: null,
+          }),
         },
       },
       {
@@ -76,7 +83,14 @@ async function setup() {
         useValue: {
           create,
           prepareBatch: vi.fn(),
-          processing: signal({ stage: 'idle', completed: 0, total: 0, error: null }),
+          processing: signal({
+            stage: 'idle',
+            completed: 0,
+            total: 0,
+            running: 0,
+            queued: 0,
+            error: null,
+          }),
         },
       },
       {

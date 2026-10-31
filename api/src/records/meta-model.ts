@@ -5,7 +5,7 @@ import type { ModelEndpoint } from '../config.js';
 /** Something that answers a task with schema-checked JSON. Tests use a stub. */
 export interface JsonModel {
   readonly name: string;
-  ask<T>(task: ModelTask): Promise<T>;
+  ask<T>(task: ModelTask, signal?: AbortSignal): Promise<T>;
 }
 
 export type MetaModel = 'muse-spark-1.3' | 'muse-wonder-1.0';
@@ -27,6 +27,17 @@ export interface ModelTask {
 const TIMEOUT_MS = 150_000;
 const MAX_RESPONSE_BYTES = 256 * 1024;
 const FAILED = 'The automatic check could not finish. You can retry it later.';
+
+interface Usage {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+}
+
+interface Answer<T> {
+  answer: T;
+  headersMs: number;
+  usage?: Usage;
+}
 
 const ajv = new Ajv({ allErrors: false, strict: true });
 const validators = new Map<string, ValidateFunction>();
@@ -51,11 +62,15 @@ export class MetaModelClient implements JsonModel {
 
   constructor(private readonly endpoint: ModelEndpoint) {}
 
-  async ask<T>(task: ModelTask): Promise<T> {
+  async ask<T>(task: ModelTask, signal?: AbortSignal): Promise<T> {
     const started = Date.now();
     try {
-      const answer = await this.call<T>(task);
-      this.log.log(`${task.kind}: ${task.model} answered in ${Date.now() - started} ms`);
+      const { answer, headersMs, usage } = await this.call<T>(task, signal);
+      // Counts and timings only, never content: they show where the time and the credits go.
+      this.log.log(
+        `${task.kind}: ${task.model} answered in ${Date.now() - started} ms ` +
+          `(headers after ${headersMs} ms, tokens in=${usage?.prompt_tokens ?? '?'} out=${usage?.completion_tokens ?? '?'})`,
+      );
       return answer;
     } catch (error) {
       // Provider errors can echo submitted content: never log or return their bodies.
@@ -66,7 +81,7 @@ export class MetaModelClient implements JsonModel {
     }
   }
 
-  private async call<T>(task: ModelTask): Promise<T> {
+  private async call<T>(task: ModelTask, cancel?: AbortSignal): Promise<Answer<T>> {
     const content = task.image
       ? [
           { type: 'text', text: task.user },
@@ -87,7 +102,9 @@ export class MetaModelClient implements JsonModel {
         json_schema: { name: task.kind.replace(/\W/g, '_'), strict: true, schema: task.schema },
       },
     };
-    const signal = AbortSignal.timeout(TIMEOUT_MS);
+    const timeout = AbortSignal.timeout(TIMEOUT_MS);
+    const signal = cancel ? AbortSignal.any([timeout, cancel]) : timeout;
+    const sent = Date.now();
     let res = await this.post(body, signal);
     // Some deployments reject a schema; ask for plain JSON and validate it here instead.
     if (res.status === 400 || res.status === 422) {
@@ -98,12 +115,15 @@ export class MetaModelClient implements JsonModel {
       await res.body?.cancel();
       throw new Error(`Model request failed (HTTP ${res.status}).`);
     }
+    const headersMs = Date.now() - sent;
     const data = JSON.parse(await boundedText(res)) as {
       choices?: { finish_reason?: string; message?: { content?: string | null } }[];
+      usage?: Usage;
     };
     const choice = data.choices?.[0];
     if (choice?.finish_reason === 'length') throw new Error('The model response was truncated.');
-    return validateAnswer<T>(task, parseJson(choice?.message?.content ?? ''));
+    const answer = validateAnswer<T>(task, parseJson(choice?.message?.content ?? ''));
+    return { answer, headersMs, usage: data.usage };
   }
 
   private post(body: unknown, signal: AbortSignal): Promise<Response> {

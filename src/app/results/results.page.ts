@@ -3,7 +3,7 @@ import { Component, computed, inject, OnDestroy, OnInit, signal, viewChild } fro
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { errorMessage } from '../core/errors';
 import { LocalHistory } from '../core/local-history';
-import { ResultsService } from '../core/results.service';
+import { progressText, ResultsService } from '../core/results.service';
 import { DEMO_RECORDS, DEMO_RESULTS, DEMO_SOURCE_PAGES } from '../core/demo-data';
 import {
   RecordDomain,
@@ -19,7 +19,6 @@ import { Icon } from '../ui/icon';
 import { formatUnit, LineChart, PointPick } from './line-chart';
 import { calendarTimestamp } from './calendar-date';
 import { SourceDialog } from './source-dialog';
-import { RecoveryPanel } from './recovery-panel';
 
 const REASON: Record<WarningReason, string> = {
   unrecognised: 'Not recognised',
@@ -33,16 +32,7 @@ const REASON: Record<WarningReason, string> = {
 /** Each test over time, from every lab and language, each value traceable to its page. */
 @Component({
   selector: 'app-results',
-  imports: [
-    DatePipe,
-    DecimalPipe,
-    RouterLink,
-    Icon,
-    StepRail,
-    LineChart,
-    SourceDialog,
-    RecoveryPanel,
-  ],
+  imports: [DatePipe, DecimalPipe, RouterLink, Icon, StepRail, LineChart, SourceDialog],
   templateUrl: './results.page.html',
   styles: `
     /* A value corrected after text recognition: dotted underline, details in the title. */
@@ -56,6 +46,7 @@ const REASON: Record<WarningReason, string> = {
 export class ResultsPage implements OnInit, OnDestroy {
   private readonly api = inject(ResultsService);
   private readonly history = inject(LocalHistory);
+  protected readonly progressText = progressText;
   protected readonly processing = this.api.processing;
   private request = 0;
   private readonly router = inject(Router);

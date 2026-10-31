@@ -5,7 +5,7 @@ import { requestLimits, securityHeaders } from './http-security.js';
 
 function request(method = 'GET'): Request {
   return {
-    path: '/api/demo/records',
+    path: '/api/demo/batches/b1/pages',
     ip: '127.0.0.1',
     socket: {},
     headers: {},

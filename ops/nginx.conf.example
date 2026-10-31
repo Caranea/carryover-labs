@@ -41,7 +41,8 @@ server {
         proxy_buffering off;
         proxy_cache off;
         proxy_no_cache 1;
-        proxy_read_timeout 120s;
+        # Long polls answer within 25 s; no request waits for the model.
+        proxy_read_timeout 60s;
     }
 
     location / {

@@ -76,7 +76,11 @@ export function normalizationTask(combinations: unknown[]): ModelTask {
 /** Model identities only; every number and conversion remains server-owned. */
 export type SourceDocument = Omit<BuildDocument, 'mappings'>;
 
-export async function normalizeBatch(docs: SourceDocument[], model: JsonModel) {
+export async function normalizeBatch(
+  docs: SourceDocument[],
+  model: JsonModel,
+  signal?: AbortSignal,
+) {
   const combinations: {
     ref: string;
     name: string;
@@ -105,7 +109,7 @@ export async function normalizeBatch(docs: SourceDocument[], model: JsonModel) {
     }
   const task = normalizationTask(combinations);
   const answer = combinations.length
-    ? validateAnswer<{ mappings: Mapping[] }>(task, await model.ask(task))
+    ? validateAnswer<{ mappings: Mapping[] }>(task, await model.ask(task, signal))
     : { mappings: [] };
   const mapped = new Map(answer.mappings.map((m) => [m.ref, m]));
   if (
@@ -216,3 +220,6 @@ function specimenIdentity(value: string | null): string | null {
     if (pattern.test(text)) return key;
   return text;
 }
+
+/** What normalization returns to the browser: the built records plus the raw mappings. */
+export type RecordsResult = Awaited<ReturnType<typeof normalizeBatch>>;

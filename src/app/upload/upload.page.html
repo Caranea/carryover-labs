@@ -6,7 +6,7 @@
     </h1>
     <p class="text-lg text-base-content/80 max-w-2xl leading-relaxed">
       Add a clear photo or document. Choose help finding personal details, or hide them yourself.
-      Check each page and approve the copy, then we’ll send the approved lab data to our server to
+      Check each page and approve the copy. The approved copy is then sent to Meta's AI to read and
       organize your results.
     </p>
   </header>
@@ -15,14 +15,21 @@
     @if (processing.total > 0) {
       <div role="status" class="rounded-box border border-base-300 p-4">
         @if (processing.stage === 'normalizing') {
-          Normalizing test names and groups…
+          Matching test names across your reports…
         } @else if (processing.stage === 'ready') {
           Results are ready.
         } @else {
-          Transcription: {{ processing.completed }}/{{ processing.total }} approved pages saved.
+          <p>{{ progressText(processing) }}</p>
+          @if (processing.running || processing.queued) {
+            <p class="text-sm text-base-content/80">
+              You can leave this page. Results keep arriving while Carryover is open.
+            </p>
+          }
         }
         @if (processing.stage === 'waiting') {
-          Normalization starts after the remaining documents are approved or removed.
+          <p class="text-sm text-base-content/80">
+            Your results are organized once the remaining documents are approved or removed.
+          </p>
         }
         @if (processing.error) {
           <span>{{ processing.error }}</span>

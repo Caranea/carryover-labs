@@ -3,12 +3,138 @@ import 'fake-indexeddb/auto';
 import { Blob as NativeBlob } from 'node:buffer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TestBed } from '@angular/core/testing';
+import type { PageJobView } from '@shared/jobs';
 import { ResultsService } from './results.service';
 import { LOCAL_HISTORY_KEY, LocalHistory } from './local-history';
 import type { DocumentManifest } from './models';
 import { processedFixture, recordsFixture } from './processing-test-fixture';
 import { deviceTransaction } from './device-storage';
 
+type Outcome = 'done' | 'failed' | 'hold';
+interface FakePage extends PageJobView {
+  body: Record<string, unknown>;
+}
+
+/** An in-memory stand-in for the batch job API, answering like the real server. */
+class FakeJobServer {
+  pages = new Map<string, FakePage>();
+  normalization: { state: string; result?: unknown; error?: string } = { state: 'idle' };
+  version = 0;
+  exists = false;
+  /** Every request as "METHOD /path". */
+  log: string[] = [];
+  submitted: Record<string, unknown>[] = [];
+  normalizations: Record<string, unknown>[] = [];
+  pageOutcome: (body: Record<string, unknown>) => Outcome | 'busy' = () => 'done';
+  normalizeOutcome: Outcome = 'done';
+  /** How long an unanswered long poll waits (the real server waits up to 25 s). */
+  pollMs = 30;
+  private waiters: (() => void)[] = [];
+
+  readonly fetch = vi.fn(async (url: string, init?: RequestInit) => {
+    const method = init?.method ?? 'GET';
+    const path = url.replace(/^\/api\/demo\/batches\/[^/?]+/, '');
+    this.log.push(`${method} ${decodeURIComponent(path.split('?')[0]) || '/'}`);
+    const body = init?.body ? JSON.parse(init.body as string) : null;
+    if (method === 'POST' && path === '/pages') return this.submitPage(body);
+    if (method === 'POST' && path === '/normalize') return this.submitNormalization(body);
+    if (method === 'DELETE' && path.startsWith('/pages/')) {
+      this.pages.delete(decodeURIComponent(path.slice('/pages/'.length).split('?')[0]));
+      this.changed();
+      return new Response(null, { status: 204 });
+    }
+    if (method === 'DELETE') {
+      this.reset();
+      return new Response(null, { status: 204 });
+    }
+    return this.view(new URL(url, 'http://test').searchParams, init?.signal);
+  });
+
+  /** Finish held jobs, as Spark eventually answers. */
+  release(outcome: 'done' | 'failed' = 'done') {
+    for (const page of this.pages.values()) {
+      if (page.state === 'running') this.finish(page, outcome);
+    }
+    if (this.normalization.state === 'running') {
+      this.normalization =
+        outcome === 'done'
+          ? { state: 'done', result: recordsFixture() }
+          : { state: 'failed', error: 'Results normalization did not finish. Please try again.' };
+    }
+    this.changed();
+  }
+
+  reset() {
+    this.pages.clear();
+    this.normalization = { state: 'idle' };
+    this.exists = false;
+    this.changed();
+  }
+
+  private submitPage(body: Record<string, unknown>) {
+    const outcome = this.pageOutcome(body);
+    if (outcome === 'busy')
+      return json({ message: 'Many pages are waiting. Try again shortly.' }, 429);
+    this.exists = true;
+    this.submitted.push(body);
+    const page: FakePage = {
+      pageId: body['pageId'] as string,
+      revision: body['revision'] as string,
+      state: 'running',
+      body,
+    };
+    this.pages.set(page.pageId, page);
+    if (outcome !== 'hold') this.finish(page, outcome);
+    this.changed();
+    return json({ pageId: page.pageId, revision: page.revision, state: page.state }, 202);
+  }
+
+  private submitNormalization(body: Record<string, unknown>) {
+    this.exists = true;
+    this.normalizations.push(body);
+    this.normalization =
+      this.normalizeOutcome === 'hold'
+        ? { state: 'running' }
+        : this.normalizeOutcome === 'done'
+          ? { state: 'done', result: recordsFixture((body['documents'] as unknown[]).length) }
+          : { state: 'failed', error: 'Results normalization did not finish. Please try again.' };
+    this.changed();
+    return json({ state: this.normalization.state }, 202);
+  }
+
+  private async view(params: URLSearchParams, signal?: AbortSignal | null) {
+    if (!this.exists) return json({ version: 0, pages: [], normalization: { state: 'idle' } });
+    const since = Number(params.get('since')),
+      wait = Number(params.get('wait'));
+    if (wait > 0 && this.version <= since) {
+      await new Promise<void>((resolve, reject) => {
+        this.waiters.push(resolve);
+        setTimeout(resolve, this.pollMs);
+        signal?.addEventListener('abort', () => reject(signal.reason));
+      });
+    }
+    return json({
+      version: this.version,
+      pages: [...this.pages.values()].map(({ body: _body, ...page }) => page),
+      normalization: this.normalization,
+    });
+  }
+
+  private finish(page: FakePage, outcome: 'done' | 'failed') {
+    page.state = outcome;
+    const { image: _image, ...source } = page.body;
+    if (outcome === 'done') page.result = processedFixture(source as never);
+    else page.error = 'This page could not finish transcription. Please try again.';
+  }
+
+  private changed() {
+    this.version++;
+    for (const wake of this.waiters.splice(0)) wake();
+  }
+}
+
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 const report = (pages = 1): DocumentManifest => ({
   name: 'PRIVATE-TITLE',
   sourceKind: 'pdf',
@@ -26,28 +152,28 @@ const report = (pages = 1): DocumentManifest => ({
     ],
   })),
 });
-const json = (body: unknown) =>
-  new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' } });
-const serverFetch = async (url: string, options?: RequestInit) => {
-  const body = JSON.parse(options!.body as string);
-  return json(
-    url.endsWith('extract') ? processedFixture(body) : recordsFixture(body.documents.length),
-  );
-};
 const history = new LocalHistory();
-const newService = () => TestBed.runInInjectionContext(() => new ResultsService());
-const create = (_api: ResultsService, pages = 1) =>
+const newService = () => {
+  const service = TestBed.runInInjectionContext(() => new ResultsService());
+  (service as unknown as { retryDelay: () => number }).retryDelay = () => 1;
+  return service;
+};
+const create = (pages = 1, localId = 'local-id') =>
   history.create(
     report(pages),
     Array.from({ length: pages }, () => new Blob(['approved-pixels'], { type: 'image/png' })),
     'PRIVATE-FILENAME.pdf',
-    'local-id',
+    localId,
     'saved-batch',
   );
 
-describe('page transcription and batch recovery', () => {
+describe('page transcription as jobs', () => {
+  let server: FakeJobServer;
   beforeEach(async () => {
+    localStorage.clear();
     localStorage.removeItem(LOCAL_HISTORY_KEY);
+    server = new FakeJobServer();
+    vi.stubGlobal('fetch', server.fetch);
     vi.stubGlobal('Blob', NativeBlob);
     // Native Blob is used by fake IndexedDB; emulate the browser reader at this I/O boundary.
     vi.stubGlobal(
@@ -73,120 +199,178 @@ describe('page transcription and batch recovery', () => {
     vi.restoreAllMocks();
   });
 
-  it('sends one approved image per request, no OCR, title, filename or hidden text, then saves immutable transcription', async () => {
-    const api = newService();
-    await create(api, 2);
-    const fetchMock = vi.fn(serverFetch);
-    vi.stubGlobal('fetch', fetchMock);
-    await api.records();
-    expect(fetchMock).toHaveBeenCalledTimes(3);
-    for (const [url, options] of fetchMock.mock.calls) {
-      expect(options?.body).not.toMatch(
-        /PRIVATE-|HIDDEN-|LOCAL-OCR|sourceEvidence|classifications/,
-      );
-      const body = JSON.parse(options!.body as string);
-      if (url.endsWith('extract')) {
-        expect(body.image).toBe(
-          'data:image/png;base64,' + Buffer.from('approved-pixels').toString('base64'),
-        );
-        expect(body.batchId).toBe('saved-batch');
-        expect(body).not.toHaveProperty('document');
-      } else {
-        expect(body).not.toHaveProperty('image');
-        expect(body.documents[0].observations).toHaveLength(2);
-      }
+  it('sends one approved image per page, no OCR, title, filename or hidden text, and confirms what it saved', async () => {
+    await create(2);
+    await newService().records();
+    expect(server.submitted).toHaveLength(2);
+    for (const call of server.fetch.mock.calls) {
+      expect(call[1]?.body ?? '').not.toMatch(/PRIVATE-|HIDDEN-|LOCAL-OCR/);
     }
+    expect(server.submitted[0]['image']).toBe(
+      'data:image/png;base64,' + Buffer.from('approved-pixels').toString('base64'),
+    );
+    expect(server.submitted[0]).not.toHaveProperty('document');
+    expect(server.normalizations[0]).not.toHaveProperty('image');
+    expect(
+      (server.normalizations[0]['documents'] as { observations: unknown[] }[])[0].observations,
+    ).toHaveLength(2);
+    expect(server.log.filter((r) => r.startsWith('DELETE /pages/'))).toHaveLength(2);
+    expect(server.log.at(-1)).toBe('DELETE /');
     expect((await history.results()).observations[0].transcription?.value).toBe('2.4');
+    const calls = server.fetch.mock.calls.length;
     expect((await newService().records()).model.state).toBe('ready');
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(server.fetch.mock.calls.length).toBe(calls);
   });
 
-  it('saves completed pages immediately, bounds concurrency and retries only failures after refresh', async () => {
-    const api = newService();
-    await create(api, 6);
-    let active = 0,
-      peak = 0;
-    const fetchMock = vi.fn(async (url: string, options?: RequestInit) => {
-      const body = JSON.parse(options!.body as string);
-      if (!url.endsWith('extract')) return serverFetch(url, options);
-      peak = Math.max(peak, ++active);
-      await new Promise((r) => setTimeout(r, 5));
-      active--;
-      return body.page === 2 ? new Response('{}', { status: 502 }) : serverFetch(url, options);
-    });
-    vi.stubGlobal('fetch', fetchMock);
-    await expect(api.records()).rejects.toThrow();
-    expect(peak).toBe(3);
-    expect(history.recordSnapshot().sources.map((s) => s.page)).toEqual([2]);
-    expect(fetchMock.mock.calls.every(([url]) => url.endsWith('extract'))).toBe(true);
-    fetchMock.mockClear().mockImplementation(serverFetch);
+  it('keeps failed pages for an explicit retry, which sends only those pages', async () => {
+    await create(3);
+    server.pageOutcome = (body) => (body['page'] === 1 ? 'failed' : 'done');
+    await expect(newService().records()).rejects.toThrow('could not finish transcription');
+    expect(history.recordSnapshot().sources.map((s) => s.page)).toEqual([1]);
+    expect(server.normalizations).toHaveLength(0);
+    server.pageOutcome = () => 'done';
+    server.submitted = [];
     await newService().retryRecords();
-    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
-      '/api/demo/extract',
-      '/api/demo/records',
-    ]);
-    expect(JSON.parse(fetchMock.mock.calls[0][1]!.body as string).page).toBe(2);
+    expect(server.submitted.map((b) => b['page'])).toEqual([1]);
+    expect(server.normalizations).toHaveLength(1);
   });
 
-  it('transcribes approved pages during privacy review but waits for the retained batch to normalize', async () => {
+  it('resumes after a refresh without sending a page the server already holds', async () => {
+    const saved = await create();
+    server.pageOutcome = () => 'hold';
+    const first = newService();
+    first.prepareBatch('queue-batch', false);
+    await settled(() => expect(server.submitted).toHaveLength(1));
+    // A refresh: a new service instance finds the same batch and only waits for it.
+    const second = newService();
+    const pending = second.records();
+    await settled(() => expect(server.log.filter((r) => r === 'GET /').length).toBeGreaterThan(2));
+    server.release();
+    await pending;
+    expect(server.submitted).toHaveLength(1);
+    expect((await history.results()).observations[0].documentId).toBe(saved.id);
+  });
+
+  it('sends the pages again when the server lost the batch', async () => {
+    await create();
+    server.pageOutcome = () => 'hold';
+    const pending = newService().records();
+    await settled(() => expect(server.submitted).toHaveLength(1));
+    server.reset();
+    server.pageOutcome = () => 'done';
+    await pending;
+    expect(server.submitted).toHaveLength(2);
+  });
+
+  it('waits and submits again when the queue is full', async () => {
+    await create();
+    let busy = 2;
+    server.pageOutcome = () => (busy-- > 0 ? 'busy' : 'done');
+    await newService().records();
+    expect(server.submitted).toHaveLength(1);
+    expect((await history.results()).observations).toHaveLength(1);
+  });
+
+  it('survives a dropped connection while waiting for results', async () => {
+    await create();
+    server.pageOutcome = () => 'hold';
+    const fetch = server.fetch.getMockImplementation()!;
+    let drops = 2;
+    server.fetch.mockImplementation(async (url, init) => {
+      if ((init?.method ?? 'GET') === 'GET' && server.submitted.length && drops-- > 0) {
+        server.release();
+        throw new TypeError('Failed to fetch');
+      }
+      return fetch(url, init);
+    });
+    await newService().records();
+    expect((await history.results()).observations).toHaveLength(1);
+  });
+
+  it('does not ask the server anything while no page is approved', async () => {
     const api = newService();
-    await create(api);
-    const fetchMock = vi.fn(serverFetch);
-    vi.stubGlobal('fetch', fetchMock);
-    api.prepareBatch('restored-batch', false);
+    for (let i = 0; i < 5; i++) api.prepareBatch('queue-batch', false);
     await settled(() => expect(api.processing().stage).toBe('waiting'));
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    api.prepareBatch('restored-batch', true);
+    expect(server.fetch).not.toHaveBeenCalled();
+  });
+
+  it('sends a newly approved page at once instead of after the current long poll', async () => {
+    await create();
+    server.pageOutcome = () => 'hold';
+    server.pollMs = 60_000;
+    const api = newService();
+    api.prepareBatch('queue-batch', false);
+    await settled(() => expect(server.submitted).toHaveLength(1));
+    await create(1, 'second-local-id');
+    api.prepareBatch('queue-batch', false);
+    await settled(() => expect(server.submitted).toHaveLength(2));
+    server.pollMs = 30;
+    server.release();
+    await settled(() => expect(api.processing().stage).toBe('waiting'));
+  });
+
+  it('transcribes during privacy review but normalizes only once the batch is ready', async () => {
+    await create();
+    const api = newService();
+    api.prepareBatch('queue-batch', false);
+    await settled(() => expect(api.processing().stage).toBe('waiting'));
+    expect(server.normalizations).toHaveLength(0);
+    api.prepareBatch('queue-batch', true);
     await settled(() => expect(api.processing().stage).toBe('ready'));
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(JSON.parse(fetchMock.mock.calls[1][1]!.body as string).batchId).toBe('restored-batch');
+    expect(server.normalizations).toHaveLength(1);
   });
 
   it.each(['delete', 'replace'] as const)(
-    'does not restore a late page response after %s',
+    'cancels the job and never saves a late result after %s',
     async (action) => {
+      const saved = await create();
+      server.pageOutcome = () => 'hold';
       const api = newService();
-      const saved = await create(api);
-      let resolve!: (response: Response) => void;
-      const fetchMock = vi.fn(
-        (_url: string, _options?: RequestInit) =>
-          new Promise<Response>((r) => {
-            resolve = r;
-          }),
-      );
-      vi.stubGlobal('fetch', fetchMock);
       const pending = api.records().catch(() => null);
-      await settled(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-      const request = JSON.parse(fetchMock.mock.calls[0][1]!.body as string);
+      await settled(() => expect(server.submitted).toHaveLength(1));
+      const oldRevision = server.submitted[0]['revision'];
       if (action === 'delete') await history.delete(saved.id);
       else
         await history.replace(saved.id, report(), [new Blob(['changed'], { type: 'image/png' })]);
-      // New requests fail; the obsolete response must never populate the replacement.
-      fetchMock.mockRejectedValue(new Error('offline'));
-      resolve(json(processedFixture(request)));
+      server.pageOutcome = () => 'done';
+      server.release();
       await pending;
-      expect((await history.results()).observations).toHaveLength(0);
+      expect(
+        (await history.results()).observations.filter(
+          (o) => o.sourceImage?.revision === oldRevision,
+        ),
+      ).toHaveLength(0);
+      expect(server.log).toContain(`DELETE /pages/${saved.id}:0`);
     },
   );
 
   it('retries normalization without repeating saved transcriptions', async () => {
+    await create();
+    server.normalizeOutcome = 'failed';
     const api = newService();
-    await create(api);
-    const fetchMock = vi.fn(async (url: string, options?: RequestInit) =>
-      url.endsWith('records') ? new Response('{}', { status: 502 }) : serverFetch(url, options),
-    );
-    vi.stubGlobal('fetch', fetchMock);
-    await expect(api.records()).rejects.toThrow();
-    fetchMock.mockClear().mockImplementation(serverFetch);
+    await expect(api.records()).rejects.toThrow('normalization did not finish');
+    server.normalizeOutcome = 'done';
+    server.submitted = [];
     await api.retryRecords();
-    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/demo/records']);
+    expect(server.submitted).toHaveLength(0);
+    expect(server.normalizations).toHaveLength(2);
   });
 
-  it('preserves source measurements through user corrections and refuses stale saves', async () => {
-    const api = newService();
-    const saved = await create(api);
-    vi.stubGlobal('fetch', vi.fn(serverFetch));
-    await api.records();
+  it('does not save a late normalization after a source is deleted', async () => {
+    const saved = await create();
+    server.normalizeOutcome = 'hold';
+    const pending = newService().records();
+    const rejected = expect(pending).rejects.toThrow('batch changed');
+    await settled(() => expect(server.normalizations).toHaveLength(1));
+    await history.delete(saved.id);
+    server.release();
+    await rejected;
+    expect(history.cachedModelRecords()).toBeNull();
+  });
+
+  it('preserves source measurements through user corrections', async () => {
+    const saved = await create();
+    await newService().records();
     const original = (await history.results()).observations[0];
     await history.correct(saved.id, original.id, {
       name: 'TSH',
@@ -203,68 +387,5 @@ describe('page transcription and batch recovery', () => {
       transcription: { value: '2.4', unit: 'mIU/L' },
     });
     expect(history.recordSnapshot().sources).toHaveLength(0);
-  });
-
-  it('keeps missed-reading recovery on images and requires explicit acceptance of its source-linked proposal', async () => {
-    const api = newService();
-    const saved = await create(api);
-    const fetchMock = vi.fn(serverFetch);
-    vi.stubGlobal('fetch', fetchMock);
-    await api.records();
-    fetchMock.mockImplementation(async (_url, options) => {
-      const request = JSON.parse(options!.body as string);
-      expect(request.image).toBeTruthy();
-      expect(request).not.toHaveProperty('document');
-      const answer = processedFixture(request);
-      answer.rows[0].name = 'Ferritin';
-      answer.observations[0].name = 'Ferritin';
-      const otherSpecimen = { ...answer.rows[0], name: 'TSH', specimen: 'urine' };
-      answer.rows.push(otherSpecimen);
-      answer.observations.push({
-        ...answer.observations[0],
-        id: `${request.pageId}:1`,
-        name: 'TSH',
-        transcription: otherSpecimen,
-        sourceImage: { pageId: request.pageId, revision: request.revision, row: 1 },
-      });
-      return json(answer);
-    });
-    const state = await api.recovery(saved.id);
-    await api.findMissedReadings(saved.id, { page: 0, expectedRevision: state.sourceRevision });
-    await settled(async () => expect((await api.recovery(saved.id)).status).toBe('ready'));
-    const proposal = (await api.recovery(saved.id)).proposals[0];
-    expect((await api.recovery(saved.id)).proposals).toHaveLength(2);
-    expect((await history.results()).observations).toHaveLength(1);
-    await api.acceptRecoveredReading(saved.id, proposal.id, {
-      expectedRevision: proposal.revision,
-      note: 'Checked printed row',
-    });
-    const recovered = (await history.results()).observations[1];
-    expect(recovered.sourceImage?.pageId).toBe(`${saved.id}:0`);
-    expect(recovered.transcription?.name).toBe('Ferritin');
-    expect(recovered.confirmed).toBe(true);
-    expect(history.cachedModelRecords()).toBeNull();
-  });
-
-  it('does not save a late normalization after a source is deleted', async () => {
-    const api = newService();
-    const saved = await create(api);
-    let resolve!: (response: Response) => void;
-    const fetchMock = vi.fn(async (url: string, options?: RequestInit) =>
-      url.endsWith('extract')
-        ? serverFetch(url, options)
-        : new Promise<Response>((r) => {
-            resolve = r;
-          }),
-    );
-    vi.stubGlobal('fetch', fetchMock);
-    const pending = api.records();
-    const rejected = expect(pending).rejects.toThrow('batch changed');
-    await settled(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    await history.delete(saved.id);
-    resolve(json(recordsFixture()));
-    await rejected;
-    expect(history.cachedModelRecords()).toBeNull();
-    expect(await history.list()).toHaveLength(0);
   });
 });

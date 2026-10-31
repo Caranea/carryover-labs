@@ -11,20 +11,11 @@ const rowSchema = { schema: transcriptionSchema.properties.rows.items };
 
 export class InvalidRequest extends Error {}
 
-export interface RecordsRequest {
-  batchId: string;
-  documents: SourceDocument[];
-}
-
-/** Rebuild a records request from known fields only; anything unexpected is rejected or dropped. */
-export function parseRecordsRequest(body: unknown): RecordsRequest {
+/** Rebuild a normalization request from known fields only; anything unexpected is rejected or dropped. */
+export function parseRecordsRequest(body: unknown): SourceDocument[] {
   const input = asObject(body);
   if (input['processingVersion'] !== PROCESSING_VERSION) {
     throw new InvalidRequest('Reprocess the approved pages with the current version.');
-  }
-  const batchId = input['batchId'];
-  if (typeof batchId !== 'string' || !/^[a-zA-Z0-9-]{1,80}$/.test(batchId)) {
-    throw new InvalidRequest('Invalid batch');
   }
   const documents = input['documents'];
   if (!Array.isArray(documents) || documents.length > LIMITS.documents) {
@@ -47,7 +38,7 @@ export function parseRecordsRequest(body: unknown): RecordsRequest {
     }
     return { id, name, observations };
   });
-  return { batchId, documents: parsed };
+  return parsed;
 }
 
 function parseObservation(raw: unknown, documentId: string): Observation {

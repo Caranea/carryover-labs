@@ -43,10 +43,9 @@
         <span class="loading loading-spinner loading-sm text-primary" aria-hidden="true"></span
         >{{
           processing().stage === 'normalizing'
-            ? 'Normalizing test names and groups…'
-            : 'Transcribing approved pages…'
+            ? 'Matching test names across your reports…'
+            : progressText(processing())
         }}
-        {{ processing().completed }}/{{ processing().total }} pages
       </p>
     </div>
   } @else if (
@@ -377,9 +376,6 @@
         </div>
       </div>
     }
-  }
-  @if (!demo && raw()?.documents?.length) {
-    <app-recovery-panel [documents]="raw()!.documents" (accepted)="refresh()" />
   }
 </div>
 

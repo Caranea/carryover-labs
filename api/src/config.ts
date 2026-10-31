@@ -13,6 +13,8 @@ export interface AppConfig {
   webRoot: string;
   /** Meta Model API endpoint, or null when no key is configured. */
   model: ModelEndpoint | null;
+  /** Model calls running at once across all users. */
+  modelConcurrency: number;
 }
 
 /** An OpenAI-compatible chat completions endpoint. */
@@ -30,6 +32,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     throw new Error('PORT must be between 1 and 65535.');
   }
   const apiKey = env['META_MODEL_API_KEY'] ?? '';
+  const modelConcurrency = Number(env['MODEL_CONCURRENCY'] ?? 8);
+  if (!Number.isInteger(modelConcurrency) || modelConcurrency < 1 || modelConcurrency > 32) {
+    throw new Error('MODEL_CONCURRENCY must be between 1 and 32.');
+  }
 
   return {
     port,
@@ -39,5 +45,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     model: apiKey
       ? { baseUrl: env['META_MODEL_BASE_URL'] || 'https://api.meta.ai/v1', apiKey }
       : null,
+    modelConcurrency,
   };
 }

@@ -9,13 +9,12 @@ import type {
   ObservationFields,
   ResultsResponse,
 } from '@shared/results';
-import type { RecoveryResponse } from './recovery';
 import { deleteApprovedImages, getApprovedImage, putApprovedImages } from './device-storage';
 
 export const LOCAL_HISTORY_KEY = 'carryover.demo.history.v1';
 interface Entry {
   document: SavedDocument;
-  /** Kept outside document so recovery and results requests cannot include it. */
+  /** Kept outside document so results requests cannot include it. */
   originalFileName?: string;
   /** Local idempotency key: reconnect an approval if refresh interrupted queue saving. */
   sourceLocalId?: string;
@@ -26,7 +25,6 @@ interface Entry {
   /** New page images use binary storage; images above remains readable for older saves. */
   imageRefs?: Record<string, string>;
   revision: string;
-  recovery?: RecoveryResponse;
 }
 interface HistoryState {
   version: 1;
@@ -167,78 +165,6 @@ export class LocalHistory {
     }
     write(all, { version: PROCESSING_VERSION, fingerprint: expected, records });
     return true;
-  }
-
-  recoverySnapshot(id: string) {
-    const { document, observations, revision, recovery } = find(read(), id);
-    return { document, observations, revision, recovery };
-  }
-
-  saveRecovery(id: string, revision: string, recovery: RecoveryResponse): boolean {
-    const state = readState();
-    const entry = state.entries.find((item) => item.document.id === id);
-    if (!entry || entry.revision !== revision) return false;
-    entry.recovery = recovery;
-    write(state.entries, state.modelRecords);
-    return true;
-  }
-
-  decideRecovery(
-    id: string,
-    proposalId: string,
-    expectedRevision: string,
-    action: 'accepted' | 'rejected',
-    note = '',
-  ): RecoveryResponse {
-    const all = read();
-    const entry = find(all, id);
-    const response = entry.recovery;
-    const proposal = response?.proposals.find((item) => item.id === proposalId);
-    if (
-      !response ||
-      !proposal ||
-      proposal.state !== 'pending' ||
-      proposal.revision !== expectedRevision
-    )
-      throw new Error('This suggestion changed. Reopen it before continuing.');
-    if (action === 'accepted') {
-      if (!note.trim() || note.trim().length > 500)
-        throw new Error('Write a short note describing what you checked.');
-      const observation = proposal.sourceObservation;
-      if (
-        !observation?.sourceImage ||
-        observation.documentId !== id ||
-        observation.page !== proposal.page ||
-        observation.sourceImage.pageId !== `${id}:${proposal.page}` ||
-        response.sourceRevision !== entry.revision ||
-        !observation.transcription
-      )
-        throw new Error('This suggestion no longer matches the source. Recheck the page.');
-      entry.observations.push({
-        ...observation,
-        id: `${id}:recovery:${proposal.id}`,
-        confirmed: true,
-        revision: crypto.randomUUID(),
-        recovery: {
-          proposalId: proposal.id,
-          sourceRevision: response.sourceRevision,
-          model: response.modelName ?? 'Meta AI',
-          acceptedAt: new Date().toISOString(),
-          note: note.trim(),
-          evidence: proposal.evidence,
-        },
-      });
-    }
-    proposal.state = action;
-    proposal.note = note.trim() || null;
-    proposal.decidedAt = new Date().toISOString();
-    proposal.revision = crypto.randomUUID();
-    response.updatedAt = proposal.decidedAt;
-    // The image source has not changed; accepted rows invalidate the record cache through this revision.
-    entry.revision = crypto.randomUUID();
-    response.sourceRevision = entry.revision;
-    write(all);
-    return response;
   }
 
   async list(): Promise<SavedDocumentSummary[]> {

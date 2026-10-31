@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { DocumentQueueService } from '../core/document-queue.service';
+import { progressText } from '../core/results.service';
 import { LocalDocument, PrivacyMode, SavedDocumentSummary, SourceKind } from '../core/models';
 import { DeviceCheckService } from '../pii/device-check.service';
 import { ACCEPT } from '../extraction/extraction.service';
@@ -42,6 +43,7 @@ export class UploadPage implements OnInit {
   protected readonly device = inject(DeviceCheckService);
 
   protected readonly accept = ACCEPT;
+  protected readonly progressText = progressText;
   protected readonly formats = ['PDF', 'JPG', 'PNG', 'HEIC', 'DOCX', 'TXT', 'CSV'];
   protected readonly kindTag = KIND_TAG;
   protected readonly kindIcon = KIND_ICON;

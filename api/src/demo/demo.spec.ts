@@ -3,67 +3,147 @@ import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 import { NestFactory } from '@nestjs/core';
 import type { INestApplication } from '@nestjs/common';
+import sharp from 'sharp';
 import { DemoModule } from './demo.module.js';
-import { DemoController } from './demo.controller.js';
 import { securityHeaders } from '../security/http-security.js';
+import type { JsonModel, ModelTask } from '../records/meta-model.js';
 
-describe('stateless image processing API', () => {
-  let app: INestApplication, base: string;
+/** A stub Meta model: Spark answers each page with one row; Wonder maps nothing. */
+function stubModel(delayMs = 0): JsonModel & { calls: ModelTask[] } {
+  const calls: ModelTask[] = [];
+  return {
+    name: 'Synthetic Meta',
+    calls,
+    async ask<T>(task: ModelTask, signal?: AbortSignal) {
+      calls.push(task);
+      await new Promise((resolve, reject) => {
+        const timer = setTimeout(resolve, delayMs);
+        signal?.addEventListener('abort', () => {
+          clearTimeout(timer);
+          reject(new Error('aborted'));
+        });
+      });
+      if (task.model === 'muse-wonder-1.0') return { mappings: [] } as T;
+      return { rows: [], issues: [], suggestedName: null } as T;
+    },
+  };
+}
+
+async function start(model: JsonModel | null, limits = {}) {
+  const app: INestApplication = await NestFactory.create(
+    DemoModule.forRoot({ model: null, modelConcurrency: 2 }, model, limits),
+    { logger: false },
+  );
+  app.setGlobalPrefix('api');
+  app.use(securityHeaders);
+  await app.listen(0, '127.0.0.1');
+  return { app, base: `${await app.getUrl()}/api/demo` };
+}
+
+let image = '';
+const body = (n: number, revision = 'rev-1') => ({
+  documentId: 'doc',
+  pageId: `doc:${n}`,
+  page: n,
+  revision,
+  image,
+});
+const post = (url: string, payload: unknown) =>
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+describe('batch job API', () => {
+  let app: INestApplication, base: string, model: ReturnType<typeof stubModel>;
   before(async () => {
-    app = await NestFactory.create(
-      DemoModule.forRoot(
-        { model: null },
-        {
-          name: 'Synthetic Meta',
-          async ask<T>() {
-            return { mappings: [] } as T;
-          },
-        },
-      ),
-      { logger: false },
-    );
-    app.setGlobalPrefix('api');
-    app.use(securityHeaders);
-    await app.listen(0, '127.0.0.1');
-    base = `${await app.getUrl()}/api`;
+    const png = await sharp({ create: { width: 40, height: 40, channels: 3, background: '#fff' } })
+      .png()
+      .toBuffer();
+    image = `data:image/png;base64,${png.toString('base64')}`;
+    model = stubModel(30);
+    ({ app, base } = await start(model, { pagesPerBatch: 3 }));
   });
   after(async () => {
     await app?.close();
   });
-  it('exposes no account, image, batch retrieval or OCR recovery routes', async () => {
-    assert.match((await fetch(`${base}/demo/config`)).headers.get('cache-control')!, /no-store/);
-    for (const path of [
-      'documents',
-      'results',
-      'records',
-      'demo/batches/test',
-      'demo/extract/test',
-    ])
-      assert.equal((await fetch(`${base}/${path}`)).status, 404);
-    assert.equal((await fetch(`${base}/demo/recovery`, { method: 'POST' })).status, 404);
-  });
-  it('requires current browser processing data and refuses unavailable inference', async () => {
-    await assert.rejects(
-      new DemoController(null).records({ documents: [] }),
-      (e: any) => e.getStatus() === 400,
+
+  it('accepts a page at once and delivers its result through a long poll', async () => {
+    const accepted = await post(`${base}/batches/batch-a/pages`, body(0));
+    assert.equal(accepted.status, 202);
+    assert.equal(((await accepted.json()) as { state: string }).state, 'running');
+    let version = 0;
+    for (let i = 0; i < 5; i++) {
+      const res = await fetch(`${base}/batches/batch-a?since=${version}&wait=5`);
+      assert.equal(res.status, 200);
+      assert.match(res.headers.get('cache-control')!, /no-store/);
+      const view = (await res.json()) as {
+        version: number;
+        pages: { state: string; result?: unknown }[];
+      };
+      version = view.version;
+      if (view.pages[0].state === 'done') {
+        assert.ok(view.pages[0].result);
+        break;
+      }
+    }
+    assert.equal(
+      (await fetch(`${base}/batches/batch-a/pages/doc:0?revision=rev-1`, { method: 'DELETE' }))
+        .status,
+      204,
     );
-    await assert.rejects(
-      new DemoController(null).records({
-        processingVersion: 2,
-        batchId: 'batch-test',
-        documents: [],
-      }),
-      (e: any) => e.getStatus() === 503,
-    );
+    const after = (await (await fetch(`${base}/batches/batch-a`)).json()) as { pages: unknown[] };
+    assert.deepEqual(after.pages, []);
   });
-  it('validates and does not persist an empty complete batch', async () => {
-    const response = await fetch(`${base}/demo/records`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ processingVersion: 2, batchId: 'batch-test', documents: [] }),
+
+  it('rejects malformed pages and full batches when they are submitted', async () => {
+    assert.equal(
+      (
+        await post(`${base}/batches/batch-b/pages`, {
+          ...body(0),
+          image: 'data:application/pdf;base64,AA==',
+        })
+      ).status,
+      400,
+    );
+    assert.equal((await post(`${base}/batches/bad id!/pages`, body(0))).status, 400);
+    for (const n of [0, 1, 2])
+      assert.equal((await post(`${base}/batches/batch-c/pages`, body(n))).status, 202);
+    assert.equal((await post(`${base}/batches/batch-c/pages`, body(3))).status, 429);
+    assert.equal((await fetch(`${base}/batches/batch-c`, { method: 'DELETE' })).status, 204);
+  });
+
+  it('reads an unknown batch as empty and requires the current processing version', async () => {
+    const unknown = await fetch(`${base}/batches/never-seen?since=0&wait=5`);
+    assert.deepEqual(await unknown.json(), {
+      version: 0,
+      pages: [],
+      normalization: { state: 'idle' },
     });
-    assert.equal(response.status, 201);
-    assert.equal(((await response.json()) as any).model.state, 'ready');
-    assert.equal((await fetch(`${base}/demo/batches/batch-test`)).status, 404);
+    assert.equal((await post(`${base}/batches/batch-d/normalize`, { documents: [] })).status, 400);
+    const accepted = await post(`${base}/batches/batch-d/normalize`, {
+      processingVersion: 2,
+      documents: [],
+    });
+    assert.equal(accepted.status, 202);
+  });
+
+  it('has no synchronous or legacy routes', async () => {
+    for (const path of ['extract', 'records'])
+      assert.equal((await post(`${base}/${path}`, {})).status, 404);
+    assert.equal((await fetch(`${base.replace('/demo', '')}/documents`)).status, 404);
+  });
+});
+
+describe('without a Meta key', () => {
+  it('reports processing as unavailable', async () => {
+    const { app, base } = await start(null);
+    try {
+      assert.equal((await post(`${base}/batches/batch-x/pages`, body(0))).status, 503);
+      assert.deepEqual(await (await fetch(`${base}/config`)).json(), { modelName: null });
+    } finally {
+      await app.close();
+    }
   });
 });

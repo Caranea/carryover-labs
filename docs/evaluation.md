@@ -29,11 +29,14 @@ Value comparison ignores whitespace and decimal separators; it does not audit na
 
 A separate `--normalization-only` run on ten invented rows took 10.0 s. Polish, German and English serum glucose shared one series; absolute monocyte counts and percentages stayed separate; a CRP comparator survived; a CRP row without a unit stayed unresolved.
 
+## Timing logs
+
+The API logs each model call's total time, the time until response headers, and the token counts reported by Meta, without any content. Use them to see where a page's time and credits go before tuning image size or reasoning effort.
+
 ## Known limitations
 
 - Rotated or difficult pages need careful manual masking.
 - Spark can omit or misread rows, and its regions can be inaccurate. The source page is always available for checking.
-- "Find missed readings" re-runs the same transcription on the saved page, so it rarely finds rows the first pass missed.
 - A value like `1,234` is read as 1.234 regardless of the document's locale.
 - Specimen or method wording that differs between labs keeps otherwise identical tests in separate charts.
 - Only an unambiguous collection date puts a reading on a timeline.

@@ -22,7 +22,14 @@ describe('results view lifecycle', () => {
     let reject!: (error: Error) => void;
     const api = {
       prepareBatch: vi.fn(),
-      processing: signal({ stage: 'idle', completed: 0, total: 0, error: null }),
+      processing: signal({
+        stage: 'idle',
+        completed: 0,
+        total: 0,
+        running: 0,
+        queued: 0,
+        error: null,
+      }),
       results: vi.fn().mockResolvedValue(DEMO_RESULTS),
       records: vi.fn().mockReturnValue(
         new Promise((_resolve, fail) => {
@@ -43,7 +50,7 @@ describe('results view lifecycle', () => {
     const fixture = TestBed.createComponent(ResultsPage);
     fixture.detectChanges();
     const component = fixture.componentInstance as any;
-    expect(fixture.nativeElement.textContent).toContain('Transcribing approved pages');
+    expect(fixture.nativeElement.textContent).toContain('Preparing your results');
     expect(fixture.nativeElement.querySelector('.stats')).toBeNull();
     expect(fixture.nativeElement.querySelector('a[href="/appointment"]')).toBeNull();
     reject(new Error('Results processing did not finish. Please try again.'));
@@ -67,7 +74,14 @@ describe('results view lifecycle', () => {
     let resolve!: (value: unknown) => void;
     const api = {
       prepareBatch: vi.fn(),
-      processing: signal({ stage: 'idle', completed: 0, total: 0, error: null }),
+      processing: signal({
+        stage: 'idle',
+        completed: 0,
+        total: 0,
+        running: 0,
+        queued: 0,
+        error: null,
+      }),
       results: vi.fn().mockResolvedValue(DEMO_RESULTS),
       records: vi.fn().mockReturnValue(
         new Promise((done) => {
