@@ -1,4 +1,4 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { Component, computed, inject, OnDestroy, OnInit, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { errorMessage } from '../core/errors';
@@ -22,6 +22,21 @@ import { Icon } from '../ui/icon';
 import { formatUnit, LineChart, PointPick } from './line-chart';
 import { calendarTimestamp } from './calendar-date';
 import { SourceDialog } from './source-dialog';
+import { InfoTip } from './info-tip';
+import { ScrollSheet } from './scroll-sheet';
+import { SparkLine } from './spark';
+import {
+  Column,
+  formatReference,
+  HeadCell,
+  layoutColumns,
+  parseRange,
+  rangeNote,
+  Spark,
+  sparkline,
+  splitDecimal,
+  TrendPoint,
+} from './table-layout';
 
 const REASON: Record<WarningReason, string> = {
   unrecognised: 'Not recognised',
@@ -35,10 +50,14 @@ const REASON: Record<WarningReason, string> = {
 /** One value in the cumulative table, exactly as it will be shown and opened. */
 interface Cell {
   text: string;
+  /** The number split at its decimal point, for alignment; null for words. */
+  parts: { int: string; frac: string } | null;
   flag: 'high' | 'low' | 'abnormal' | null;
   /** Dated by another printed date, because the report does not print the collection date. */
   dated: string | null;
   title: string;
+  /** "Document name, page 2", for the list of values on small screens. */
+  source: string;
   open: () => void;
 }
 /** One test: a row of the panel's table, newest date first. */
@@ -46,12 +65,24 @@ export interface PanelRow {
   key: string;
   label: string;
   unit: string;
+  /** The latest report's printed range, with one decimal point and a range dash. */
   reference: string;
   printedAs: string;
   /** Values by date (YYYY-MM-DD; '' for a written result with no date). */
   cells: Partial<Record<string, Cell[]>>;
-  /** Values (or amounts, for results in words) oldest first, for the trend line. */
-  trend: number[];
+  /** Dated values (or amounts, for results in words), for the trend line. */
+  trend: TrendPoint[];
+  /** The latest printed range as numbers, when it is two-sided and in the series unit. */
+  band: { lo: number; hi: number } | null;
+  /** Set once the panel's time span is known. */
+  spark: Spark | null;
+  /** Why a flagged value can sit inside the band: earlier reports printed other ranges. */
+  rangeNote: string | null;
+  /** Values the lab flagged (H, L or abnormal), and the date of the last one. */
+  flagged: number;
+  lastFlagged: string | null;
+  /** The newest date with a value, for the card view. */
+  latestDate: string | null;
   chart: RecordChart | null;
 }
 /** A panel, laid out like a cumulative lab report. */
@@ -59,15 +90,35 @@ export interface Panel {
   key: string;
   label: string;
   dates: string[];
+  /** Date columns grouped by year, with markers for years with no tests. */
+  columns: Column[];
+  head: HeadCell[];
   rows: PanelRow[];
   /** Whether any value is dated by a date other than collection. */
   approximate: boolean;
+  flagged: number;
+  /** The widest decimal part, in characters, so every column aligns on the point. */
+  frac: number;
+  /** First and last year with a dated value. */
+  from: string;
+  to: string;
 }
 
 /** Each test over time, from every lab and language, each value traceable to its page. */
 @Component({
   selector: 'app-results',
-  imports: [DatePipe, RouterLink, Icon, StepRail, LineChart, SourceDialog],
+  imports: [
+    DatePipe,
+    NgTemplateOutlet,
+    RouterLink,
+    Icon,
+    StepRail,
+    LineChart,
+    SourceDialog,
+    SparkLine,
+    ScrollSheet,
+    InfoTip,
+  ],
   templateUrl: './results.page.html',
   styleUrl: './results.page.css',
 })
@@ -89,12 +140,17 @@ export class ResultsPage implements OnInit, OnDestroy {
   protected readonly query = signal('');
   protected readonly reasonLabel = REASON;
   protected readonly calendarDate = calendarTimestamp;
+  /** Show only tests with at least one value the lab flagged. */
+  protected readonly flaggedOnly = signal(false);
+  /** The test whose every value is listed, on small screens. */
+  protected readonly openCard = signal<string | null>(null);
 
   /** Panels as cumulative tables: numbers and results in words, narrowed by the search box. */
   protected readonly panels = computed<Panel[]>(() => {
     const data = this.data();
     if (!data) return [];
     const q = this.query().trim().toLowerCase();
+    const flaggedOnly = this.flaggedOnly();
     const rows = new Map<string, PanelRow[]>();
     const add = (domain: string, row: PanelRow) =>
       rows.set(domain, [...(rows.get(domain) ?? []), row]);
@@ -114,18 +170,46 @@ export class ResultsPage implements OnInit, OnDestroy {
     }
     return DOMAINS.flatMap(({ key, label }) => {
       const list = (rows.get(key) ?? []).filter(
-        (r) => !q || r.label.toLowerCase().includes(q) || r.printedAs.toLowerCase().includes(q),
+        (r) =>
+          (!q || r.label.toLowerCase().includes(q) || r.printedAs.toLowerCase().includes(q)) &&
+          (!flaggedOnly || r.flagged > 0),
       );
       if (!list.length) return [];
       const dates = [...new Set(list.flatMap((r) => Object.keys(r.cells)))].sort((a, b) =>
         !a ? 1 : !b ? -1 : b.localeCompare(a),
       );
-      const approximate = list.some((r) =>
-        Object.values(r.cells).some((cells) => cells?.some((c) => c.dated)),
-      );
-      return [{ key, label, dates, rows: list, approximate }];
+      const all = list.flatMap((r) => Object.values(r.cells).flatMap((cells) => cells ?? []));
+      const approximate = all.some((c) => c.dated);
+      const frac = Math.max(0, ...all.map((c) => c.parts?.frac.length ?? 0));
+      const times = dates.filter(Boolean).map(calendarTimestamp);
+      const t0 = Math.min(...times);
+      const t1 = Math.max(...times);
+      for (const row of list) {
+        row.spark =
+          times.length && row.trend.length > 1 ? sparkline(row.trend, row.band, t0, t1) : null;
+        row.latestDate = dates.find((d) => row.cells[d]?.length) ?? null;
+      }
+      const year = (t: number) => (Number.isFinite(t) ? String(new Date(t).getUTCFullYear()) : '');
+      return [
+        {
+          key,
+          label,
+          dates,
+          ...layoutColumns(dates),
+          rows: list,
+          approximate,
+          flagged: list.reduce((n, r) => n + r.flagged, 0),
+          frac,
+          from: year(t0),
+          to: year(t1),
+        },
+      ];
     });
   });
+  /** Values the lab flagged across the panels shown. */
+  protected readonly flaggedTotal = computed(() =>
+    this.panels().reduce((n, p) => n + p.flagged, 0),
+  );
   protected readonly expanded = signal<string | null>(null);
   /** Tests that have only results in words. */
   protected readonly textTests = computed(
@@ -143,25 +227,53 @@ export class ResultsPage implements OnInit, OnDestroy {
         same.title += ' (also printed in another document)';
         continue;
       }
+      const text = point.conversion
+        ? `${point.comparator ?? ''}${Number(point.value.toPrecision(4)).toLocaleString('en-GB')}`
+        : cleanValue(point.printedValue);
       (cells[point.date] ??= []).push({
-        text: point.conversion
-          ? `${point.comparator ?? ''}${Number(point.value.toPrecision(4)).toLocaleString('en-GB')}`
-          : cleanValue(point.printedValue),
+        text,
+        parts: splitDecimal(text),
         flag: flagOf(point.flag),
         dated: approximate(point.dateKind),
         title: `${point.printedName}: ${point.printedValue} ${point.printedUnit ?? ''}${datedNote(point.dateKind)}`,
+        source: `${point.documentName}, page ${point.page + 1}`,
         open: () => this.openPoint({ series, point }),
       });
     }
     const latest = series.points.at(-1);
+    // A converted value's printed range is in another unit, so it cannot be drawn.
+    const band =
+      latest?.printedReference && !latest.conversion ? parseRange(latest.printedReference) : null;
+    const flagged = Object.values(cells).flatMap((list) => list!.filter((c) => c.flag));
+    const lastFlagged = series.points.filter((p) => flagOf(p.flag)).at(-1)?.date ?? null;
     return {
       key: series.key,
       label: series.label,
       unit: formatUnit(series.unit),
-      reference: latest?.printedReference ?? '',
+      reference: formatReference(latest?.printedReference ?? ''),
       printedAs: printedNames(series.printedNames),
       cells,
-      trend: series.points.map((p) => p.value),
+      trend: series.points.map((p) => ({
+        t: calendarTimestamp(p.date),
+        v: p.value,
+        flagged: flagOf(p.flag) !== null,
+      })),
+      band,
+      spark: null,
+      rangeNote: rangeNote(
+        series.points
+          .filter((p) => !p.conversion)
+          .map((p) => ({
+            date: p.date,
+            value: p.value,
+            reference: p.printedReference,
+            flagged: flagOf(p.flag) === 'high' || flagOf(p.flag) === 'low',
+          })),
+        band,
+      ),
+      flagged: flagged.length,
+      lastFlagged,
+      latestDate: null,
       chart: series.points.length > 1 ? { ...chart, series: [series] } : null,
     };
   }
@@ -171,9 +283,11 @@ export class ResultsPage implements OnInit, OnDestroy {
     for (const t of list)
       (cells[t.date ?? ''] ??= []).push({
         text: t.english ?? t.printedValue,
+        parts: null,
         flag: null,
         dated: approximate(t.dateKind),
         title: `${t.printedName}: ${t.printedValue}${datedNote(t.dateKind)}`,
+        source: `${t.documentName}, page ${t.page + 1}`,
         open: () => this.openText(t),
       });
     const dated = list.filter((t) => t.date).sort((a, b) => a.date!.localeCompare(b.date!));
@@ -184,7 +298,15 @@ export class ResultsPage implements OnInit, OnDestroy {
       reference: '',
       printedAs: printedNames(list.map((t) => t.printedName)),
       cells,
-      trend: dated.every((t) => t.level !== null) ? dated.map((t) => t.level!) : [],
+      trend: dated.every((t) => t.level !== null)
+        ? dated.map((t) => ({ t: calendarTimestamp(t.date!), v: t.level!, flagged: false }))
+        : [],
+      band: null,
+      spark: null,
+      rangeNote: null,
+      flagged: 0,
+      lastFlagged: null,
+      latestDate: null,
       chart: null,
     };
   }
@@ -193,17 +315,18 @@ export class ResultsPage implements OnInit, OnDestroy {
     this.expanded.update((key) => (key === row.key ? null : row.key));
   }
 
-  /** A small trend line in a 64×20 box. */
-  protected spark(values: number[]): string {
-    if (values.length < 2) return '';
-    const lo = Math.min(...values);
-    const span = Math.max(...values) - lo || 1;
-    return values
-      .map(
-        (v, i) =>
-          `${((i / (values.length - 1)) * 62 + 1).toFixed(1)},${(19 - ((v - lo) / span) * 18).toFixed(1)}`,
-      )
-      .join(' ');
+  protected toggleCard(row: PanelRow) {
+    this.openCard.update((key) => (key === row.key ? null : row.key));
+  }
+
+  /** "2015–2018" → "2015–18", so the gap column's vertical label stays short. */
+  protected shortYears(label: string): string {
+    return label.replace(/^(\d{2})(\d{2})–\1(\d{2})$/, '$1$2–$3');
+  }
+
+  /** Whether the lab flagged any value in a table cell. */
+  protected flaggedCell(cells: Cell[] | undefined): boolean {
+    return !!cells?.some((c) => c.flag);
   }
 
   protected readonly docNames = computed(

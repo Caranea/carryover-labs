@@ -102,49 +102,127 @@
     </section>
 
     <div class="flex flex-col gap-3">
-      <label class="input w-full sm:w-80">
-        <app-icon name="scan" size="1rem" />
-        <input
-          type="search"
-          aria-label="Search tests by name"
-          placeholder="Search a test"
-          [value]="query()"
-          (input)="query.set($any($event.target).value)"
-        />
-      </label>
+      <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
+        <label class="input w-full sm:w-80">
+          <app-icon name="scan" size="1rem" />
+          <input
+            type="search"
+            aria-label="Search tests by name"
+            placeholder="Search a test"
+            [value]="query()"
+            (input)="query.set($any($event.target).value)"
+          />
+        </label>
+        @if (flaggedTotal() || flaggedOnly()) {
+          <label class="flag-filter" [class.on]="flaggedOnly()">
+            <input
+              type="checkbox"
+              class="toggle toggle-sm"
+              [checked]="flaggedOnly()"
+              (change)="flaggedOnly.set($any($event.target).checked)"
+            />
+            Only tests with values the lab flagged
+            <span class="count">{{ flaggedTotal() }}</span>
+          </label>
+        }
+      </div>
       @if (panels().length > 1) {
         <nav class="panel-nav" aria-label="Jump to a panel">
           @for (p of panels(); track p.key) {
-            <a [href]="anchor(p.key)" (click)="$event.preventDefault(); jump(p.key)">{{
-              p.label
-            }}</a>
+            <a [href]="anchor(p.key)" (click)="$event.preventDefault(); jump(p.key)"
+              >{{ p.label }}
+              @if (p.flagged) {
+                <span class="count" [attr.aria-label]="p.flagged + ' flagged'">{{
+                  p.flagged
+                }}</span>
+              }
+            </a>
           }
         </nav>
+      }
+      @if (panels().length) {
+        <p class="legend">
+          <span class="key"
+            ><svg width="30" height="12" viewBox="0 0 30 12" aria-hidden="true">
+              <rect x="0" y="3" width="30" height="6" rx="1.5" class="k-band" />
+              <polyline points="1,9 10,4 19,7 29,5" class="k-line" /></svg
+            >Trend, oldest to newest and spaced by date; the band is the latest report’s range</span
+          >
+          <span class="key"
+            ><svg width="10" height="10" aria-hidden="true">
+              <circle cx="5" cy="5" r="4" class="k-dot" /></svg
+            >Flagged H or L by the lab on that report</span
+          >
+          <span class="key"><i class="k-gap" aria-hidden="true"></i>Years with no tests</span>
+        </p>
       }
     </div>
 
     @for (p of panels(); track p.key) {
       <section [id]="p.key" class="panel scroll-mt-24" [attr.aria-labelledby]="p.key + '-h'">
-        <h2 [id]="p.key + '-h'">{{ p.label }}</h2>
-        <div class="sheet">
+        <div class="panel-head" #head>
+          <h2 [id]="p.key + '-h'">{{ p.label }}</h2>
+          <span class="meta"
+            >{{ p.rows.length }} {{ p.rows.length === 1 ? 'test' : 'tests' }}
+            @if (p.flagged) {
+              ·
+              <span class="out"
+                >{{ p.flagged }} flagged {{ p.flagged === 1 ? 'value' : 'values' }}</span
+              >
+            }
+          </span>
+          @if (sheet.canBack() || sheet.canForward()) {
+            <span class="pager">
+              <button
+                type="button"
+                [disabled]="!sheet.canBack()"
+                (click)="sheet.page(-1)"
+                aria-label="Show newer dates"
+              >
+                ‹ Newer
+              </button>
+              <button
+                type="button"
+                [disabled]="!sheet.canForward()"
+                (click)="sheet.page(1)"
+                aria-label="Show older dates"
+              >
+                Older ›
+              </button>
+            </span>
+          }
+          <!-- A copy of the table's heading rows, shown under the pinned heading once the
+               real ones scroll out of view. Kept in step with the table by ScrollSheet. -->
+          <div
+            #clone
+            class="sheet head-clone"
+            aria-hidden="true"
+            [class.pinned]="sheet.pinned()"
+            [class.can-back]="sheet.canBack()"
+            [style]="'--frac: ' + p.frac + 'ch'"
+          >
+            <table>
+              <thead>
+                <ng-container *ngTemplateOutlet="headRows; context: { $implicit: p }" />
+              </thead>
+            </table>
+          </div>
+        </div>
+
+        <!-- Wide screens: the cumulative table, grouped by year. -->
+        <div
+          class="sheet"
+          appScrollSheet
+          #sheet="scrollSheet"
+          [clone]="clone"
+          [anchor]="head"
+          tabindex="0"
+          [attr.aria-label]="p.label + ' table, scrolls sideways'"
+          [style]="'--frac: ' + p.frac + 'ch'"
+        >
           <table>
             <thead>
-              <tr>
-                <th scope="col" class="test">Test</th>
-                <th scope="col">Unit</th>
-                <th scope="col">Reference</th>
-                @for (date of p.dates; track date) {
-                  <th scope="col" class="num">
-                    @if (date) {
-                      <span class="day">{{ calendarDate(date) | date: 'd MMM' : 'UTC' }}</span>
-                      <span class="year">{{ calendarDate(date) | date: 'y' : 'UTC' }}</span>
-                    } @else {
-                      No date
-                    }
-                  </th>
-                }
-                <th scope="col"><span class="sr-only">Trend</span></th>
-              </tr>
+              <ng-container *ngTemplateOutlet="headRows; context: { $implicit: p }" />
             </thead>
             <tbody>
               @for (row of p.rows; track row.key) {
@@ -157,54 +235,78 @@
                         [attr.aria-expanded]="expanded() === row.key"
                         [attr.aria-label]="'Chart of ' + row.label"
                       >
-                        {{ row.label }}
+                        {{ row.label }}<app-icon name="chart" size="0.8rem" class="hint" />
                       </button>
                     } @else {
                       <span>{{ row.label }}</span>
                     }
                     @if (row.printedAs && row.printedAs !== row.label) {
-                      <small>{{ row.printedAs }}</small>
+                      <small [attr.title]="row.printedAs">{{ row.printedAs }}</small>
                     }
                   </th>
-                  <td class="unit">{{ row.unit }}</td>
-                  <td class="ref">{{ row.reference }}</td>
-                  @for (date of p.dates; track date) {
-                    <td class="num">
-                      @for (cell of row.cells[date] ?? []; track $index) {
-                        <button
-                          type="button"
-                          class="value"
-                          [class.high]="cell.flag === 'high'"
-                          [class.low]="cell.flag === 'low'"
-                          [class.abnormal]="cell.flag === 'abnormal'"
-                          [class.dated]="cell.dated"
-                          [attr.title]="cell.title"
-                          [attr.aria-label]="row.label + ' ' + cell.text + ' — show on its page'"
-                          (click)="cell.open()"
-                        >
-                          {{ cell.text }}
-                          @if (cell.flag === 'high') {
-                            <span class="flag">↑ H</span>
-                          } @else if (cell.flag === 'low') {
-                            <span class="flag">↓ L</span>
-                          } @else if (cell.flag === 'abnormal') {
-                            <span class="flag">!</span>
-                          }
-                        </button>
-                      }
-                    </td>
-                  }
                   <td class="trend">
-                    @if (spark(row.trend); as line) {
-                      <svg viewBox="0 0 64 20" width="64" height="20" aria-hidden="true">
-                        <polyline [attr.points]="line" />
-                      </svg>
+                    @if (row.spark; as s) {
+                      <app-spark [spark]="s" />
                     }
                   </td>
+                  <td class="ref">
+                    {{ row.reference }}
+                    @if (row.rangeNote; as note) {
+                      <app-info-tip [text]="note" label="Why some flags differ from this range" />
+                    }
+                    @if (row.unit) {
+                      <small>{{ row.unit }}</small>
+                    }
+                  </td>
+                  @for (c of p.columns; track $index) {
+                    @if (c.kind === 'gap') {
+                      <td class="gap"></td>
+                    } @else {
+                      <td
+                        class="num"
+                        [class.ys]="c.yearStart"
+                        [class.flagged]="flaggedCell(row.cells[c.date])"
+                      >
+                        @for (cell of row.cells[c.date] ?? []; track $index) {
+                          <button
+                            type="button"
+                            class="value"
+                            [class.high]="cell.flag === 'high'"
+                            [class.low]="cell.flag === 'low'"
+                            [class.abnormal]="cell.flag === 'abnormal'"
+                            [class.dated]="cell.dated"
+                            [attr.title]="cell.title"
+                            [attr.aria-label]="row.label + ' ' + cell.text + ' — show on its page'"
+                            (click)="cell.open()"
+                          >
+                            @if (cell.parts; as n) {
+                              <span class="i">{{ n.int }}</span
+                              ><span class="fr">{{ n.frac }}</span>
+                            } @else {
+                              <span class="w">{{ cell.text }}</span>
+                            }
+                            <span class="flag">{{
+                              cell.flag === 'high'
+                                ? '↑H'
+                                : cell.flag === 'low'
+                                  ? '↓L'
+                                  : cell.flag === 'abnormal'
+                                    ? '!'
+                                    : ''
+                            }}</span>
+                          </button>
+                        } @empty {
+                          <span class="value none" aria-label="Not tested"
+                            ><span class="i">–</span></span
+                          >
+                        }
+                      </td>
+                    }
+                  }
                 </tr>
                 @if (expanded() === row.key && row.chart) {
                   <tr class="detail">
-                    <td [attr.colspan]="p.dates.length + 4">
+                    <td [attr.colspan]="p.columns.length + 3">
                       <app-line-chart [chart]="row.chart" (pick)="openPoint($event)" />
                     </td>
                   </tr>
@@ -213,6 +315,102 @@
             </tbody>
           </table>
         </div>
+
+        <!-- Small screens: one card per test, latest value first; tap for every value. -->
+        <ul class="cards">
+          @for (row of p.rows; track row.key) {
+            <li [class.flagged]="row.flagged">
+              <button
+                type="button"
+                class="card-head"
+                (click)="toggleCard(row)"
+                [attr.aria-expanded]="openCard() === row.key"
+              >
+                <span class="who">
+                  <strong>{{ row.label }}</strong>
+                  @if (row.printedAs && row.printedAs !== row.label) {
+                    <small>{{ row.printedAs }}</small>
+                  }
+                </span>
+                @if (row.latestDate !== null) {
+                  @let latest = row.cells[row.latestDate]![0];
+                  <span class="latest">
+                    <b [class.out]="latest.flag">{{ latest.text }}</b>
+                    @if (row.unit) {
+                      <small> {{ row.unit }}</small>
+                    }
+                    <small class="when">{{
+                      row.latestDate
+                        ? (calendarDate(row.latestDate) | date: 'd MMM y' : 'UTC')
+                        : 'No date'
+                    }}</small>
+                  </span>
+                }
+              </button>
+              @if (row.spark; as s) {
+                <app-spark class="wide" [spark]="s" />
+                <div class="axis" aria-hidden="true">
+                  <span>{{ p.from }}</span
+                  ><span>{{ p.to }}</span>
+                </div>
+              }
+              <p class="foot">
+                <span>
+                  @if (row.reference) {
+                    Range {{ row.reference }}
+                    @if (row.rangeNote; as note) {
+                      <app-info-tip [text]="note" label="Why some flags differ from this range" />
+                    }
+                  }
+                </span>
+                @if (row.flagged) {
+                  <span class="out"
+                    >Flagged {{ row.flagged }}×
+                    @if (row.lastFlagged) {
+                      · last {{ calendarDate(row.lastFlagged) | date: 'MMM y' : 'UTC' }}
+                    }
+                  </span>
+                } @else if (row.unit) {
+                  <span>Nothing flagged</span>
+                }
+              </p>
+              @if (openCard() === row.key) {
+                <ol class="history" [attr.aria-label]="'Every ' + row.label + ' value'">
+                  @for (date of p.dates; track date) {
+                    @for (cell of row.cells[date] ?? []; track $index) {
+                      <li>
+                        <button
+                          type="button"
+                          (click)="cell.open()"
+                          [attr.aria-label]="row.label + ' ' + cell.text + ' — show on its page'"
+                        >
+                          <span>
+                            <span class="d">{{
+                              date ? (calendarDate(date) | date: 'd MMM y' : 'UTC') : 'No date'
+                            }}</span>
+                            <small>{{ cell.source }} ↗</small>
+                          </span>
+                          <span class="v" [class.out]="cell.flag"
+                            >{{ cell.text }}
+                            {{
+                              cell.flag === 'high'
+                                ? '↑H'
+                                : cell.flag === 'low'
+                                  ? '↓L'
+                                  : cell.flag === 'abnormal'
+                                    ? '!'
+                                    : ''
+                            }}</span
+                          >
+                        </button>
+                      </li>
+                    }
+                  }
+                </ol>
+              }
+            </li>
+          }
+        </ul>
         @if (p.approximate) {
           <p class="note">
             Values underlined with dots are dated by when the test was performed or issued: the
@@ -222,7 +420,11 @@
       </section>
     } @empty {
       @if (query()) {
-        <p class="text-base-content/80">No test matches “{{ query() }}”.</p>
+        <p class="text-base-content/80">
+          No {{ flaggedOnly() ? 'flagged ' : '' }}test matches “{{ query() }}”.
+        </p>
+      } @else if (flaggedOnly()) {
+        <p class="text-base-content/80">No value is flagged by the lab.</p>
       }
     }
 
@@ -342,5 +544,43 @@
     }
   }
 </div>
+
+<!-- The heading rows of a panel's table: used by the table and by its pinned copy. -->
+<ng-template #headRows let-p>
+  <tr>
+    <th scope="col" rowspan="2" class="test">Test</th>
+    <th scope="col" rowspan="2" class="trend">
+      Trend
+      @if (p.from) {
+        <small>{{ p.from === p.to ? p.from : p.from + '–' + p.to }}</small>
+      }
+    </th>
+    <th scope="col" rowspan="2" class="ref">Range<small>latest report</small></th>
+    @for (h of p.head; track $index) {
+      @if (h.kind === 'gap') {
+        <th rowspan="2" class="gap" [attr.title]="h.label + ': no tests'">
+          <span aria-hidden="true">{{ shortYears(h.label) }}</span
+          ><span class="sr-only">{{ h.label }}: no tests</span>
+        </th>
+      } @else {
+        <th scope="colgroup" [attr.colspan]="h.span" class="year">{{ h.label }}</th>
+      }
+    }
+  </tr>
+  <tr>
+    @for (c of p.columns; track $index) {
+      @if (c.kind === 'date') {
+        <th scope="col" class="num day" [class.ys]="c.yearStart">
+          @if (c.date) {
+            {{ calendarDate(c.date) | date: 'd MMM' : 'UTC'
+            }}<span class="sr-only"> {{ c.date.slice(0, 4) }}</span>
+          } @else {
+            <span class="sr-only">No date</span>
+          }
+        </th>
+      }
+    }
+  </tr>
+</ng-template>
 
 <app-source-dialog (corrected)="refresh()" />

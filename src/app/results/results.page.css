@@ -8,6 +8,7 @@
   --rule: #cbd3da;
   --band: #eef2f4;
   --out: #b3261e;
+  --hover: #f5f8f9;
 }
 
 .report-head dl {
@@ -33,14 +34,107 @@
 .panel-nav {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem 1.25rem;
-  font-size: 0.95rem;
+  gap: 0.45rem 0.5rem;
+  font-size: 0.92rem;
 }
 .panel-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.8rem;
+  border: 1px solid var(--color-base-300);
+  border-radius: 999px;
+  color: var(--ink);
+}
+.panel-nav a:hover {
+  border-color: var(--color-primary);
   color: var(--color-primary);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  text-decoration-color: color-mix(in oklab, var(--color-primary) 35%, transparent);
+}
+.panel-nav .count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.2rem;
+  height: 1.2rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: var(--out);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+/* A pill that turns red while on: the page is then showing flagged tests only. */
+.flag-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: fit-content;
+  padding: 0.4rem 0.75rem 0.4rem 0.5rem;
+  border: 1px solid var(--color-base-300);
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.flag-filter.on {
+  border-color: var(--out);
+  background: color-mix(in oklab, var(--out) 7%, #fff);
+  color: var(--out);
+}
+.flag-filter .toggle {
+  border-color: var(--rule);
+  color: #fff;
+  background-color: var(--rule);
+}
+.flag-filter .toggle:checked {
+  border-color: var(--out);
+  background-color: var(--out);
+  color: #fff;
+}
+.flag-filter .count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.2rem;
+  height: 1.2rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: var(--out);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.5rem;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+.legend .key {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.legend .k-band {
+  fill: color-mix(in oklab, var(--color-primary) 13%, transparent);
+}
+.legend .k-line {
+  fill: none;
+  stroke: var(--color-primary);
+  stroke-width: 1.4;
+}
+.legend .k-dot {
+  fill: var(--out);
+}
+.legend .k-gap,
+.sheet .gap {
+  background: repeating-linear-gradient(135deg, var(--band) 0 5px, #dde4e8 5px 7px);
+}
+.legend .k-gap {
+  display: inline-block;
+  width: 0.8rem;
+  height: 0.9rem;
+  border-radius: 2px;
 }
 
 .panel {
@@ -50,13 +144,74 @@
   min-width: 0;
   color: var(--ink);
 }
+.panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.9rem;
+}
+/* In a long table the heading and Newer / Older stay in reach, just under the site header,
+   until the table has scrolled past. */
+@media (width >= 48rem) {
+  /* The pinned copy of the heading rows: hangs under the pinned panel heading, scrolled
+     sideways with the table, and only shown once the real heading rows are out of view. */
+  .sheet.head-clone {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    display: none;
+    overflow: hidden;
+    border-bottom: 0;
+    box-shadow: 0 6px 10px -6px rgb(0 0 0 / 0.18);
+  }
+  .sheet.head-clone.pinned {
+    display: block;
+  }
+  .panel-head {
+    position: sticky;
+    top: calc(var(--app-header-height) - 1px);
+    z-index: 5;
+    margin-bottom: -0.5rem;
+    padding: 0.6rem 0;
+    background: #fff;
+  }
+}
+.panel-head .meta {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+.out {
+  color: var(--out);
+  font-weight: 600;
+}
 .panel h2 {
-  font-family: var(--font-sans);
-  font-size: 1.2rem;
+  font-family: var(--font-display);
+  font-size: 1.4rem;
   font-weight: 700;
-  text-decoration: underline;
-  text-decoration-thickness: 1.5px;
-  text-underline-offset: 5px;
+  letter-spacing: -0.015em;
+}
+.pager {
+  display: inline-flex;
+  gap: 0.35rem;
+  margin-left: auto;
+  align-self: center;
+}
+.pager button {
+  padding: 0.2rem 0.75rem;
+  border: 1px solid var(--color-base-300);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+.pager button:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.pager button:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 .panel .note {
   color: var(--ink-soft);
@@ -72,11 +227,20 @@
   min-width: 0;
   max-width: 100%;
   overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule) transparent;
   border-top: 1px solid var(--ink);
   border-bottom: 1px solid var(--ink);
 }
+.sheet:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+/* Columns keep their own width instead of stretching to the page: a few dates stay compact,
+   many dates scroll. */
 .sheet table {
-  width: 100%;
+  width: max-content;
   border-collapse: collapse;
   font-size: 0.95rem;
 }
@@ -84,53 +248,119 @@
   background: var(--band);
   color: var(--ink-soft);
   font-weight: 500;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   text-align: left;
-  padding: 0.45rem 0.75rem;
+  padding: 0.35rem 0.6rem;
+  line-height: 1.25;
   white-space: nowrap;
   vertical-align: bottom;
 }
-.sheet thead th .year {
+.sheet thead th small {
   display: block;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 400;
+}
+/* Year headings over their dates; a heavier rule where each year begins. */
+.sheet thead th.year {
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 0.82rem;
+  padding-top: 0.4rem;
+  padding-bottom: 0;
+}
+.sheet thead tr + tr th {
+  padding-top: 0;
+  padding-bottom: 0.4rem;
+}
+.sheet .year,
+.sheet .ys {
+  border-left: 2px solid var(--rule);
+}
+/* Years with no tests: a narrow hatched column, labelled once in the heading. */
+.sheet .gap {
+  width: 1.5rem;
+  min-width: 1.5rem;
+  padding: 0 !important;
+  border-left: 2px solid var(--rule);
+}
+.sheet thead .gap span {
+  display: block;
+  margin: 0 auto;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 0.68rem;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  padding: 0.4rem 0;
 }
 .sheet tbody tr + tr > * {
   border-top: 1px solid var(--rule);
 }
 .sheet td,
 .sheet tbody th {
-  padding: 0.5rem 0.75rem;
-  vertical-align: top;
+  padding: 0.55rem 0.6rem;
+  vertical-align: middle;
   text-align: left;
 }
 .sheet .test {
   position: sticky;
   left: 0;
+  z-index: 1;
   background: #fff;
-  min-width: 11rem;
-  max-width: 18rem;
+  width: 14rem;
+  min-width: 14rem;
+  max-width: 14rem;
+  padding-left: 0.75rem;
   font-weight: 600;
+}
+/* Once scrolled, the pinned test column casts a shadow over the dates sliding under it. */
+.sheet.can-back .test {
+  box-shadow: 6px 0 8px -6px rgb(0 0 0 / 0.2);
+}
+.sheet .trend {
+  width: 8.5rem;
+}
+.sheet .ref {
+  width: 7rem;
 }
 .sheet thead .test {
   background: var(--band);
 }
 .sheet .test button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   text-align: left;
   font-weight: 600;
-  text-decoration: underline;
-  text-decoration-color: var(--rule);
-  text-underline-offset: 4px;
   cursor: pointer;
 }
+.sheet .test button .hint {
+  color: var(--ink-soft);
+  opacity: 0.45;
+}
 .sheet .test button:hover,
-.sheet tr.open .test button {
-  text-decoration-color: var(--ink);
+.sheet tr.open .test button,
+.sheet .test button:hover .hint,
+.sheet tr.open .test button .hint {
+  color: var(--color-primary);
+  opacity: 1;
 }
 .sheet .test small {
   display: block;
+  max-width: 12.5rem;
   font-weight: 400;
   font-size: 0.78rem;
   color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sheet tbody tr:not(.detail):hover > :not(.gap) {
+  background: var(--hover);
+}
+.sheet td.ref small {
+  display: block;
+  font-size: 0.78rem;
 }
 .sheet .unit,
 .sheet .ref,
@@ -140,9 +370,15 @@
   font-variant-numeric: tabular-nums;
 }
 .sheet .num {
+  width: 5.5rem;
+  min-width: 5.5rem;
   text-align: right;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+.sheet td.num {
+  padding-left: 0.4rem;
+  padding-right: 0.4rem;
 }
 .sheet .why {
   min-width: 16rem;
@@ -152,13 +388,33 @@
   color: var(--ink);
 }
 
+/* Integer right-aligned, decimals left-aligned in a column as wide as the panel's longest:
+   every value in a column lines up on its decimal point. */
 .value {
-  display: block;
-  margin-left: auto;
-  padding: 0 0.15rem;
-  border-radius: 2px;
+  display: grid;
+  grid-template-columns: 1fr var(--frac, 0ch) 1.9em;
+  align-items: baseline;
+  width: 100%;
+  padding: 0.1rem 0.2rem;
+  border-radius: 4px;
   cursor: pointer;
+  font-size: 1rem;
   font-variant-numeric: tabular-nums;
+}
+.value .i,
+.value .w {
+  text-align: right;
+}
+.value .w {
+  grid-column: 1 / 3;
+  white-space: normal;
+}
+.value .fr {
+  text-align: left;
+}
+.value.none {
+  cursor: default;
+  color: var(--rule);
 }
 .value + .value {
   margin-top: 0.15rem;
@@ -171,14 +427,16 @@
 .value.abnormal {
   color: var(--out);
   font-weight: 700;
+  background: color-mix(in oklab, var(--out) 9%, transparent);
 }
 .value.dated {
   text-decoration: underline dotted var(--ink-soft);
   text-underline-offset: 4px;
 }
 .value .flag {
-  font-size: 0.75rem;
-  margin-left: 0.2rem;
+  font-size: 0.72rem;
+  padding-left: 0.25rem;
+  text-align: left;
 }
 .show {
   color: var(--color-primary);
@@ -191,14 +449,11 @@
   outline-offset: 2px;
 }
 
-.trend {
-  width: 1%;
+.sheet td.trend {
+  vertical-align: middle;
 }
-.trend polyline {
-  fill: none;
-  stroke: var(--ink-soft);
-  stroke-width: 1.5;
-  stroke-linejoin: round;
+.sheet thead .trend {
+  vertical-align: bottom;
 }
 .sheet tr.detail td {
   border-top: none;
@@ -218,4 +473,137 @@
   text-decoration: underline dotted var(--color-warning);
   text-underline-offset: 4px;
   cursor: help;
+}
+
+/* Small screens: one card per test. */
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.cards > li {
+  border: 1px solid var(--color-base-300);
+  border-radius: 1rem;
+  padding: 0.85rem 1rem 0.7rem;
+  background: #fff;
+}
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+.card-head .who {
+  min-width: 0;
+}
+.card-head strong {
+  display: block;
+  font-size: 1.05rem;
+}
+.card-head .who small {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+.latest {
+  flex: none;
+  text-align: right;
+  white-space: nowrap;
+}
+.latest b {
+  font-size: 1.4rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.latest b.out {
+  color: var(--out);
+}
+.latest small {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+.latest .when {
+  display: block;
+}
+app-spark.wide {
+  width: 100%;
+  height: 2.75rem;
+  margin-top: 0.6rem;
+}
+.cards .axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  color: var(--ink-soft);
+}
+.cards .foot {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  margin-top: 0.45rem;
+  padding-top: 0.45rem;
+  border-top: 1px dashed var(--color-base-300);
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+.cards .foot:has(> span:empty:only-child) {
+  display: none;
+}
+.history {
+  margin-top: 0.4rem;
+}
+.history button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--color-base-300);
+  text-align: left;
+  cursor: pointer;
+}
+.history li:last-child button {
+  border-bottom: none;
+}
+.history .d {
+  display: block;
+  font-weight: 500;
+}
+.history small {
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+.history .v {
+  flex: none;
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+}
+.history .v.out {
+  padding: 0.1rem 0.45rem;
+  border-radius: 6px;
+  background: color-mix(in oklab, var(--out) 9%, transparent);
+}
+:where(.card-head, .history button):focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* One layout per screen size. Set here, not with utility classes: component styles would
+   override them. */
+@media (width >= 48rem) {
+  .cards {
+    display: none;
+  }
+}
+@media (width < 48rem) {
+  .sheet,
+  .legend {
+    display: none;
+  }
 }
