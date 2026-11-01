@@ -140,28 +140,41 @@ describe('buildRecords', () => {
   it('holds uncertain transcriptions for review until the user confirms them', () => {
     const uncertain = {
       ...obs('tsh', 'TSH', '1.5', 'mIU/L'),
-      transcription: { uncertainty: ['Blurred digit'] } as Observation['transcription'],
+      transcription: { doubt: 'Blurred digit' } as Observation['transcription'],
     };
     assert.equal(buildRecords([doc('a', [uncertain])]).warnings[0].reason, 'model');
     assert.equal(buildRecords([doc('a', [{ ...uncertain, confirmed: true }])]).stats.values, 1);
   });
 
-  it('puts lines on one chart only when they share a unit and a scale, at most four', () => {
+  it('shows a panel in report order, one chart per test', () => {
     const rows = [
+      ['plt', 'Płytki krwi', '250'],
       ['wbc', 'Leukocyty', '5'],
-      ['neut', 'Neutrofile', '3'],
-      ['lymph', 'Limfocyty', '2'],
-      ['mono', 'Monocyty', '0,5'],
-      ['eos', 'Eozynofile', '0,1'],
-      ['baso', 'Bazofile', '0,03'],
-    ].map(([key, name, v]) => obs(key, name, v, 'tys/µl'));
-    const charts = buildRecords([doc('a', rows)])
-      .domains.find((d) => d.key === 'white-cells')!
-      .charts.map((c) => c.series.map((s) => s.key));
-    assert.deepEqual(charts, [
-      ['wbc', 'neut', 'lymph', 'mono'],
-      ['eos', 'baso'],
+      ['rbc', 'Erytrocyty', '4,6'],
+    ].map(([key, name, v]) => obs(key, name, v, key === 'rbc' ? 'mln/µl' : 'tys/µl'));
+    const panel = buildRecords([doc('a', rows)]).domains;
+    assert.deepEqual(
+      panel.map((d) => d.key),
+      ['blood-count'],
+    );
+    assert.deepEqual(
+      panel[0].charts.map((c) => c.series.map((s) => s.key)),
+      [['rbc'], ['wbc'], ['plt']],
+    );
+  });
+
+  it('reads seconds and per mille, needs no unit for INR, and treats "-" as no unit', () => {
+    const records = buildRecords([
+      doc('a', [
+        obs('pt', 'Prothrombin Time', '13', 'seconds'),
+        obs('retic-pct', 'Retikulocyty', '10,9', '%o*'),
+        obs('inr', 'INR', '1,00', null),
+        obs('tsh', 'TSH', '1.5', '-'),
+      ]),
     ]);
+    assert.equal(records.stats.values, 3);
+    assert.equal(series(records).find((s) => s.key === 'retic-pct')?.unit, '‰');
+    assert.match(records.warnings[0].detail, /unit is missing/);
   });
 
   it('withholds missing and incompatible units', () => {

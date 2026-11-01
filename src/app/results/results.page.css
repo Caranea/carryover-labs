@@ -1,0 +1,221 @@
+/*
+ * The results read like a cumulative lab report: paper white, ink text, thin rules,
+ * a grey band under the column headings and out-of-range values in red with H or L.
+ */
+:host {
+  --ink: #1b2733;
+  --ink-soft: #4a5866;
+  --rule: #cbd3da;
+  --band: #eef2f4;
+  --out: #b3261e;
+}
+
+.report-head dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  border-top: 2px solid var(--ink);
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink);
+}
+.report-head dl > div {
+  padding: 0.6rem 0.75rem 0.7rem 0;
+}
+.report-head dt {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+.report-head dd {
+  font-size: 1.35rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.panel-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  font-size: 0.95rem;
+}
+.panel-nav a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in oklab, var(--color-primary) 35%, transparent);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+  color: var(--ink);
+}
+.panel h2 {
+  font-family: var(--font-sans);
+  font-size: 1.2rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 5px;
+}
+.panel .note {
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  max-width: 70ch;
+}
+
+/* The table scrolls sideways on small screens; the test column stays in place. */
+.sheet {
+  /* Positioned, so screen-reader-only labels stay inside the scrolling frame. */
+  position: relative;
+  container-type: inline-size;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+}
+.sheet table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+.sheet thead th {
+  background: var(--band);
+  color: var(--ink-soft);
+  font-weight: 500;
+  font-size: 0.82rem;
+  text-align: left;
+  padding: 0.45rem 0.75rem;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+.sheet thead th .year {
+  display: block;
+  font-size: 0.75rem;
+}
+.sheet tbody tr + tr > * {
+  border-top: 1px solid var(--rule);
+}
+.sheet td,
+.sheet tbody th {
+  padding: 0.5rem 0.75rem;
+  vertical-align: top;
+  text-align: left;
+}
+.sheet .test {
+  position: sticky;
+  left: 0;
+  background: #fff;
+  min-width: 11rem;
+  max-width: 18rem;
+  font-weight: 600;
+}
+.sheet thead .test {
+  background: var(--band);
+}
+.sheet .test button {
+  text-align: left;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--rule);
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+.sheet .test button:hover,
+.sheet tr.open .test button {
+  text-decoration-color: var(--ink);
+}
+.sheet .test small {
+  display: block;
+  font-weight: 400;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+.sheet .unit,
+.sheet .ref,
+.sheet .doc {
+  color: var(--ink-soft);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.sheet .num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.sheet .why {
+  min-width: 16rem;
+  color: var(--ink-soft);
+}
+.sheet .why strong {
+  color: var(--ink);
+}
+
+.value {
+  display: block;
+  margin-left: auto;
+  padding: 0 0.15rem;
+  border-radius: 2px;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.value + .value {
+  margin-top: 0.15rem;
+}
+.value:hover {
+  background: var(--band);
+}
+.value.high,
+.value.low,
+.value.abnormal {
+  color: var(--out);
+  font-weight: 700;
+}
+.value.dated {
+  text-decoration: underline dotted var(--ink-soft);
+  text-underline-offset: 4px;
+}
+.value .flag {
+  font-size: 0.75rem;
+  margin-left: 0.2rem;
+}
+.show {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+:where(.value, .show, .test button, .panel-nav a):focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.trend {
+  width: 1%;
+}
+.trend polyline {
+  fill: none;
+  stroke: var(--ink-soft);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.sheet tr.detail td {
+  border-top: none;
+  padding: 0 0.75rem 1rem;
+  background: #fff;
+}
+/* The chart stays in view while the table scrolls sideways. */
+.sheet tr.detail app-line-chart {
+  display: block;
+  position: sticky;
+  left: 0.75rem;
+  width: calc(100cqw - 1.5rem);
+}
+
+/* A value corrected after text recognition: dotted underline, details in the title. */
+.fixed {
+  text-decoration: underline dotted var(--color-warning);
+  text-underline-offset: 4px;
+  cursor: help;
+}

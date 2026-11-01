@@ -131,7 +131,7 @@ if (documents.length === 3) {
     const records = await normalizeBatch(documents, model);
     metrics.normalizationMs = Math.round(performance.now() - started);
     metrics.normalization = {
-      mappings: records.normalization.mappings.length,
+      series: records.domains.flatMap((d) => d.charts.flatMap((c) => c.series)).length,
       warnings: records.warnings.length,
       values: records.stats.values,
     };

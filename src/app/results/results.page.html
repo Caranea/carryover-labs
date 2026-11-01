@@ -5,7 +5,8 @@
       <span class="font-bold">{{ demo ? 'Explore sample results' : 'Your results' }}</span>
     </h1>
     <p class="text-lg text-base-content/80 max-w-3xl leading-relaxed">
-      Your lab results, organized by test and date. Tap a value to check its source.
+      Every test from your documents, by date, newest first. Select a value to see it on its page,
+      or a test name to see its chart.
     </p>
     <div class="flex flex-wrap gap-2 mt-2">
       @if (data()?.stats?.documents) {
@@ -49,11 +50,7 @@
       </p>
     </div>
   } @else if (
-    data() &&
-    !data()!.stats.values &&
-    !data()!.warnings.length &&
-    !data()!.textResults.length &&
-    !data()!.issues?.length
+    data() && !data()!.stats.values && !data()!.warnings.length && !data()!.textResults.length
   ) {
     <div class="card bg-base-200">
       <div class="card-body items-center text-center gap-3 py-14">
@@ -70,59 +67,42 @@
   } @else if (data()) {
     @let d = data()!;
 
-    @if (d.issues?.length) {
-      <section role="alert" class="rounded-box border border-warning p-4">
-        <h2 class="font-semibold">Some documents need attention</h2>
-        <ul class="mt-2 space-y-2">
-          @for (issue of d.issues; track issue.documentId) {
-            <li>
-              {{ issue.documentName }}: {{ issue.message }}
-              <a class="link" [routerLink]="['/saved', issue.documentId]">Open document</a>
-            </li>
-          }
-        </ul>
-      </section>
-    }
-    @if (d.warnings.length) {
-      <a
-        [href]="anchor('review-readings')"
-        class="block rounded-box border border-warning bg-warning/10 p-4"
-        (click)="$event.preventDefault(); jump('review-readings')"
-        ><strong
-          >{{ d.warnings.length }}
-          {{ d.warnings.length === 1 ? 'reading needs' : 'readings need' }} checking.</strong
-        >
-        These are not on the charts. Review them against the source before your appointment.
-        <span class="underline">Review readings</span></a
-      >
-    }
-
-    <div
-      class="stats stats-vertical sm:stats-horizontal border border-base-300 bg-base-100 shadow-sm"
-    >
-      <div class="stat">
-        <div class="stat-title">Tests</div>
-        <div class="stat-value font-display">{{ d.stats.tests }}</div>
-        <div class="stat-desc">each one line over time</div>
-      </div>
-      <div class="stat">
-        <div class="stat-title">Values</div>
-        <div class="stat-value font-display">{{ d.stats.values }}</div>
-        <div class="stat-desc">
-          from {{ d.stats.documents }} {{ d.stats.documents === 1 ? 'document' : 'documents' }}
+    <section class="report-head" aria-label="Summary">
+      <dl>
+        <div>
+          <dt>Documents</dt>
+          <dd>{{ d.stats.documents }}</dd>
         </div>
-      </div>
-      <div class="stat">
-        <div class="stat-title">Time span</div>
-        <div class="stat-value font-display text-2xl sm:text-3xl">
-          {{ span(d.stats.from, d.stats.to) }}
+        <div>
+          <dt>Tests</dt>
+          <dd>{{ d.stats.tests + textTests() }}</dd>
         </div>
-        <div class="stat-desc">by collection date</div>
-      </div>
-    </div>
+        <div>
+          <dt>Values</dt>
+          <dd>{{ d.stats.values + d.textResults.length }}</dd>
+        </div>
+        <div>
+          <dt>Time span</dt>
+          <dd>{{ span(d.stats.from, d.stats.to) }}</dd>
+        </div>
+        @if (d.warnings.length) {
+          <div>
+            <dt>To check</dt>
+            <dd>
+              <a
+                class="link"
+                [href]="anchor('review-readings')"
+                (click)="$event.preventDefault(); jump('review-readings')"
+                >{{ d.warnings.length }}</a
+              >
+            </dd>
+          </div>
+        }
+      </dl>
+    </section>
 
     <div class="flex flex-col gap-3">
-      <label class="input w-full sm:w-80 rounded-full">
+      <label class="input w-full sm:w-80">
         <app-icon name="scan" size="1rem" />
         <input
           type="search"
@@ -132,79 +112,112 @@
           (input)="query.set($any($event.target).value)"
         />
       </label>
-      @if (domains().length > 1) {
-        <nav class="flex gap-2 overflow-x-auto pb-1" aria-label="Jump to a group of tests">
-          @for (dom of domains(); track dom.key) {
-            <a
-              class="btn btn-sm btn-ghost rounded-full border border-base-300 whitespace-nowrap font-medium"
-              [href]="anchor(dom.key)"
-              (click)="$event.preventDefault(); jump(dom.key)"
-              >{{ dom.label }}</a
-            >
+      @if (panels().length > 1) {
+        <nav class="panel-nav" aria-label="Jump to a panel">
+          @for (p of panels(); track p.key) {
+            <a [href]="anchor(p.key)" (click)="$event.preventDefault(); jump(p.key)">{{
+              p.label
+            }}</a>
           }
         </nav>
       }
     </div>
 
-    @for (dom of sections(); track dom.key) {
-      <section
-        [id]="dom.key"
-        class="flex flex-col gap-4 scroll-mt-24"
-        [attr.aria-labelledby]="dom.key + '-h'"
-      >
-        <h2 [id]="dom.key + '-h'" class="font-display text-2xl font-semibold">{{ dom.label }}</h2>
-        @if (dom.charts.length) {
-          <div class="grid lg:grid-cols-2 gap-4">
-            @for (chart of dom.charts; track chart.id) {
-              <article class="card border border-base-300 bg-base-100 shadow-sm min-w-0">
-                <div class="card-body p-4 sm:p-5 gap-3">
-                  <header>
-                    <h3 class="font-semibold text-base-content">{{ chartTitle(chart) }}</h3>
-                    <p class="text-sm text-base-content/80">
-                      {{ unit(chart.unit) }} · printed as {{ printedAs(chart) }}
-                    </p>
-                  </header>
-                  <app-line-chart [chart]="chart" (pick)="openPoint($event)" />
-                </div>
-              </article>
-            }
-          </div>
-        }
-        @if (dom.once.length) {
-          <div class="rounded-box border border-base-300 bg-base-100 shadow-sm">
-            <p class="px-4 pt-3 text-sm font-semibold text-base-content/80">Measured once</p>
-            <ul class="divide-y divide-base-300">
-              @for (o of dom.once; track o.series.key) {
-                <li class="flex items-center gap-3 px-4 py-2.5">
-                  <div class="min-w-0 flex-1">
-                    <p class="font-medium truncate">{{ o.series.label }}</p>
-                    <p class="text-xs text-base-content/80 truncate">
-                      printed as {{ o.point.printedName }}
-                    </p>
-                  </div>
-                  <p class="text-right whitespace-nowrap">
-                    <span class="font-semibold tabular-nums">{{
-                      o.point.conversion
-                        ? (o.point.comparator ?? '') + (o.point.value | number: '1.0-4')
-                        : o.point.printedValue
-                    }}</span>
-                    <span class="text-base-content/80"> {{ unit(o.series.unit) }}</span>
-                    <span class="block text-xs text-base-content/80 tabular-nums">{{
-                      calendarDate(o.point.date) | date: 'd MMM y' : 'UTC'
-                    }}</span>
-                  </p>
-                  <button
-                    type="button"
-                    class="btn btn-ghost btn-sm rounded-full"
-                    (click)="openPoint(o)"
-                    [attr.aria-label]="'Show ' + o.series.label + ' on its page'"
-                  >
-                    <app-icon name="eye" size="1rem" /> <span class="hidden sm:inline">Show</span>
-                  </button>
-                </li>
+    @for (p of panels(); track p.key) {
+      <section [id]="p.key" class="panel scroll-mt-24" [attr.aria-labelledby]="p.key + '-h'">
+        <h2 [id]="p.key + '-h'">{{ p.label }}</h2>
+        <div class="sheet">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col" class="test">Test</th>
+                <th scope="col">Unit</th>
+                <th scope="col">Reference</th>
+                @for (date of p.dates; track date) {
+                  <th scope="col" class="num">
+                    @if (date) {
+                      <span class="day">{{ calendarDate(date) | date: 'd MMM' : 'UTC' }}</span>
+                      <span class="year">{{ calendarDate(date) | date: 'y' : 'UTC' }}</span>
+                    } @else {
+                      No date
+                    }
+                  </th>
+                }
+                <th scope="col"><span class="sr-only">Trend</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of p.rows; track row.key) {
+                <tr [class.open]="expanded() === row.key">
+                  <th scope="row" class="test">
+                    @if (row.chart) {
+                      <button
+                        type="button"
+                        (click)="toggle(row)"
+                        [attr.aria-expanded]="expanded() === row.key"
+                        [attr.aria-label]="'Chart of ' + row.label"
+                      >
+                        {{ row.label }}
+                      </button>
+                    } @else {
+                      <span>{{ row.label }}</span>
+                    }
+                    @if (row.printedAs && row.printedAs !== row.label) {
+                      <small>{{ row.printedAs }}</small>
+                    }
+                  </th>
+                  <td class="unit">{{ row.unit }}</td>
+                  <td class="ref">{{ row.reference }}</td>
+                  @for (date of p.dates; track date) {
+                    <td class="num">
+                      @for (cell of row.cells[date] ?? []; track $index) {
+                        <button
+                          type="button"
+                          class="value"
+                          [class.high]="cell.flag === 'high'"
+                          [class.low]="cell.flag === 'low'"
+                          [class.abnormal]="cell.flag === 'abnormal'"
+                          [class.dated]="cell.dated"
+                          [attr.title]="cell.title"
+                          [attr.aria-label]="row.label + ' ' + cell.text + ' — show on its page'"
+                          (click)="cell.open()"
+                        >
+                          {{ cell.text }}
+                          @if (cell.flag === 'high') {
+                            <span class="flag">↑ H</span>
+                          } @else if (cell.flag === 'low') {
+                            <span class="flag">↓ L</span>
+                          } @else if (cell.flag === 'abnormal') {
+                            <span class="flag">!</span>
+                          }
+                        </button>
+                      }
+                    </td>
+                  }
+                  <td class="trend">
+                    @if (spark(row.trend); as line) {
+                      <svg viewBox="0 0 64 20" width="64" height="20" aria-hidden="true">
+                        <polyline [attr.points]="line" />
+                      </svg>
+                    }
+                  </td>
+                </tr>
+                @if (expanded() === row.key && row.chart) {
+                  <tr class="detail">
+                    <td [attr.colspan]="p.dates.length + 4">
+                      <app-line-chart [chart]="row.chart" (pick)="openPoint($event)" />
+                    </td>
+                  </tr>
+                }
               }
-            </ul>
-          </div>
+            </tbody>
+          </table>
+        </div>
+        @if (p.approximate) {
+          <p class="note">
+            Values underlined with dots are dated by when the test was performed or issued: the
+            report does not print when the sample was collected.
+          </p>
         }
       </section>
     } @empty {
@@ -213,40 +226,43 @@
       }
     }
 
-    @if (textResults().length) {
-      <section class="flex flex-col gap-4" aria-labelledby="text-h">
-        <h2 id="text-h" class="font-display text-2xl font-semibold">Results in words</h2>
-        <div class="overflow-x-auto rounded-box border border-base-300 bg-base-100 shadow-sm">
-          <table class="table">
+    @if (d.warnings.length) {
+      <section id="review-readings" class="panel scroll-mt-24" aria-labelledby="warn-h">
+        <h2 id="warn-h">Readings to check</h2>
+        <p class="note">
+          Read from your documents but not placed in a table yet. Open each one to check it on its
+          page.
+        </p>
+        <div class="sheet">
+          <table>
             <thead>
               <tr>
-                <th>Test</th>
-                <th>Printed result</th>
-                <th>Collected</th>
-                <th><span class="sr-only">Show on page</span></th>
+                <th scope="col" class="test">Test, as printed</th>
+                <th scope="col" class="num">Result</th>
+                <th scope="col">Why</th>
+                <th scope="col">Document</th>
+                <th scope="col"><span class="sr-only">Show on page</span></th>
               </tr>
             </thead>
             <tbody>
-              @for (t of textResults(); track t.observationId) {
+              @for (w of d.warnings; track w.observationId) {
                 <tr>
-                  <td class="font-medium">
-                    {{ t.label }}
-                    <span class="block text-xs text-base-content/80 font-normal">{{
-                      t.printedName
-                    }}</span>
+                  <th scope="row" class="test">
+                    <span>{{ w.printedName }}</span>
+                  </th>
+                  <td class="num">{{ w.printedValue }} {{ w.printedUnit ?? '' }}</td>
+                  <td class="why">
+                    <strong>{{ reasonLabel[w.reason] }}.</strong> {{ w.detail }}
                   </td>
-                  <td>{{ t.printedValue }}</td>
-                  <td class="whitespace-nowrap tabular-nums">
-                    {{ t.date ? (calendarDate(t.date) | date: 'd MMM y' : 'UTC') : 'Unknown' }}
-                  </td>
-                  <td class="text-right">
+                  <td class="doc">{{ w.documentName }}, page {{ w.page + 1 }}</td>
+                  <td>
                     <button
                       type="button"
-                      class="btn btn-ghost btn-sm rounded-full"
-                      (click)="openText(t)"
-                      [attr.aria-label]="'Show ' + t.label + ' on its page'"
+                      class="show"
+                      (click)="openWarning(w)"
+                      [attr.aria-label]="'Show ' + w.printedName + ' on its page'"
                     >
-                      <app-icon name="eye" size="1rem" /> <span class="hidden sm:inline">Show</span>
+                      Show
                     </button>
                   </td>
                 </tr>
@@ -254,58 +270,6 @@
             </tbody>
           </table>
         </div>
-      </section>
-    }
-
-    @if (d.warnings.length) {
-      <section
-        id="review-readings"
-        class="flex flex-col gap-3 scroll-mt-24"
-        aria-labelledby="warn-h"
-      >
-        <div>
-          <h2 id="warn-h" class="font-display text-2xl font-semibold">
-            Readings to check
-            <span class="badge badge-ghost align-middle">{{ d.warnings.length }}</span>
-          </h2>
-          <p class="text-base-content/80 mt-1">
-            These rows were read from your documents but could not be placed on a chart. Open each
-            one to check the page.
-          </p>
-        </div>
-        <ul
-          class="rounded-box border border-base-300 bg-base-100 shadow-sm divide-y divide-base-300"
-        >
-          @for (w of d.warnings; track w.observationId) {
-            <li class="flex items-start gap-3 p-3 sm:p-4">
-              <span
-                class="badge badge-sm badge-soft shrink-0 mt-0.5 w-28 sm:w-36 justify-center"
-                [class.badge-warning]="w.reason !== 'unrecognised'"
-                >{{ reasonLabel[w.reason] }}</span
-              >
-              <div class="min-w-0 flex-1">
-                <p class="font-medium truncate">
-                  {{ w.printedName }}
-                  <span class="font-normal text-base-content/80"
-                    >{{ w.printedValue }} {{ w.printedUnit ?? '' }}</span
-                  >
-                </p>
-                <p class="text-sm text-base-content/80">{{ w.detail }}</p>
-                <p class="text-xs text-base-content/80 truncate">
-                  {{ w.documentName }}, page {{ w.page + 1 }}
-                </p>
-              </div>
-              <button
-                type="button"
-                class="btn btn-ghost btn-sm rounded-full shrink-0"
-                (click)="openWarning(w)"
-                [attr.aria-label]="'Show ' + w.printedName + ' on its page'"
-              >
-                <app-icon name="eye" size="1rem" /> <span class="hidden sm:inline">Show</span>
-              </button>
-            </li>
-          }
-        </ul>
       </section>
     }
 

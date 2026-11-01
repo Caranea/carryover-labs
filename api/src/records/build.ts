@@ -1,7 +1,7 @@
 import type { Observation } from '../shared/results.js';
 import { CATALOGUE, DOMAINS, type CatalogueTest } from '../shared/catalogue.js';
+import type { Word } from '../demo/normalization.js';
 import type {
-  RecordChart,
   RecordDomain,
   RecordPoint,
   RecordSeries,
@@ -10,20 +10,15 @@ import type {
   SourceRef,
   TextResult,
 } from '../shared/records.js';
-import { asCount, conversionFactor, parseUnit, type Unit } from './units.js';
+import { asCount, cleanUnit, conversionFactor, parseUnit, type Unit } from './units.js';
 
 export interface BuildDocument {
   id: string;
   name: string;
   observations: Observation[];
   /** The normalized test identity for each observation id; `test: null` keeps it for review. */
-  mappings: Record<string, { test: CatalogueTest | null; reason: string }>;
+  mappings: Record<string, { test: CatalogueTest | null; reason: string; word?: Word }>;
 }
-
-/** At most this many lines on one chart, so it stays readable. */
-const MAX_SERIES = 4;
-/** Lines share a chart only when their typical values are within this ratio, so none is flattened. */
-const MAX_SPREAD = 12;
 
 interface Row {
   obs: Observation;
@@ -76,8 +71,10 @@ export function buildRecords(
         bbox: o.bbox,
         confirmed: o.confirmed,
       };
+      // A row with no result and nothing hard to read is a heading, not a reading.
+      if (!o.valueText.trim() && !o.transcription?.doubt && !o.confirmed) continue;
       const mapping = doc.mappings[o.id];
-      const uncertain = !o.confirmed && (!!o.transcription?.uncertainty.length || !o.valueText);
+      const uncertain = !o.confirmed && (!!o.transcription?.doubt || !o.valueText);
       if (!mapping?.test || uncertain) {
         warn(
           o,
@@ -94,9 +91,13 @@ export function buildRecords(
           ...src,
           key: test.key,
           label: test.label,
+          domain: test.domain,
           date: o.date,
           printedName: o.name,
           printedValue: o.valueText,
+          dateKind: o.dateKind ?? null,
+          english: mapping.word?.english ?? null,
+          level: mapping.word?.level ?? null,
         });
         continue;
       }
@@ -109,17 +110,28 @@ export function buildRecords(
         );
         continue;
       }
-      const parsed = parseUnit(o.unit);
-      const home = parseUnit(test.unit);
-      const unit = parsed && home?.dim === 'count' ? asCount(parsed, o.unit!) : parsed;
-      if (!o.unit || !unit || !home || conversionFactor(unit, home, test.molarMass) === null) {
+      // A "-" in the unit column is no unit. A unit the parser does not know still matches a
+      // test printed in exactly that unit, and a test without units (pH, INR) needs none.
+      const printed = o.unit && !/^\s*-+\s*$/.test(o.unit) ? o.unit : null;
+      const same = !!printed && !!test.unit && cleanUnit(printed) === cleanUnit(test.unit);
+      const own: Unit = { dim: 'ratio', scale: 1, label: test.unit };
+      const home = parseUnit(test.unit) ?? (same || !test.unit ? own : null);
+      const parsed = printed
+        ? same
+          ? home
+          : parseUnit(printed)
+        : home?.dim === 'ratio'
+          ? home
+          : null;
+      const unit = parsed && home?.dim === 'count' ? asCount(parsed, printed!) : parsed;
+      if (!unit || !home || conversionFactor(unit, home, test.molarMass) === null) {
         warn(
           o,
           src,
           'unit',
-          !o.unit
+          !printed
             ? 'The unit is missing. Check the source and enter its unit before this reading can be compared.'
-            : `The unit “${o.unit}” could not be verified for ${test.label}. Check the source before comparing this reading.`,
+            : `The unit “${printed}” could not be verified for ${test.label}. Check the source before comparing this reading.`,
         );
         continue;
       }
@@ -176,6 +188,8 @@ export function buildRecords(
         printedValue: o.valueText,
         printedUnit: o.unit,
         printedReference: o.refText,
+        flag: o.flag,
+        dateKind: o.dateKind ?? null,
         conversion: factor !== 1 ? { from: o.unit ?? '', factor } : null,
         alsoIn: [],
       });
@@ -242,52 +256,21 @@ function outsidePlausible(test: CatalogueTest, unit: Unit, value: number): strin
   return `Check ${value} ${unit.label} against the source. This reading is outside the automated verification bounds; confirm it if it matches the report.`;
 }
 
-/**
- * Charts per domain, in catalogue order. Lines share a chart only when the
- * tests belong together (the catalogue's `group`: the white cell counts, the
- * liver enzymes), share a unit and a scale (so 0.03 and 300 are never on one
- * axis), and a chart holds at most MAX_SERIES lines.
- */
+/** Panels in report order; within a panel, tests in catalogue order, one chart each. */
 export function groupIntoCharts(
   series: RecordSeries[],
   tests: Map<string, CatalogueTest>,
 ): RecordDomain[] {
-  const order = new Map([...tests.keys()].map((k, i) => [k, i]));
-  const byDomain = new Map<string, RecordSeries[]>();
-  for (const s of series) {
-    const domain = tests.get(s.key)?.domain ?? 'other';
-    byDomain.set(domain, [...(byDomain.get(domain) ?? []), s]);
-  }
-  const domains: RecordDomain[] = [];
-  for (const { key, label } of DOMAINS) {
-    const list = (byDomain.get(key) ?? []).sort(
-      (a, b) => (order.get(a.key) ?? 999) - (order.get(b.key) ?? 999),
-    );
-    if (!list.length) continue;
-    const charts: RecordChart[] = [];
-    for (const s of list) {
-      const typical = median(s.points.map((p) => Math.abs(p.value))) || 1e-6;
-      const group = tests.get(s.key)?.group;
-      const home = charts.find((c) => {
-        if (!group || tests.get(c.series[0].key)?.group !== group) return false;
-        if (c.unit !== s.unit || c.series.length >= MAX_SERIES) return false;
-        const all = [
-          ...c.series.map((x) => median(x.points.map((p) => Math.abs(p.value))) || 1e-6),
-          typical,
-        ];
-        return Math.max(...all) / Math.min(...all) <= MAX_SPREAD;
-      });
-      if (home) home.series.push(s);
-      else charts.push({ id: `${key}-${charts.length}`, unit: s.unit, series: [s] });
-    }
-    domains.push({ key, label, charts });
-  }
-  return domains;
-}
-
-function median(xs: number[]): number {
-  const s = [...xs].sort((a, b) => a - b);
-  return s.length ? s[Math.floor(s.length / 2)] : 0;
+  const order = new Map([...tests.keys()].map((k, i) => [k.split(':')[0], i]));
+  const rank = (s: RecordSeries) => order.get(s.key.split(':')[0]) ?? 999;
+  return DOMAINS.flatMap(({ key, label }) => {
+    const list = series
+      .filter((s) => (tests.get(s.key)?.domain ?? 'other') === key)
+      .sort((a, b) => rank(a) - rank(b));
+    return list.length
+      ? [{ key, label, charts: list.map((s) => ({ id: s.key, unit: s.unit, series: [s] })) }]
+      : [];
+  });
 }
 
 function round(n: number): number {

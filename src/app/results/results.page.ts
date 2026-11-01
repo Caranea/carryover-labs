@@ -1,4 +1,4 @@
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { Component, computed, inject, OnDestroy, OnInit, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { errorMessage } from '../core/errors';
@@ -6,13 +6,16 @@ import { LocalHistory } from '../core/local-history';
 import { progressText, ResultsService } from '../core/results.service';
 import { DEMO_RECORDS, DEMO_RESULTS, DEMO_SOURCE_PAGES } from '../core/demo-data';
 import {
-  RecordDomain,
+  RecordChart,
+  RecordPoint,
+  RecordSeries,
   RecordsResponse,
   RecordWarning,
   SourceRef,
   TextResult,
   WarningReason,
 } from '@shared/records';
+import { DOMAINS } from '@shared/catalogue';
 import { Observation, ResultsResponse } from '@shared/results';
 import { StepRail } from '../shell/step-rail';
 import { Icon } from '../ui/icon';
@@ -29,19 +32,44 @@ const REASON: Record<WarningReason, string> = {
   model: 'Needs checking',
 };
 
+/** One value in the cumulative table, exactly as it will be shown and opened. */
+interface Cell {
+  text: string;
+  flag: 'high' | 'low' | 'abnormal' | null;
+  /** Dated by another printed date, because the report does not print the collection date. */
+  dated: string | null;
+  title: string;
+  open: () => void;
+}
+/** One test: a row of the panel's table, newest date first. */
+export interface PanelRow {
+  key: string;
+  label: string;
+  unit: string;
+  reference: string;
+  printedAs: string;
+  /** Values by date (YYYY-MM-DD; '' for a written result with no date). */
+  cells: Partial<Record<string, Cell[]>>;
+  /** Values (or amounts, for results in words) oldest first, for the trend line. */
+  trend: number[];
+  chart: RecordChart | null;
+}
+/** A panel, laid out like a cumulative lab report. */
+export interface Panel {
+  key: string;
+  label: string;
+  dates: string[];
+  rows: PanelRow[];
+  /** Whether any value is dated by a date other than collection. */
+  approximate: boolean;
+}
+
 /** Each test over time, from every lab and language, each value traceable to its page. */
 @Component({
   selector: 'app-results',
-  imports: [DatePipe, DecimalPipe, RouterLink, Icon, StepRail, LineChart, SourceDialog],
+  imports: [DatePipe, RouterLink, Icon, StepRail, LineChart, SourceDialog],
   templateUrl: './results.page.html',
-  styles: `
-    /* A value corrected after text recognition: dotted underline, details in the title. */
-    .fixed {
-      text-decoration: underline dotted var(--color-warning);
-      text-underline-offset: 4px;
-      cursor: help;
-    }
-  `,
+  styleUrl: './results.page.css',
 })
 export class ResultsPage implements OnInit, OnDestroy {
   private readonly api = inject(ResultsService);
@@ -62,48 +90,121 @@ export class ResultsPage implements OnInit, OnDestroy {
   protected readonly reasonLabel = REASON;
   protected readonly calendarDate = calendarTimestamp;
 
-  /** Domains and charts, narrowed by the search box (test names, printed names). */
-  protected readonly domains = computed<RecordDomain[]>(() => {
+  /** Panels as cumulative tables: numbers and results in words, narrowed by the search box. */
+  protected readonly panels = computed<Panel[]>(() => {
+    const data = this.data();
+    if (!data) return [];
     const q = this.query().trim().toLowerCase();
-    const all = this.data()?.domains ?? [];
-    if (!q) return all;
-    return all
-      .map((d) => ({
-        ...d,
-        charts: d.charts
-          .map((c) => ({
-            ...c,
-            series: c.series.filter((s) =>
-              [s.label, ...s.printedNames].some((n) => n.toLowerCase().includes(q)),
-            ),
-          }))
-          .filter((c) => c.series.length),
-      }))
-      .filter((d) => d.charts.length);
+    const rows = new Map<string, PanelRow[]>();
+    const add = (domain: string, row: PanelRow) =>
+      rows.set(domain, [...(rows.get(domain) ?? []), row]);
+    for (const domain of data.domains)
+      for (const chart of domain.charts)
+        for (const series of chart.series) add(domain.key, this.seriesRow(series, chart));
+    const words = new Map<string, TextResult[]>();
+    for (const t of data.textResults) words.set(t.key, [...(words.get(t.key) ?? []), t]);
+    for (const list of words.values()) {
+      const row = this.wordsRow(list);
+      // A test printed both as numbers and as words is one row.
+      const same = rows.get(list[0].domain)?.find((r) => r.key === row.key);
+      if (!same) add(list[0].domain, row);
+      else
+        for (const [date, cells] of Object.entries(row.cells))
+          (same.cells[date] ??= []).push(...cells!);
+    }
+    return DOMAINS.flatMap(({ key, label }) => {
+      const list = (rows.get(key) ?? []).filter(
+        (r) => !q || r.label.toLowerCase().includes(q) || r.printedAs.toLowerCase().includes(q),
+      );
+      if (!list.length) return [];
+      const dates = [...new Set(list.flatMap((r) => Object.keys(r.cells)))].sort((a, b) =>
+        !a ? 1 : !b ? -1 : b.localeCompare(a),
+      );
+      const approximate = list.some((r) =>
+        Object.values(r.cells).some((cells) => cells?.some((c) => c.dated)),
+      );
+      return [{ key, label, dates, rows: list, approximate }];
+    });
   });
-
-  /** Per domain: charts for tests with two or more values, a short list for tests measured once. */
-  protected readonly sections = computed(() =>
-    this.domains().map((d) => ({
-      key: d.key,
-      label: d.label,
-      charts: d.charts
-        .map((c) => ({ ...c, series: c.series.filter((s) => s.points.length > 1) }))
-        .filter((c) => c.series.length),
-      once: d.charts.flatMap((c) =>
-        c.series
-          .filter((s) => s.points.length === 1)
-          .map((s) => ({ series: s, point: s.points[0] })),
-      ),
-    })),
+  protected readonly expanded = signal<string | null>(null);
+  /** Tests that have only results in words. */
+  protected readonly textTests = computed(
+    () => new Set(this.data()?.textResults.map((t) => t.key)).size,
   );
 
-  protected readonly textResults = computed(() => {
-    const q = this.query().trim().toLowerCase();
-    return (this.data()?.textResults ?? []).filter(
-      (t) => !q || t.label.toLowerCase().includes(q) || t.printedName.toLowerCase().includes(q),
-    );
-  });
+  private seriesRow(series: RecordSeries, chart: RecordChart): PanelRow {
+    const cells: PanelRow['cells'] = {};
+    for (const point of series.points) {
+      const same = cells[point.date]?.find((c) =>
+        c.title.startsWith(`${point.printedName}: ${point.printedValue} `),
+      );
+      // The same printed value on the same date in two documents is shown once.
+      if (same) {
+        same.title += ' (also printed in another document)';
+        continue;
+      }
+      (cells[point.date] ??= []).push({
+        text: point.conversion
+          ? `${point.comparator ?? ''}${Number(point.value.toPrecision(4)).toLocaleString('en-GB')}`
+          : cleanValue(point.printedValue),
+        flag: flagOf(point.flag),
+        dated: approximate(point.dateKind),
+        title: `${point.printedName}: ${point.printedValue} ${point.printedUnit ?? ''}${datedNote(point.dateKind)}`,
+        open: () => this.openPoint({ series, point }),
+      });
+    }
+    const latest = series.points.at(-1);
+    return {
+      key: series.key,
+      label: series.label,
+      unit: formatUnit(series.unit),
+      reference: latest?.printedReference ?? '',
+      printedAs: printedNames(series.printedNames),
+      cells,
+      trend: series.points.map((p) => p.value),
+      chart: series.points.length > 1 ? { ...chart, series: [series] } : null,
+    };
+  }
+
+  private wordsRow(list: TextResult[]): PanelRow {
+    const cells: PanelRow['cells'] = {};
+    for (const t of list)
+      (cells[t.date ?? ''] ??= []).push({
+        text: t.english ?? t.printedValue,
+        flag: null,
+        dated: approximate(t.dateKind),
+        title: `${t.printedName}: ${t.printedValue}${datedNote(t.dateKind)}`,
+        open: () => this.openText(t),
+      });
+    const dated = list.filter((t) => t.date).sort((a, b) => a.date!.localeCompare(b.date!));
+    return {
+      key: list[0].key,
+      label: list[0].label,
+      unit: '',
+      reference: '',
+      printedAs: printedNames(list.map((t) => t.printedName)),
+      cells,
+      trend: dated.every((t) => t.level !== null) ? dated.map((t) => t.level!) : [],
+      chart: null,
+    };
+  }
+
+  protected toggle(row: PanelRow) {
+    this.expanded.update((key) => (key === row.key ? null : row.key));
+  }
+
+  /** A small trend line in a 64×20 box. */
+  protected spark(values: number[]): string {
+    if (values.length < 2) return '';
+    const lo = Math.min(...values);
+    const span = Math.max(...values) - lo || 1;
+    return values
+      .map(
+        (v, i) =>
+          `${((i / (values.length - 1)) * 62 + 1).toFixed(1)},${(19 - ((v - lo) / span) * 18).toFixed(1)}`,
+      )
+      .join(' ');
+  }
 
   protected readonly docNames = computed(
     () => new Map((this.raw()?.documents ?? []).map((d) => [d.id, d.name])),
@@ -157,10 +258,6 @@ export class ResultsPage implements OnInit, OnDestroy {
     this.request++;
   }
 
-  protected chartTitle(chart: RecordDomain['charts'][number]): string {
-    return chart.series.map((s) => s.label).join(' · ');
-  }
-
   protected span(from: string | null, to: string | null): string {
     if (!from || !to) return '–';
     const a = from.slice(0, 4);
@@ -182,18 +279,6 @@ export class ResultsPage implements OnInit, OnDestroy {
       behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
       block: 'start',
     });
-  }
-
-  /** The names merged into the chart's tests, as printed, without repeats or lab codes; the first few. */
-  protected printedAs(chart: RecordDomain['charts'][number]): string {
-    const seen = new Map<string, string>();
-    for (const name of chart.series.flatMap((s) => s.printedNames.map(cleanPrinted))) {
-      const key = name.toLowerCase();
-      if (!seen.has(key)) seen.set(key, name);
-    }
-    const names = [...seen.values()];
-    const shown = names.slice(0, 6).join(', ');
-    return names.length > 6 ? `${shown} and ${names.length - 6} more` : shown;
   }
 
   protected unit(u: string): string {
@@ -263,4 +348,44 @@ export class ResultsPage implements OnInit, OnDestroy {
 /** "TSH (ICD-9: L69)" → "TSH": lab codes add nothing to "printed as". */
 function cleanPrinted(name: string): string {
   return name.replace(/\s*\(ICD[^)]*\)?/gi, '').trim();
+}
+
+/** The printed names merged into a test, without repeats or lab codes; the first few. */
+function printedNames(names: string[]): string {
+  const seen = new Map<string, string>();
+  for (const name of names.map(cleanPrinted)) {
+    const key = name.toLowerCase();
+    if (name && !seen.has(key)) seen.set(key, name);
+  }
+  const all = [...seen.values()];
+  const shown = all.slice(0, 4).join(', ');
+  return all.length > 4 ? `${shown} and ${all.length - 4} more` : shown;
+}
+
+/**
+ * "12,9*" → "12.9": one decimal point for every lab, and no accreditation asterisk. The
+ * digits stay as printed; the cell's title shows the original.
+ */
+function cleanValue(value: string): string {
+  return value.replace(/\s*\*+$/, '').replace(/(\d),(\d)/g, '$1.$2');
+}
+
+const DATED: Record<string, string> = {
+  received: 'the sample was received',
+  performed: 'the test was performed',
+  registered: 'the test was registered',
+  reported: 'the result was issued',
+};
+/** A received sample is collected the same day; later dates are marked in the table. */
+function approximate(kind: string | null): string | null {
+  return kind && kind !== 'received' ? kind : null;
+}
+function datedNote(kind: string | null): string {
+  return kind ? ` (dated by when ${DATED[kind] ?? kind}; the collection date is not printed)` : '';
+}
+
+function flagOf(flag: RecordPoint['flag']): Cell['flag'] {
+  if (flag === 'H' || flag === 'HH') return 'high';
+  if (flag === 'L' || flag === 'LL') return 'low';
+  return flag === 'A' ? 'abnormal' : null;
 }

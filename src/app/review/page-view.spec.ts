@@ -56,6 +56,19 @@ describe('final mask preview', () => {
     masks[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(toggled).toEqual([0]);
   });
+  it('shows tooltip text, not template code, on the page image', () => {
+    const fixture = TestBed.createComponent(PageView);
+    const p = page();
+    p.words[1] = { ...p.words[1], candidate: 'birth-date' };
+    fixture.componentRef.setInput('page', p);
+    fixture.detectChanges();
+    const tips = [...fixture.nativeElement.querySelectorAll('svg title')].map((t) =>
+      t.textContent.trim(),
+    );
+    expect(tips).toContain('word1: Possible personal detail. Still visible; click to hide.');
+    expect(tips).toContain('word2: Click to hide');
+    expect(tips.join(' ')).not.toContain('{{');
+  });
   it('keeps the same neighbours visible in the keyboard-friendly text view', () => {
     const fixture = TestBed.createComponent(TextView);
     fixture.componentRef.setInput('page', page());

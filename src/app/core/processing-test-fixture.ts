@@ -13,13 +13,12 @@ export function printedFixture(): PrintedRow {
     unit: 'mIU/L',
     reference: '0.4-4.0',
     flag: null,
-    collectionDate: { printed: '2026-09-15', iso: '2026-09-15' },
-    orderDate: { printed: null, iso: null },
-    reportDate: { printed: null, iso: null },
+    marker: null,
+    section: null,
     specimen: null,
-    method: null,
+    date: { kind: 'collected', printed: '2026-09-15', iso: '2026-09-15' },
     region: null,
-    uncertainty: [],
+    doubt: null,
   };
 }
 export function processedFixture(
@@ -54,7 +53,7 @@ export function processedFixture(
         revision: 'test-revision',
       },
     ],
-    issues: [],
+    dates: [],
     suggestedName: 'Thyroid tests',
   };
 }
@@ -63,7 +62,6 @@ export function recordsFixture(documents = 1): RecordsResponse {
     domains: [],
     textResults: [],
     warnings: [],
-    issues: [],
     stats: { documents, tests: documents ? 1 : 0, values: documents, from: null, to: null },
     model: { state: 'ready', name: 'Synthetic Meta', waiting: 0, message: null },
   };

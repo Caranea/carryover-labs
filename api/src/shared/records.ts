@@ -4,6 +4,8 @@
  * two in sync.
  */
 import type { Tuple4 } from './document.js';
+import type { DateKind } from './processing.js';
+import type { Flag } from './results.js';
 
 /** Where a value was read: enough to open the page and outline the row. */
 export interface SourceRef {
@@ -26,6 +28,10 @@ export interface RecordPoint extends SourceRef {
   printedValue: string;
   printedUnit: string | null;
   printedReference: string | null;
+  /** The printed flag: H, L, HH, LL or A (abnormal). */
+  flag: Flag | null;
+  /** Set when the date is not the collection date, which the report did not print. */
+  dateKind: DateKind | null;
   /** Set when the printed unit differed and the value was converted. */
   conversion: { from: string; factor: number } | null;
   /** The same value on the same date in other documents (a report uploaded twice). */
@@ -57,9 +63,16 @@ export interface RecordDomain {
 export interface TextResult extends SourceRef {
   key: string;
   label: string;
+  /** The panel it is shown in. */
+  domain: string;
   date: string | null;
+  dateKind: DateKind | null;
   printedName: string;
   printedValue: string;
+  /** The result in English ("negative", "occasional"), when Wonder could translate it. */
+  english: string | null;
+  /** An amount on a 0 (absent) to 4 (very many) scale; null when the word is not an amount. */
+  level: number | null;
 }
 
 export type WarningReason =
@@ -92,7 +105,6 @@ export interface ModelStatus {
 }
 
 export interface RecordsResponse {
-  issues?: { documentId: string; documentName: string; message: string }[];
   domains: RecordDomain[];
   textResults: TextResult[];
   warnings: RecordWarning[];

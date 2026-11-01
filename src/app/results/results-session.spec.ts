@@ -51,13 +51,13 @@ describe('results view lifecycle', () => {
     fixture.detectChanges();
     const component = fixture.componentInstance as any;
     expect(fixture.nativeElement.textContent).toContain('Preparing your results');
-    expect(fixture.nativeElement.querySelector('.stats')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.report-head')).toBeNull();
     expect(fixture.nativeElement.querySelector('a[href="/appointment"]')).toBeNull();
     reject(new Error('Results processing did not finish. Please try again.'));
     await settled(() => expect(component.error()).toContain('Please try again'));
     fixture.detectChanges();
     expect(component.data()).toBeNull();
-    expect(fixture.nativeElement.querySelector('.stats')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.report-head')).toBeNull();
     const retry = [...fixture.nativeElement.querySelectorAll('button')].find(
       (button: any) => button.textContent.trim() === 'Try again',
     ) as HTMLButtonElement;
@@ -66,7 +66,7 @@ describe('results view lifecycle', () => {
     fixture.detectChanges();
     expect(api.retryRecords).toHaveBeenCalledOnce();
     expect(component.error()).toBeNull();
-    expect(fixture.nativeElement.querySelector('.stats')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.report-head')).not.toBeNull();
     fixture.destroy();
   });
 

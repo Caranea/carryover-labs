@@ -282,16 +282,6 @@ export function appointmentPdfDefinition(input: AppointmentPdfInput): TDocumentD
       text: text(input.questions),
       margin: [0, 0, 0, 10],
     });
-  if (data.issues?.length) {
-    content.push(heading('Documents that could not be fully read'));
-    content.push(
-      table(
-        ['Document', 'Attention needed'],
-        data.issues.map((issue) => [text(issue.documentName), text(issue.message)]),
-        ['*', '*'],
-      ),
-    );
-  }
   if (data.warnings.length) {
     content.push(heading(`Readings to check (${data.warnings.length})`), {
       text: 'These readings are not plotted. An unresolved reading is not a statement that it is medically abnormal.',

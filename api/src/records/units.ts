@@ -46,7 +46,7 @@ export function cleanUnit(raw: string): string {
   return raw
     .trim()
     .replace(/^\[|\]$/g, '')
-    .replace(/[*\s]+$/g, '')
+    .replace(/[*.\s]+$/g, '')
     .toLowerCase()
     .replace(/μ/g, 'µ')
     .replace(/^x\s*/, '')
@@ -59,7 +59,8 @@ export function cleanUnit(raw: string): string {
     .replace(/^mcg/, 'µg')
     .replace(/^u(?=g\/|mol\/|iu\/)/, 'µ')
     .replace(/\/ul$/, '/µl')
-    .replace(/\/mm3$/, '/µl');
+    .replace(/\/mm3$/, '/µl')
+    .replace(/^%o$/, '‰');
 }
 
 export function parseUnit(raw: string | null | undefined): Unit | null {
@@ -68,11 +69,13 @@ export function parseUnit(raw: string | null | undefined): Unit | null {
   if (!u) return null;
   if (u === 'mosm/kg') return { dim: 'osmolality', scale: 0.001, label: 'mOsm/kg' };
   if (u === 'osm/kg') return { dim: 'osmolality', scale: 1, label: 'Osm/kg' };
+  if (u === '-' || u === '--') return null;
   if (u === '%') return { dim: 'percent', scale: 1, label: '%' };
+  if (u === '‰') return { dim: 'percent', scale: 0.1, label: '‰' };
   if (u === 'l/l') return { dim: 'fraction', scale: 1, label: 'L/L' };
   if (u === 'fl') return { dim: 'volume', scale: 1, label: 'fL' };
   if (u === 'pg') return { dim: 'mass-per-cell', scale: 1, label: 'pg' };
-  if (u === 's' || u === 'sek' || u === 'sec' || u === 'sek.')
+  if (['s', 'sek', 'sec', 'second', 'seconds', 'sekund', 'sekunden'].includes(u))
     return { dim: 'time', scale: 1, label: 's' };
   if (u === 'mm/h' || u === 'mm/godz' || u === 'mm/hr' || u === 'mm/1h')
     return { dim: 'rate', scale: 1, label: 'mm/h' };

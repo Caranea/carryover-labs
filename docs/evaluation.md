@@ -31,14 +31,21 @@ A separate `--normalization-only` run on ten invented rows took 10.0 s. Polish, 
 
 ## Timing logs
 
-The API logs each model call's total time, the time until response headers, and the token counts reported by Meta, without any content. Use them to see where a page's time and credits go before tuning image size or reasoning effort.
+The API logs each model call's total time, the time until response headers, and the token counts reported by Meta, without any content. A failed call logs its reason in our own words (for example `HTTP 503` or `the answer was cut off at 16000 tokens`), never the provider's text.
+
+Each normalization also logs its size, for example `normalize-batch: 547 rows, 184 questions, 1 specimens, 5 calls, 1 unresolved`. A batch is asked about in calls of up to 40 questions, and a call whose answer is cut off is asked again in two halves, so more calls than `questions / 40` means a halving happened.
+
+Meta counts hidden reasoning in the output tokens (`completion_tokens_details.reasoning_tokens`). Measured on the 20-file Jane Doe selection (49 pages, 1 November 2026): Spark used a median of 5,000 output tokens per page (one dense page 15,800, 10,800 of them reasoning; 19 s median, 71 s worst). At full effort Wonder reasoned about 190 tokens per question, so a 150-question call ran out of its 16,000 tokens; with `reasoning_effort: low` it reasons about 40 per question and a 40-question call takes about 15 s.
+
+Set `MODEL_TRACE_DIR` (for example `../tmp/model-trace`) during development to write every model request, its page image and the raw answer to that folder. Leave it unset otherwise.
 
 ## Known limitations
 
 - Rotated or difficult pages need careful manual masking.
 - Spark can omit or misread rows, and its regions can be inaccurate. The source page is always available for checking.
 - A value like `1,234` is read as 1.234 regardless of the document's locale.
-- Specimen or method wording that differs between labs keeps otherwise identical tests in separate charts.
-- Only an unambiguous collection date puts a reading on a timeline.
+- A test gets a separate line only for a different body fluid (urine, CSF), form (free, total) or a percentage; the analyser or method does not split it.
+- When the collection date is not printed, a reading is dated by the best other printed date of its report (received, performed, registered, issued, in that order), and the table marks the later kinds. Two different dates of the best kind leave it undated.
+- An ambiguous date such as 01/06/2012 is read in the day/month order the batch's other dates settle; without that evidence it stays undated.
 - Browser storage is limited, not encrypted by the app, and tied to one browser profile.
 - The interface and PDF are in English only.

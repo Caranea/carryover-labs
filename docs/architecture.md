@@ -34,14 +34,14 @@ flowchart LR
 
 Page transcription and normalization run as **jobs**. A request returns `202 Accepted` at once; the browser collects results with one long poll per batch, so no request stays open for the 15–60 s a model call takes. Jobs live only in the API's memory.
 
-| Request                                                     | Purpose                                                                                                           |
-| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `POST /api/demo/batches/:batchId/pages`                     | Queue one approved PNG/JPEG page for `muse-spark-1.3`. The same page and revision again returns the existing job. |
-| `POST /api/demo/batches/:batchId/normalize`                 | Queue `muse-wonder-1.0` normalization of the batch's distinct name / unit / specimen / method combinations.       |
-| `GET /api/demo/batches/:batchId?since=:version&wait=25`     | The batch's jobs and results. Answers on the next change, or after at most 25 s.                                  |
-| `DELETE /api/demo/batches/:batchId/pages/:pageId?revision=` | Confirm a saved page, or cancel it (the Meta call is aborted).                                                    |
-| `DELETE /api/demo/batches/:batchId`                         | Cancel and forget the whole batch.                                                                                |
-| `GET /api/health`, `GET /api/demo/config`                   | Availability and model name.                                                                                      |
+| Request                                                     | Purpose                                                                                                                                                                                                                                               |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/demo/batches/:batchId/pages`                     | Queue one approved PNG/JPEG page for `muse-spark-1.3`. The same page and revision again returns the existing job.                                                                                                                                     |
+| `POST /api/demo/batches/:batchId/normalize`                 | Queue `muse-wonder-1.0` test identification: one question per printed name (case and spacing ignored; percentages and other body fluids separate), up to 40 per call. Each answer gives the test, its panel and English for results printed in words. |
+| `GET /api/demo/batches/:batchId?since=:version&wait=25`     | The batch's jobs and results. Answers on the next change, or after at most 25 s.                                                                                                                                                                      |
+| `DELETE /api/demo/batches/:batchId/pages/:pageId?revision=` | Confirm a saved page, or cancel it (the Meta call is aborted).                                                                                                                                                                                        |
+| `DELETE /api/demo/batches/:batchId`                         | Cancel and forget the whole batch.                                                                                                                                                                                                                    |
+| `GET /api/health`, `GET /api/demo/config`                   | Availability and model name.                                                                                                                                                                                                                          |
 
 The batch ID is a random UUID kept in the browser; it is never listed. A full queue answers `429` when a page is submitted, never halfway through; an unknown or expired batch reads as empty, and the browser sends its unsaved pages again. While a long poll is open, a newly approved page ends it early so the page is sent at once.
 

@@ -176,15 +176,19 @@ export function sourceText(words: StoredWord[]): string {
                     {{ printed.flag ?? 'not printed' }}
                   </p>
                   <p>
-                    Collected: {{ printed.collectionDate.printed ?? 'not printed' }} · Ordered:
-                    {{ printed.orderDate.printed ?? 'not printed' }} · Reported:
-                    {{ printed.reportDate.printed ?? 'not printed' }}
+                    Date on this row:
+                    {{
+                      printed.date ? printed.date.printed + ' (' + printed.date.kind + ')' : 'none'
+                    }}
+                    @if (o.dateKind) {
+                      · placed by the {{ o.dateKind }} date printed elsewhere in the report
+                    }
                   </p>
-                  @if (printed.specimen || printed.method) {
-                    <p>{{ printed.specimen }} {{ printed.method }}</p>
+                  @if (printed.specimen || printed.section) {
+                    <p>{{ printed.section }} {{ printed.specimen }}</p>
                   }
-                  @for (issue of printed.uncertainty; track $index) {
-                    <p>{{ issue }}</p>
+                  @if (printed.doubt) {
+                    <p>Hard to read: {{ printed.doubt }}</p>
                   }
                 </details>
               }

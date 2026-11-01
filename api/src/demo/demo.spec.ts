@@ -7,6 +7,7 @@ import sharp from 'sharp';
 import { DemoModule } from './demo.module.js';
 import { securityHeaders } from '../security/http-security.js';
 import type { JsonModel, ModelTask } from '../records/meta-model.js';
+import { PROCESSING_VERSION } from '../shared/processing.js';
 
 /** A stub Meta model: Spark answers each page with one row; Wonder maps nothing. */
 function stubModel(delayMs = 0): JsonModel & { calls: ModelTask[] } {
@@ -23,8 +24,8 @@ function stubModel(delayMs = 0): JsonModel & { calls: ModelTask[] } {
           reject(new Error('aborted'));
         });
       });
-      if (task.model === 'muse-wonder-1.0') return { mappings: [] } as T;
-      return { rows: [], issues: [], suggestedName: null } as T;
+      if (task.model === 'muse-wonder-1.0') return { tests: [], terms: [] } as T;
+      return { rows: [], dates: [], suggestedName: null } as T;
     },
   };
 }
@@ -123,7 +124,7 @@ describe('batch job API', () => {
     });
     assert.equal((await post(`${base}/batches/batch-d/normalize`, { documents: [] })).status, 400);
     const accepted = await post(`${base}/batches/batch-d/normalize`, {
-      processingVersion: 2,
+      processingVersion: PROCESSING_VERSION,
       documents: [],
     });
     assert.equal(accepted.status, 202);

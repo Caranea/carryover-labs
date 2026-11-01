@@ -60,14 +60,7 @@ export type EditMode = 'words' | 'draw' | 'corners';
               [attr.height]="w.box!.h"
               (click)="clickWord(w)"
             >
-              <title>
-                {{ w.text }}:
-                {{
-                  w.candidate && !w.userSet
-                    ? 'Possible personal detail. Still visible; click to hide.'
-                    : 'click to hide'
-                }}
-              </title>
+              <title>{{ wordTip(w) }}</title>
             </rect>
           }
           @for (h of hiddenBoxes(); track h.word.id) {
@@ -80,13 +73,7 @@ export type EditMode = 'words' | 'draw' | 'corners';
               [attr.height]="h.box.h"
               (click)="clickHidden(h.index)"
             >
-              <title>
-                {{
-                  h.word.hidden
-                    ? describe(h.word)
-                    : 'Covered by a nearby hidden detail. Click to undo the original removal.'
-                }}
-              </title>
+              <title>{{ hiddenTip(h.word) }}</title>
             </rect>
           }
           @for (r of plan().regionBoxes; track $index) {
@@ -99,13 +86,7 @@ export type EditMode = 'words' | 'draw' | 'corners';
               [attr.height]="r.h"
               (click)="clickRegion($index)"
             >
-              <title>
-                {{
-                  $index < (page().lockedRegions ?? 0)
-                    ? 'Already removed'
-                    : 'Area you drew: click to undo'
-                }}
-              </title>
+              <title>{{ regionTip($index) }}</title>
             </rect>
           }
           @if (draft(); as d) {
@@ -339,8 +320,28 @@ export class PageView {
     }));
   });
 
-  protected describe(w: WorkingWord) {
-    return describeWord(w, true);
+  /*
+   * Tooltips for the SVG boxes. An SVG <title> holds text only, so each one is a single
+   * interpolation: a binding split across lines would show as literal text.
+   */
+  protected wordTip(w: WorkingWord): string {
+    return `${w.text}: ${
+      w.candidate && !w.userSet
+        ? 'Possible personal detail. Still visible; click to hide.'
+        : 'Click to hide'
+    }`;
+  }
+
+  protected hiddenTip(w: WorkingWord): string {
+    return w.hidden
+      ? describeWord(w, true)
+      : 'Covered by a nearby hidden detail. Click to undo the original removal.';
+  }
+
+  protected regionTip(index: number): string {
+    return index < (this.page().lockedRegions ?? 0)
+      ? 'Already removed'
+      : 'Area you drew: click to undo';
   }
 
   protected clickWord(w: WorkingWord) {

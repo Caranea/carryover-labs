@@ -21,6 +21,8 @@ export interface AppConfig {
 export interface ModelEndpoint {
   baseUrl: string;
   apiKey: string;
+  /** Development only: write every model request and raw answer here. */
+  traceDir?: string;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -43,7 +45,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     trustLoopbackProxy: env['TRUST_LOOPBACK_PROXY'] === 'true',
     webRoot: resolve(API_ROOT, env['WEB_ROOT'] ?? '../dist/carryover-labs/browser'),
     model: apiKey
-      ? { baseUrl: env['META_MODEL_BASE_URL'] || 'https://api.meta.ai/v1', apiKey }
+      ? {
+          baseUrl: env['META_MODEL_BASE_URL'] || 'https://api.meta.ai/v1',
+          apiKey,
+          traceDir: env['MODEL_TRACE_DIR'] ? resolve(API_ROOT, env['MODEL_TRACE_DIR']) : undefined,
+        }
       : null,
     modelConcurrency,
   };

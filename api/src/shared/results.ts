@@ -56,6 +56,8 @@ export interface Observation {
   flag: Flag | null;
   date: string | null;
   dateSource: 'label' | 'document' | 'user' | null;
+  /** Which printed date `date` is; set when it is not the collection date. */
+  dateKind?: import('./processing.js').DateKind;
   /** The immutable extraction, before any user correction. */
   original?: ObservationFields;
   corrections?: ObservationCorrection[];
@@ -90,12 +92,6 @@ export interface CorrectionRequest extends ObservationFields {
   expectedRevision: string;
 }
 
-export interface ResultIssue {
-  documentId: string;
-  documentName: string;
-  message: string;
-}
-
 export interface DocumentResults {
   documentId: string;
   extractorVersion: number;
@@ -115,5 +111,4 @@ export interface ResultsDocument {
 export interface ResultsResponse {
   documents: ResultsDocument[];
   observations: Observation[];
-  issues?: ResultIssue[];
 }

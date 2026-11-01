@@ -73,7 +73,6 @@ export class ResultsService {
         domains: [],
         textResults: [],
         warnings: [],
-        issues: [],
         stats: { documents: 0, tests: 0, values: 0, from: null, to: null },
         model: { state: 'ready', name: null, waiting: 0, message: null },
       };
@@ -82,7 +81,7 @@ export class ResultsService {
     const cached = this.history.cachedModelRecords();
     if (cached?.model.state === 'ready' && !retry && this.batchReady && !snapshot.sources.length) {
       this.processing.update((p) => ({ ...p, stage: 'ready', error: null }));
-      return { ...cached, issues: snapshot.issues };
+      return cached;
     }
     const promise = this.transcribeAndNormalize(retry)
       .catch((error: Error) => {
@@ -120,8 +119,7 @@ export class ResultsService {
     const result = await this.normalize(processed.documents, current);
     if (result.model?.state !== 'ready')
       throw new Error('Results normalization did not finish. Please try again.');
-    const records = { ...result, issues: processed.issues };
-    if (!current() || !this.history.saveModelRecords(processed.fingerprint, records)) {
+    if (!current() || !this.history.saveModelRecords(processed.fingerprint, result)) {
       throw new Error('The batch changed. Finish reviewing it and try again.');
     }
     console.info('[Carryover timing]', {
@@ -130,7 +128,7 @@ export class ResultsService {
       documents: processed.documents.length,
     });
     this.processing.update((p) => ({ ...p, stage: 'ready', error: null }));
-    return records;
+    return result;
   }
 
   /** Send every unsaved page and collect results until each is saved or has failed. */

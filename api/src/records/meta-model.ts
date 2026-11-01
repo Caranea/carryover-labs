@@ -1,4 +1,6 @@
 import { Logger } from '@nestjs/common';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { Ajv, type ValidateFunction } from 'ajv';
 import type { ModelEndpoint } from '../config.js';
@@ -20,12 +22,13 @@ export interface ModelTask {
   /** JSON schema of the answer. */
   schema: Record<string, unknown>;
   maxTokens?: number;
+  /** Less hidden reasoning: faster and cheaper, for tasks that do not need it. */
   reasoningEffort?: 'low';
   /** PNG or JPEG data URL for vision tasks. */
   image?: string;
 }
 
-const TIMEOUT_MS = 150_000;
+const TIMEOUT_MS = 240_000;
 const MAX_RESPONSE_BYTES = 256 * 1024;
 const FAILED = 'The automatic check could not finish. You can retry it later.';
 /** Meta answers 429 or 5xx when it is busy: ask again, at most this many times. */
@@ -33,6 +36,8 @@ const BUSY_RETRIES = 2;
 
 /** A failure described in our own words: safe to log, it never carries model or page text. */
 export class ModelFailure extends Error {}
+/** The answer hit the token limit. Asking about less at once can succeed. */
+export class AnswerCutOff extends ModelFailure {}
 
 interface Usage {
   prompt_tokens?: number;
@@ -66,11 +71,18 @@ export class MetaModelClient implements JsonModel {
   readonly name = 'Meta Model API';
   private readonly log = new Logger('MetaModel');
 
+  private traced = 0;
+
   /** `retryMs` is the first wait after a busy answer (shorter in tests). */
   constructor(
     private readonly endpoint: ModelEndpoint,
     private readonly retryMs = 2000,
-  ) {}
+  ) {
+    if (endpoint.traceDir)
+      this.log.warn(
+        `Model trace is on: page images and answers are written to ${endpoint.traceDir}`,
+      );
+  }
 
   async ask<T>(task: ModelTask, signal?: AbortSignal): Promise<T> {
     const started = Date.now();
@@ -93,7 +105,7 @@ export class MetaModelClient implements JsonModel {
       this.log.warn(
         `${task.kind}: ${task.model} failed after ${Date.now() - started} ms: ${reason}`,
       );
-      throw new Error(FAILED);
+      throw error instanceof AnswerCutOff ? error : new Error(FAILED);
     }
   }
 
@@ -129,6 +141,7 @@ export class MetaModelClient implements JsonModel {
     }
     if (!res.ok) {
       await res.body?.cancel();
+      await this.trace(task, { status: res.status });
       throw new ModelFailure(`HTTP ${res.status}`);
     }
     const headersMs = Date.now() - sent;
@@ -137,12 +150,56 @@ export class MetaModelClient implements JsonModel {
       usage?: Usage;
     };
     const choice = data.choices?.[0];
+    await this.trace(task, {
+      status: res.status,
+      ms: Date.now() - sent,
+      usage: data.usage,
+      finishReason: choice?.finish_reason,
+      content: choice?.message?.content ?? null,
+    });
     if (choice?.finish_reason === 'length')
-      throw new ModelFailure(
+      throw new AnswerCutOff(
         `the answer was cut off at ${data.usage?.completion_tokens ?? '?'} tokens`,
       );
     const answer = validateAnswer<T>(task, parseJson(choice?.message?.content ?? ''));
     return { answer, headersMs, usage: data.usage };
+  }
+
+  /** Development only (MODEL_TRACE_DIR): the request, its page image and the raw answer. */
+  private async trace(task: ModelTask, answer: Record<string, unknown>): Promise<void> {
+    const dir = this.endpoint.traceDir;
+    if (!dir) return;
+    try {
+      await mkdir(dir, { recursive: true });
+      const name = `${new Date().toISOString().replace(/[:.]/g, '-')}-${++this.traced}-${task.kind}`;
+      const image = task.image?.match(/^data:image\/(png|jpeg);base64,(.*)$/);
+      if (image) await writeFile(join(dir, `${name}.${image[1]}`), Buffer.from(image[2], 'base64'));
+      let user: unknown = task.user;
+      try {
+        user = JSON.parse(task.user);
+      } catch {
+        /* plain text */
+      }
+      await writeFile(
+        join(dir, `${name}.json`),
+        JSON.stringify(
+          {
+            kind: task.kind,
+            model: task.model,
+            maxTokens: task.maxTokens,
+            system: task.system,
+            user,
+            ...answer,
+          },
+          null,
+          1,
+        ),
+      );
+    } catch (error) {
+      this.log.warn(
+        `Model trace could not be written (${error instanceof Error ? error.name : 'Error'})`,
+      );
+    }
   }
 
   private async post(body: unknown, signal: AbortSignal): Promise<Response> {

@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict';
+import { mkdtemp, readdir, readFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, it } from 'node:test';
-import { MetaModelClient, parseJson, validateAnswer, type ModelTask } from './meta-model.js';
+import {
+  AnswerCutOff,
+  MetaModelClient,
+  parseJson,
+  validateAnswer,
+  type ModelTask,
+} from './meta-model.js';
 
 const task: ModelTask = {
   kind: 'test',
@@ -72,7 +81,7 @@ describe('model answer boundary', () => {
     });
   });
 
-  it('sends the selected model and token budget, and rejects truncated output', async (context) => {
+  it('sends the selected model and token budget, and reports a cut-off answer as such', async (context) => {
     let request: { model: string; max_tokens: number; reasoning_effort: string } | undefined;
     context.mock.method(globalThis, 'fetch', async (_url: unknown, init: RequestInit) => {
       request = JSON.parse(init.body as string);
@@ -82,10 +91,34 @@ describe('model answer boundary', () => {
     });
     await assert.rejects(
       client().ask({ ...task, model: 'muse-wonder-1.0', maxTokens: 8192, reasoningEffort: 'low' }),
-      /could not finish/,
+      AnswerCutOff,
     );
     assert.equal(request?.model, 'muse-wonder-1.0');
     assert.equal(request?.max_tokens, 8192);
     assert.equal(request?.reasoning_effort, 'low');
+  });
+
+  it('writes the request, page image and raw answer only when tracing is on', async (context) => {
+    const traceDir = await mkdtemp(join(tmpdir(), 'trace-'));
+    context.mock.method(globalThis, 'fetch', async () =>
+      Response.json({
+        choices: [{ finish_reason: 'stop', message: { content: '{"factor":3}' } }],
+        usage: { prompt_tokens: 10, completion_tokens: 2 },
+      }),
+    );
+    const traced = new MetaModelClient({
+      baseUrl: 'https://example.invalid/v1',
+      apiKey: 'k',
+      traceDir,
+    });
+    await traced.ask({ ...task, image: 'data:image/png;base64,AAAA' });
+    const files = (await readdir(traceDir)).sort();
+    assert.deepEqual(
+      files.map((f) => f.split('.').pop()),
+      ['json', 'png'],
+    );
+    const record = JSON.parse(await readFile(join(traceDir, files[0]), 'utf8'));
+    assert.equal(record.content, '{"factor":3}');
+    assert.equal(record.usage.completion_tokens, 2);
   });
 });

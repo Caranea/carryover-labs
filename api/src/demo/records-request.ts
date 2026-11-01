@@ -2,12 +2,15 @@ import { validateAnswer } from '../records/meta-model.js';
 import type { Observation } from '../shared/results.js';
 import { parseNumber, toIsoDate } from '../shared/tokens.js';
 import type { SourceDocument } from './normalization.js';
-import { PROCESSING_VERSION } from '../shared/processing.js';
+import { PROCESSING_VERSION, type PageDate } from '../shared/processing.js';
 import { transcriptionSchema } from './source-processing.js';
 
 const LIMITS = { documents: 100, observations: 5000, pages: 40 };
 const FLAGS = ['H', 'L', 'HH', 'LL', 'A'] as const;
 const rowSchema = { schema: transcriptionSchema.properties.rows.items };
+const datesSchema = {
+  schema: { type: 'array', maxItems: 600, items: transcriptionSchema.properties.dates.items },
+};
 
 export class InvalidRequest extends Error {}
 
@@ -36,7 +39,10 @@ export function parseRecordsRequest(body: unknown): SourceDocument[] {
         throw invalidSnapshot();
       observationIds.add(o.id);
     }
-    return { id, name, observations };
+    const dates =
+      doc['dates'] === undefined ? [] : validateAnswer<PageDate[]>(datesSchema, doc['dates']);
+    if (dates.some((d) => d.iso && toIsoDate(d.iso, 'YMD') !== d.iso)) throw invalidSnapshot();
+    return { id, name, observations, dates };
   });
   return parsed;
 }

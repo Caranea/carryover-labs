@@ -143,6 +143,8 @@ function chart(testIndex: number) {
     printedValue: valueText(visit.values[testIndex], visit.language),
     printedUnit: test.unit,
     printedReference: test.range,
+    flag: null,
+    dateKind: null,
     conversion: null,
     alsoIn: [],
   }));
@@ -161,9 +163,9 @@ function chart(testIndex: number) {
   };
 }
 const domains: RecordDomain[] = [
+  { key: 'blood-count', label: 'Complete blood count', charts: [chart(2)] },
+  { key: 'metabolic', label: 'Glucose and diabetes', charts: [chart(3)] },
   { key: 'thyroid', label: 'Thyroid', charts: [chart(0), chart(1)] },
-  { key: 'blood-count', label: 'Blood count', charts: [chart(2)] },
-  { key: 'metabolic', label: 'Blood sugar', charts: [chart(3)] },
 ];
 const warnings: RecordWarning[] = [
   {

@@ -8,40 +8,44 @@
  * diacritics, punctuation as spaces, "%" and "#" kept.
  */
 
+/**
+ * Panels, in the order a lab report usually prints them. A test's panel is where it is
+ * shown; Wonder chooses it for each printed test, with the catalogue's panel as a hint.
+ */
 export type Domain =
   | 'blood-count'
-  | 'white-cells'
-  | 'platelets'
-  | 'thyroid'
+  | 'inflammation'
+  | 'coagulation'
   | 'metabolic'
   | 'kidney'
   | 'electrolytes'
   | 'liver'
   | 'lipids'
   | 'iron'
-  | 'inflammation'
-  | 'coagulation'
-  | 'autoimmune'
   | 'vitamins'
+  | 'thyroid'
+  | 'hormones'
+  | 'autoimmune'
   | 'serology'
+  | 'urine'
   | 'other';
 
 export const DOMAINS: { key: Domain; label: string }[] = [
-  { key: 'blood-count', label: 'Red blood cells' },
-  { key: 'white-cells', label: 'White blood cells' },
-  { key: 'platelets', label: 'Platelets' },
-  { key: 'thyroid', label: 'Thyroid' },
-  { key: 'metabolic', label: 'Glucose' },
-  { key: 'kidney', label: 'Kidneys' },
-  { key: 'electrolytes', label: 'Electrolytes' },
-  { key: 'liver', label: 'Liver' },
-  { key: 'lipids', label: 'Lipids' },
-  { key: 'iron', label: 'Iron' },
+  { key: 'blood-count', label: 'Complete blood count' },
   { key: 'inflammation', label: 'Inflammation' },
   { key: 'coagulation', label: 'Clotting' },
-  { key: 'autoimmune', label: 'Immune and autoimmune' },
+  { key: 'metabolic', label: 'Glucose and diabetes' },
+  { key: 'kidney', label: 'Kidneys' },
+  { key: 'electrolytes', label: 'Electrolytes and minerals' },
+  { key: 'liver', label: 'Liver and pancreas' },
+  { key: 'lipids', label: 'Lipids' },
+  { key: 'iron', label: 'Iron' },
   { key: 'vitamins', label: 'Vitamins' },
+  { key: 'thyroid', label: 'Thyroid' },
+  { key: 'hormones', label: 'Hormones' },
+  { key: 'autoimmune', label: 'Immune and autoimmune' },
   { key: 'serology', label: 'Infection tests' },
+  { key: 'urine', label: 'Urine' },
   { key: 'other', label: 'Other tests' },
 ];
 
@@ -56,8 +60,6 @@ export interface CatalogueTest {
   molarMass?: number;
   /** Outside these verification bounds, ask the user to check the source. Not clinical reference ranges. */
   plausible?: [number, number];
-  /** Tests in the same group may share a chart (same unit and scale permitting); others get their own. */
-  group?: string;
 }
 
 const t = (
@@ -66,7 +68,7 @@ const t = (
   domain: Domain,
   unit: string,
   aliases: string[],
-  extra: Partial<Pick<CatalogueTest, 'molarMass' | 'plausible' | 'group'>> = {},
+  extra: Partial<Pick<CatalogueTest, 'molarMass' | 'plausible'>> = {},
 ): CatalogueTest => ({ key, label, domain, unit, aliases, ...extra });
 
 export const CATALOGUE: CatalogueTest[] = [
@@ -155,19 +157,15 @@ export const CATALOGUE: CatalogueTest[] = [
   ),
   t('lfr', 'LFR (low fluorescence reticulocytes)', 'blood-count', '%', ['lfr'], {
     plausible: [0, 100],
-    group: 'retic-fractions',
   }),
   t('mfr', 'MFR (medium fluorescence reticulocytes)', 'blood-count', '%', ['mfr'], {
     plausible: [0, 100],
-    group: 'retic-fractions',
   }),
   t('hfr', 'HFR (high fluorescence reticulocytes)', 'blood-count', '%', ['hfr'], {
     plausible: [0, 100],
-    group: 'retic-fractions',
   }),
   t('irf', 'IRF (immature reticulocyte fraction)', 'blood-count', '%', ['irf'], {
     plausible: [0, 100],
-    group: 'retic-fractions',
   }),
   t('nrbc', 'Nucleated red cells', 'blood-count', '10^9/L', ['nrbc #', 'nrbc'], {
     plausible: [0, 50],
@@ -178,7 +176,7 @@ export const CATALOGUE: CatalogueTest[] = [
   t(
     'wbc',
     'White blood cells',
-    'white-cells',
+    'blood-count',
     '10^9/L',
     [
       'leukocyty',
@@ -193,12 +191,12 @@ export const CATALOGUE: CatalogueTest[] = [
       'wcc',
       'krwinki biale',
     ],
-    { plausible: [0.1, 500], group: 'wbc-count' },
+    { plausible: [0.1, 500] },
   ),
   t(
     'neut',
     'Neutrophils',
-    'white-cells',
+    'blood-count',
     '10^9/L',
     [
       'neutrofile',
@@ -210,12 +208,12 @@ export const CATALOGUE: CatalogueTest[] = [
       'neu',
       'neu #',
     ],
-    { plausible: [0, 300], group: 'wbc-count' },
+    { plausible: [0, 300] },
   ),
   t(
     'neut-pct',
     'Neutrophils %',
-    'white-cells',
+    'blood-count',
     '%',
     [
       'neutrofile %',
@@ -225,68 +223,66 @@ export const CATALOGUE: CatalogueTest[] = [
       'granulocyty obojetnochlonne',
       'segmentkernige',
     ],
-    { plausible: [0, 100], group: 'wbc-pct' },
+    { plausible: [0, 100] },
   ),
   t(
     'lymph',
     'Lymphocytes',
-    'white-cells',
+    'blood-count',
     '10^9/L',
     ['limfocyty', 'limfocyty #', 'lymphocytes', 'lymphocytes #', 'lymphozyten', 'lym', 'lym #'],
-    { plausible: [0, 300], group: 'wbc-count' },
+    { plausible: [0, 300] },
   ),
-  t('lymph-pct', 'Lymphocytes %', 'white-cells', '%', ['limfocyty %', 'lymphocytes %', 'lym %'], {
+  t('lymph-pct', 'Lymphocytes %', 'blood-count', '%', ['limfocyty %', 'lymphocytes %', 'lym %'], {
     plausible: [0, 100],
-    group: 'wbc-pct',
   }),
   t(
     'mono',
     'Monocytes',
-    'white-cells',
+    'blood-count',
     '10^9/L',
     ['monocyty', 'monocyty #', 'monocytes', 'monocytes #', 'monozyten', 'mon', 'mon #'],
-    { plausible: [0, 50], group: 'wbc-count' },
+    { plausible: [0, 50] },
   ),
-  t('mono-pct', 'Monocytes %', 'white-cells', '%', ['monocyty %', 'monocytes %', 'mon %'], {
+  t('mono-pct', 'Monocytes %', 'blood-count', '%', ['monocyty %', 'monocytes %', 'mon %'], {
     plausible: [0, 100],
-    group: 'wbc-pct',
   }),
   t(
     'eos',
     'Eosinophils',
-    'white-cells',
+    'blood-count',
     '10^9/L',
     ['eozynofile', 'eozynofile #', 'eosinophils', 'eosinophils #', 'eosinophile', 'eos', 'eos #'],
-    { plausible: [0, 50], group: 'wbc-count' },
+    { plausible: [0, 50] },
   ),
   t(
     'eos-pct',
     'Eosinophils %',
-    'white-cells',
+    'blood-count',
     '%',
     ['eozynofile %', 'eosinophils %', 'eos %', 'gran kwasochlonne', 'eosinophils 1%'],
-    { plausible: [0, 100], group: 'wbc-pct' },
+    { plausible: [0, 100] },
   ),
   t(
     'baso',
     'Basophils',
-    'white-cells',
+    'blood-count',
     '10^9/L',
     ['bazofile', 'bazofile #', 'basophils', 'basophils #', 'basophile', 'bas', 'baso', 'bas #'],
-    { plausible: [0, 20], group: 'wbc-count' },
+    { plausible: [0, 20] },
   ),
   t(
     'baso-pct',
     'Basophils %',
-    'white-cells',
+    'blood-count',
     '%',
     ['bazofile %', 'basophils %', 'bas %', 'gran zasadochlonne'],
-    { plausible: [0, 100], group: 'wbc-pct' },
+    { plausible: [0, 100] },
   ),
   t(
     'ig',
     'Immature granulocytes',
-    'white-cells',
+    'blood-count',
     '10^9/L',
     [
       'niedojrzale granulocyty ig il',
@@ -295,73 +291,72 @@ export const CATALOGUE: CatalogueTest[] = [
       'immature granulocytes',
       'ig #',
     ],
-    { plausible: [0, 50], group: 'wbc-count' },
+    { plausible: [0, 50] },
   ),
   t(
     'ig-pct',
     'Immature granulocytes %',
-    'white-cells',
+    'blood-count',
     '%',
     ['niedojrzale granulocyty ig %', 'immature granulocytes %', 'ig %'],
-    { plausible: [0, 100], group: 'wbc-pct' },
+    { plausible: [0, 100] },
   ),
   t(
     'mxd',
     'Mixed cells (eos, baso, mono)',
-    'white-cells',
+    'blood-count',
     '10^9/L',
     ['inne eo bazo mono #', 'inne eo bazo mono', 'mxd', 'mxd #', 'mid', 'mid #'],
-    { plausible: [0, 50], group: 'wbc-count' },
+    { plausible: [0, 50] },
   ),
-  t('mxd-pct', 'Mixed cells %', 'white-cells', '%', ['inne eo bazo mono %', 'mxd %', 'mid %'], {
+  t('mxd-pct', 'Mixed cells %', 'blood-count', '%', ['inne eo bazo mono %', 'mxd %', 'mid %'], {
     plausible: [0, 100],
-    group: 'wbc-pct',
   }),
   t(
     'atyp-lymph',
     'Atypical lymphocytes',
-    'white-cells',
+    'blood-count',
     '10^9/L',
     ['atypowe limfocyty', 'atypowe limfocyty #', 'atypical lymphocytes'],
-    { plausible: [0, 50], group: 'wbc-count' },
+    { plausible: [0, 50] },
   ),
   t(
     'atyp-lymph-pct',
     'Atypical lymphocytes %',
-    'white-cells',
+    'blood-count',
     '%',
     ['atypowe limfocyty %', 'atypical lymphocytes %'],
-    { plausible: [0, 100], group: 'wbc-pct' },
+    { plausible: [0, 100] },
   ),
   t(
     'luc',
     'Large immature cells',
-    'white-cells',
+    'blood-count',
     '10^9/L',
     ['niedojrzale duze komorki', 'niedojrzale duze komorki mlode formy', 'luc'],
-    { plausible: [0, 50], group: 'wbc-count' },
+    { plausible: [0, 50] },
   ),
   t(
     'luc-pct',
     'Large immature cells %',
-    'white-cells',
+    'blood-count',
     '%',
     ['niedojrzale duze komorki %', 'niedojrzale duze komorki mlode formy %', 'luc %'],
-    { plausible: [0, 100], group: 'wbc-pct' },
+    { plausible: [0, 100] },
   ),
 
   // Platelets
   t(
     'plt',
     'Platelets',
-    'platelets',
+    'blood-count',
     '10^9/L',
     [
       'plytki krwi',
       'plytki krwi plt',
       'plytki krwi manualnie',
       'plt',
-      'platelets',
+      'blood-count',
       'platelet count',
       'thrombozyten',
       'trombocyty',
@@ -369,16 +364,14 @@ export const CATALOGUE: CatalogueTest[] = [
     ],
     { plausible: [1, 2500] },
   ),
-  t('mpv', 'MPV', 'platelets', 'fL', ['mpv', 'mpv i vb', 'mean platelet volume'], {
+  t('mpv', 'MPV', 'blood-count', 'fL', ['mpv', 'mpv i vb', 'mean platelet volume'], {
     plausible: [4, 20],
-    group: 'platelet-volume',
   }),
-  t('pdw', 'PDW', 'platelets', 'fL', ['pdw', 'thrombozytenverteilungsbreite'], {
+  t('pdw', 'PDW', 'blood-count', 'fL', ['pdw', 'thrombozytenverteilungsbreite'], {
     plausible: [4, 30],
-    group: 'platelet-volume',
   }),
-  t('p-lcr', 'P-LCR', 'platelets', '%', ['p lcr', 'plcr'], { plausible: [1, 80] }),
-  t('pct', 'Plateletcrit', 'platelets', '%', ['pct', 'plateletcrit'], { plausible: [0, 2] }),
+  t('p-lcr', 'P-LCR', 'blood-count', '%', ['p lcr', 'plcr'], { plausible: [1, 80] }),
+  t('pct', 'Plateletcrit', 'blood-count', '%', ['pct', 'plateletcrit'], { plausible: [0, 2] }),
 
   // Thyroid
   t(
@@ -419,7 +412,7 @@ export const CATALOGUE: CatalogueTest[] = [
       'przeciwciala anty tpo',
       'thyroid peroxidase antibodies',
     ],
-    { plausible: [0, 100000], group: 'thyroid-antibodies' },
+    { plausible: [0, 100000] },
   ),
   t(
     'anti-tg',
@@ -427,7 +420,7 @@ export const CATALOGUE: CatalogueTest[] = [
     'thyroid',
     'IU/mL',
     ['anty tg', 'anti tg', 'atg', 'tg ak', 'przeciwciala anty tg', 'thyroglobulin antibodies'],
-    { plausible: [0, 100000], group: 'thyroid-antibodies' },
+    { plausible: [0, 100000] },
   ),
   t(
     'trab',
@@ -493,7 +486,6 @@ export const CATALOGUE: CatalogueTest[] = [
   // Electrolytes
   t('sodium', 'Sodium', 'electrolytes', 'mmol/L', ['sod', 'sodium', 'natrium', 'na', 'sod na'], {
     plausible: [90, 200],
-    group: 'electrolytes',
   }),
   t(
     'potassium',
@@ -501,11 +493,10 @@ export const CATALOGUE: CatalogueTest[] = [
     'electrolytes',
     'mmol/L',
     ['potas', 'potassium', 'kalium', 'k', 'potas k'],
-    { plausible: [1, 10], group: 'electrolytes' },
+    { plausible: [1, 10] },
   ),
   t('chloride', 'Chloride', 'electrolytes', 'mmol/L', ['chlorki', 'chloride', 'chlorid', 'cl'], {
     plausible: [60, 150],
-    group: 'electrolytes',
   }),
   t(
     'calcium',
@@ -513,12 +504,11 @@ export const CATALOGUE: CatalogueTest[] = [
     'electrolytes',
     'mmol/L',
     ['wapn', 'wapn calkowity', 'calcium', 'kalzium', 'ca'],
-    { molarMass: 40.08, plausible: [0.5, 5], group: 'electrolytes' },
+    { molarMass: 40.08, plausible: [0.5, 5] },
   ),
   t('magnesium', 'Magnesium', 'electrolytes', 'mmol/L', ['magnez', 'magnesium', 'mg'], {
     molarMass: 24.305,
     plausible: [0.1, 5],
-    group: 'electrolytes',
   }),
   t(
     'phosphate',
@@ -526,7 +516,7 @@ export const CATALOGUE: CatalogueTest[] = [
     'electrolytes',
     'mmol/L',
     ['fosfor', 'fosforany', 'phosphate', 'phosphat', 'phosphorus'],
-    { molarMass: 30.97, plausible: [0.1, 6], group: 'electrolytes' },
+    { molarMass: 30.97, plausible: [0.1, 6] },
   ),
 
   // Liver
@@ -536,7 +526,7 @@ export const CATALOGUE: CatalogueTest[] = [
     'liver',
     'U/L',
     ['alt', 'alat', 'gpt', 'alt alat', 'aminotransferaza alaninowa', 'alanine aminotransferase'],
-    { plausible: [0, 10000], group: 'liver-enzymes' },
+    { plausible: [0, 10000] },
   ),
   t(
     'ast',
@@ -551,11 +541,10 @@ export const CATALOGUE: CatalogueTest[] = [
       'aminotransferaza asparaginianowa',
       'aspartate aminotransferase',
     ],
-    { plausible: [0, 10000], group: 'liver-enzymes' },
+    { plausible: [0, 10000] },
   ),
   t('ggt', 'GGT', 'liver', 'U/L', ['ggtp', 'ggt', 'gamma gt', 'gamma glutamylotranspeptydaza'], {
     plausible: [0, 5000],
-    group: 'liver-enzymes',
   }),
   t(
     'alp',
@@ -563,7 +552,7 @@ export const CATALOGUE: CatalogueTest[] = [
     'liver',
     'U/L',
     ['fosfataza alkaliczna', 'alp', 'ap', 'alkalische phosphatase', 'alkaline phosphatase'],
-    { plausible: [0, 5000], group: 'liver-enzymes' },
+    { plausible: [0, 5000] },
   ),
   t(
     'bilirubin',
@@ -605,7 +594,7 @@ export const CATALOGUE: CatalogueTest[] = [
       'total cholesterol',
       'gesamtcholesterin',
     ],
-    { molarMass: 386.65, plausible: [30, 1000], group: 'lipids' },
+    { molarMass: 386.65, plausible: [30, 1000] },
   ),
   t(
     'hdl',
@@ -613,7 +602,7 @@ export const CATALOGUE: CatalogueTest[] = [
     'lipids',
     'mg/dL',
     ['cholesterol hdl', 'hdl cholesterol', 'hdl', 'hdl cholesterin'],
-    { molarMass: 386.65, plausible: [5, 200], group: 'lipids' },
+    { molarMass: 386.65, plausible: [5, 200] },
   ),
   t(
     'ldl',
@@ -621,7 +610,7 @@ export const CATALOGUE: CatalogueTest[] = [
     'lipids',
     'mg/dL',
     ['cholesterol ldl', 'ldl cholesterol', 'ldl', 'ldl cholesterin'],
-    { molarMass: 386.65, plausible: [5, 600], group: 'lipids' },
+    { molarMass: 386.65, plausible: [5, 600] },
   ),
   t(
     'tg',
@@ -629,7 +618,7 @@ export const CATALOGUE: CatalogueTest[] = [
     'lipids',
     'mg/dL',
     ['triglicerydy', 'triglycerides', 'triglyceride', 'tg'],
-    { molarMass: 885.7, plausible: [10, 10000], group: 'lipids' },
+    { molarMass: 885.7, plausible: [10, 10000] },
   ),
 
   // Iron
@@ -674,7 +663,7 @@ export const CATALOGUE: CatalogueTest[] = [
     'coagulation',
     's',
     ['czas protrombinowy', 'pt', 'prothrombin time', 'thromboplastinzeit'],
-    { plausible: [5, 200], group: 'clotting-times' },
+    { plausible: [5, 200] },
   ),
   t(
     'quick',
@@ -686,7 +675,6 @@ export const CATALOGUE: CatalogueTest[] = [
   ),
   t('aptt', 'APTT', 'coagulation', 's', ['aptt', 'czas kaolinowo kefalinowy', 'ptt'], {
     plausible: [5, 300],
-    group: 'clotting-times',
   }),
   t('fibrinogen', 'Fibrinogen', 'coagulation', 'mg/dL', ['fibrynogen', 'fibrinogen'], {
     plausible: [10, 2000],
@@ -726,7 +714,7 @@ export const CATALOGUE: CatalogueTest[] = [
     'autoimmune',
     'g/L',
     ['c3', 'c3 complement', 'complement c3', 'skladowa c3'],
-    { plausible: [0.05, 5], group: 'complement' },
+    { plausible: [0.05, 5] },
   ),
   t(
     'c4',
@@ -734,7 +722,7 @@ export const CATALOGUE: CatalogueTest[] = [
     'autoimmune',
     'g/L',
     ['c4', 'c4 complement', 'complement c4', 'skladowa c4'],
-    { plausible: [0.005, 2], group: 'complement' },
+    { plausible: [0.005, 2] },
   ),
   t(
     'rf',
@@ -774,7 +762,7 @@ export const CATALOGUE: CatalogueTest[] = [
     'autoimmune',
     'g/L',
     ['immunoglobulin a total iga', 'iga', 'immunoglobulina a', 'iga total'],
-    { plausible: [0, 20], group: 'immunoglobulins' },
+    { plausible: [0, 20] },
   ),
   t(
     'igg',
@@ -782,7 +770,7 @@ export const CATALOGUE: CatalogueTest[] = [
     'autoimmune',
     'g/L',
     ['immunoglobulin g', 'igg', 'immunoglobulina g'],
-    { plausible: [0.5, 60], group: 'immunoglobulins' },
+    { plausible: [0.5, 60] },
   ),
   t(
     'igm',
@@ -790,7 +778,7 @@ export const CATALOGUE: CatalogueTest[] = [
     'autoimmune',
     'g/L',
     ['immunoglobulin m', 'igm', 'immunoglobulina m'],
-    { plausible: [0, 30], group: 'immunoglobulins' },
+    { plausible: [0, 30] },
   ),
 
   // Vitamins

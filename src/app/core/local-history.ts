@@ -60,9 +60,11 @@ export class LocalHistory {
             batchId: entry.batchId,
           })),
       ),
-      documents: all.map(({ document, observations }) => ({
+      documents: all.map(({ document, observations, transcriptions }) => ({
         id: document.id,
         name: 'Lab document',
+        // Header, footer and notes dates from every page: normalization dates rows with them.
+        dates: Object.values(transcriptions ?? {}).flatMap((page) => page.dates ?? []),
         observations: observations.map((o) => ({
           id: o.id,
           documentId: o.documentId,
@@ -81,7 +83,6 @@ export class LocalHistory {
           revision: o.revision,
         })),
       })),
-      issues: issues(all),
     };
   }
 
@@ -109,7 +110,7 @@ export class LocalHistory {
       !Array.isArray(result.rows) ||
       !Array.isArray(result.observations) ||
       result.rows.length !== result.observations.length ||
-      !Array.isArray(result.issues) ||
+      !Array.isArray(result.dates) ||
       result.observations.some(
         (o, index) =>
           o.documentId !== id ||
@@ -284,7 +285,6 @@ export class LocalHistory {
         count: observations.length,
       })),
       observations: all.flatMap((entry) => entry.observations),
-      issues: issues(all),
     };
   }
 
@@ -297,7 +297,6 @@ export class LocalHistory {
       domains: [],
       textResults: [],
       warnings: [],
-      issues: [],
       stats: { documents: 0, tests: 0, values: 0, from: null, to: null },
       model: { state: 'ready', name: null, waiting: 0, message: null },
     };
@@ -522,18 +521,6 @@ async function prepare(document: SavedDocument, images: (Blob | null)[]): Promis
 async function cleanImages(entry: Entry) {
   // A cleanup failure must not turn a completed save into a failed approval.
   await deleteApprovedImages(Object.values(entry.imageRefs ?? {})).catch(() => {});
-}
-
-function issues(entries: Entry[]) {
-  return entries.flatMap(({ document, transcriptions }) =>
-    Object.values(transcriptions ?? {})
-      .flatMap((p) => p.issues)
-      .map((message) => ({
-        documentId: document.id,
-        documentName: document.name,
-        message,
-      })),
-  );
 }
 
 function validateCorrection(input: CorrectionRequest): CorrectionRequest {
