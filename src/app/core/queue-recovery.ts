@@ -269,17 +269,13 @@ export class QueueRecovery {
           },
         );
         this.stored = snapshot;
-        // Small progress checkpoint only. Files and page text stay in IndexedDB.
+        // Small progress checkpoint only. Files, file names and page text stay in IndexedDB.
         const { rememberedDetails: _privateDetails, ...progress } = head;
         localStorage.setItem(
           QUEUE_PROGRESS_KEY,
           JSON.stringify({
             ...progress,
-            documents: documents.map(({ localId, fileName, status }) => ({
-              localId,
-              fileName,
-              status,
-            })),
+            documents: documents.map(({ localId, status }) => ({ localId, status })),
           }),
         );
       }

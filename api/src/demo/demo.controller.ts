@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { QueueFullError, type JobQueue } from '../jobs/job-queue.js';
+import type { DailyBudget } from '../jobs/daily-budget.js';
 import { MAX_WAIT_SECONDS } from '../shared/jobs.js';
 import type { RecordsResult } from './normalization.js';
 import { InvalidRequest, parseRecordsRequest } from './records-request.js';
@@ -21,6 +22,7 @@ import { ID, parsePageRequest, SPARK_MODEL } from './source-processing.js';
 import { WONDER_MODEL } from './normalization.js';
 
 export const DEMO_QUEUE = Symbol('DEMO_QUEUE');
+export const DEMO_BUDGET = Symbol('DEMO_BUDGET');
 
 @Controller()
 export class HealthController {
@@ -36,7 +38,10 @@ export class HealthController {
  */
 @Controller('demo')
 export class DemoController {
-  constructor(@Inject(DEMO_QUEUE) private readonly queue: JobQueue<RecordsResult> | null) {}
+  constructor(
+    @Inject(DEMO_QUEUE) private readonly queue: JobQueue<RecordsResult> | null,
+    @Inject(DEMO_BUDGET) private readonly budget: DailyBudget | null,
+  ) {}
 
   /** Whether live reading is switched on, and with which Meta models. */
   @Get('config')
@@ -51,7 +56,7 @@ export class DemoController {
   @Post('batches/:batchId/pages')
   @HttpCode(202)
   submitPage(@Param('batchId') batchId: string, @Body() body: unknown) {
-    const queue = this.requireQueue();
+    const queue = this.requireBudget();
     const id = validBatch(batchId);
     let request;
     try {
@@ -68,7 +73,7 @@ export class DemoController {
   @Post('batches/:batchId/normalize')
   @HttpCode(202)
   submitNormalization(@Param('batchId') batchId: string, @Body() body: unknown) {
-    const queue = this.requireQueue();
+    const queue = this.requireBudget();
     let documents;
     try {
       documents = parseRecordsRequest(body);
@@ -113,9 +118,19 @@ export class DemoController {
   }
 
   private requireQueue(): JobQueue<RecordsResult> {
-    if (!this.queue)
-      throw new HttpException('Results processing is unavailable. Please try again.', 503);
+    if (!this.queue) throw new HttpException('Live reading is switched off on this server.', 503);
     return this.queue;
+  }
+
+  /** New paid work is refused up front once today's model calls are used up. */
+  private requireBudget(): JobQueue<RecordsResult> {
+    const queue = this.requireQueue();
+    if (this.budget?.spent())
+      throw new HttpException(
+        "Live reading has reached today's limit. Your documents are saved; try again tomorrow.",
+        503,
+      );
+    return queue;
   }
 }
 

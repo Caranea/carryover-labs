@@ -13,7 +13,7 @@ Measured on 31 October 2026 with synthetic or previously redacted fixtures. Thes
 | 180°             | 1.55 s |    0.44 s |     0.06 s |                       0/5 |
 | 270°             | 3.73 s |    0.48 s |     0.07 s |                       0/5 |
 
-Automatic detection fails on rotated pages because OCR runs once without orientation detection. Manually drawn boxes burned correctly at all four orientations. No clinical region was masked.
+Automatic detection fails on rotated pages because OCR runs once without orientation detection. Manually drawn boxes burned correctly at all four orientations. No clinical region was masked. The review screen therefore offers Turn left and Turn right on every page image: masks turn with the page, nothing is detected again, and the person hides what is left by hand (covered by `src/app/redaction/rotate.spec.ts`).
 
 ## Live Meta models
 
@@ -45,7 +45,7 @@ Set `MODEL_TRACE_DIR` (for example `../tmp/model-trace`) during development to w
 
 ## Known limitations
 
-- Rotated or difficult pages need careful manual masking.
+- Rotated or difficult pages need careful manual masking; turning a page upright doesn't re-run detection.
 - Spark can omit or misread rows, and its regions can be inaccurate. The source page is always available for checking.
 - A value like `1,234` is read as 1.234 regardless of the document's locale; for cell counts it is held for review instead.
 - A test gets a separate line only for a different body fluid (urine, CSF), form (free, total, ionized, direct, indirect) or a percentage; the analyser or method does not split it.

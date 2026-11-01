@@ -1,8 +1,11 @@
 /** Binary files stay in IndexedDB, never in localStorage or a network request. */
 const DATABASE = 'carryover.device.v1';
 let connection: Promise<IDBDatabase> | undefined;
+/** Set while everything is being deleted, so nothing in this tab can write it back. */
+let wiping = false;
 
 export function deviceDatabase(): Promise<IDBDatabase> {
+  if (wiping) return Promise.reject(new Error('Local data is being deleted.'));
   if (connection) return connection;
   connection = new Promise<IDBDatabase>((resolve, reject) => {
     if (typeof indexedDB === 'undefined') {
@@ -101,5 +104,33 @@ export function deleteApprovedImages(keys: string[]): Promise<void> {
   if (!keys.length) return Promise.resolve();
   return deviceTransaction(['approved-images'], 'readwrite', (tx) => {
     for (const key of keys) tx.objectStore('approved-images').delete(key);
+  });
+}
+
+/**
+ * Delete the whole on-device database: queue, files, approved page images. Other tabs close
+ * their connection on the version change. The caller reloads the page afterwards.
+ */
+export async function deleteDeviceDatabase(): Promise<void> {
+  wiping = true;
+  const open = connection;
+  connection = undefined;
+  await open?.then((db) => db.close()).catch(() => undefined);
+  if (typeof indexedDB === 'undefined') return;
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(DATABASE);
+    // Another tab that doesn't let go in time: give up rather than hang.
+    const timer = setTimeout(
+      () => reject(new Error('Close other Carryover tabs, then try again.')),
+      8000,
+    );
+    request.onsuccess = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    request.onerror = () => {
+      clearTimeout(timer);
+      reject(request.error ?? new Error('Local data could not be deleted.'));
+    };
   });
 }

@@ -15,7 +15,7 @@ import {
   observedDownlinkMbps,
   pageEstimate,
 } from './processing-estimate';
-import { NER_MODEL_ID } from './ner-protocol';
+import { NER_CPU_WEIGHTS_URL } from './ner-protocol';
 
 @Injectable({ providedIn: 'root' })
 export class DeviceCheckService {
@@ -95,7 +95,7 @@ export class DeviceCheckService {
       const url =
         variant === 'gpu-fp16'
           ? assetUrl(`${ASSETS.piiGpuModel}onnx/model_fp16.onnx`)
-          : `https://huggingface.co/${NER_MODEL_ID}/resolve/main/onnx/model_quantized.onnx`;
+          : NER_CPU_WEIGHTS_URL;
       if (typeof caches !== 'undefined' && (await caches.match(url)))
         this.cachedVariant.set(variant);
     } catch {

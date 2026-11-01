@@ -14,7 +14,8 @@ import { Icon } from '../ui/icon';
       </span>
       <p>
         Your progress and results are saved in this browser. Files awaiting approval stay here until
-        you approve or discard them. Clearing site data removes everything saved here.
+        you approve or discard them. “Delete all my data from this browser”, at the bottom of the
+        page, removes everything saved here.
       </p>
     </div>
   `,

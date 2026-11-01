@@ -1,6 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { Component, ElementRef, signal, viewChild } from '@angular/core';
-import { DEMO_DOCUMENTS, DemoDocument } from '../core/demo-data';
+import { DEMO_DOCUMENTS, DemoDocument } from '../core/demo-documents';
 import { Icon } from '../ui/icon';
 
 const LANGUAGE: Record<string, string> = { pl: 'Polish', en: 'English', de: 'German' };
@@ -17,12 +17,12 @@ const LANGUAGE: Record<string, string> = { pl: 'Polish', en: 'English', de: 'Ger
         }
       </span>
       <span>
-        <span class="title">See initial tests</span>
+        <span class="title">See the originals <app-icon name="arrow-right" size="1.1rem" /></span>
         <span class="sub"
-          >The {{ docs.length }} original documents: Polish PDFs and phone photos, 2012–2024</span
+          >The {{ docs.length }} documents Jane brought: Polish PDFs and phone photos,
+          2012–2024</span
         >
       </span>
-      <app-icon name="arrow-right" size="1.5rem" />
     </button>
 
     <dialog #dialog class="modal" aria-labelledby="docs-h" (close)="selected.set(null)">
@@ -139,24 +139,27 @@ const LANGUAGE: Record<string, string> = { pl: 'Polish', en: 'English', de: 'Ger
   styles: `
     .initial-tests {
       display: grid;
-      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-columns: auto minmax(0, 1fr);
       align-items: center;
       gap: 1.25rem;
       width: 100%;
-      padding: 1.25rem 1.5rem 1.25rem 1.25rem;
-      border-radius: 1.5rem;
-      background: var(--color-primary);
-      color: var(--color-primary-content);
+      padding: 1.1rem 1.25rem;
+      border: 1px solid var(--color-base-300);
+      border-radius: var(--radius-box);
+      background: var(--color-base-200);
+      color: var(--color-base-content);
       text-align: left;
       cursor: pointer;
-      box-shadow: 0 16px 32px -18px color-mix(in oklab, var(--color-primary) 75%, black);
       transition:
-        transform 0.15s,
-        background-color 0.15s;
+        border-color 0.15s,
+        box-shadow 0.15s;
     }
     .initial-tests:hover {
-      background: color-mix(in oklab, var(--color-primary) 86%, black);
-      transform: translateY(-2px);
+      border-color: color-mix(in oklab, var(--color-primary) 45%, var(--color-base-300));
+      box-shadow: 0 10px 24px -18px color-mix(in oklab, var(--color-primary) 70%, black);
+    }
+    .initial-tests:hover app-icon {
+      transform: translateX(3px);
     }
     .initial-tests:focus-visible {
       outline: 3px solid var(--color-primary);
@@ -175,10 +178,10 @@ const LANGUAGE: Record<string, string> = { pl: 'Polish', en: 'English', de: 'Ger
       height: 4.8rem;
       object-fit: cover;
       object-position: top;
-      border: 2px solid #fff;
-      border-radius: 0.35rem;
+      border: 1px solid var(--color-base-300);
+      border-radius: 0.3rem;
       background: #fff;
-      box-shadow: 0 4px 10px rgb(0 0 0 / 0.25);
+      box-shadow: 0 4px 12px -6px rgb(22 48 44 / 0.35);
     }
     .stack img:nth-child(1) {
       transform: translate(-2px, 6px) rotate(-9deg);
@@ -190,17 +193,24 @@ const LANGUAGE: Record<string, string> = { pl: 'Polish', en: 'English', de: 'Ger
       transform: translate(22px, 8px) rotate(12deg);
     }
     .title {
-      display: block;
-      font-size: 1.5rem;
-      font-weight: 700;
-      line-height: 1.15;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-family: var(--font-display);
+      font-size: 1.2rem;
+      font-weight: 600;
+      line-height: 1.2;
+    }
+    .title app-icon {
+      color: var(--color-primary);
+      transition: transform 0.15s;
     }
     .sub {
       display: block;
-      margin-top: 0.35rem;
+      margin-top: 0.3rem;
       font-size: 0.9rem;
-      line-height: 1.35;
-      opacity: 0.92;
+      line-height: 1.45;
+      color: color-mix(in oklab, var(--color-base-content) 80%, transparent);
     }
     .doc-grid {
       display: grid;

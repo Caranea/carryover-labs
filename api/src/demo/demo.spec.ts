@@ -130,6 +130,35 @@ describe('batch job API', () => {
     assert.equal(accepted.status, 202);
   });
 
+  it('answers a malformed or oversized normalization request with 400, not 500', async () => {
+    const observation = (n: number, name: string) => ({
+      id: `doc:0:${n}`,
+      documentId: 'doc',
+      page: 0,
+      name,
+      valueText: '1',
+      unit: null,
+      date: null,
+    });
+    const badDates = await post(`${base}/batches/batch-e/normalize`, {
+      processingVersion: PROCESSING_VERSION,
+      documents: [{ id: 'doc', name: 'Lab document', observations: [], dates: [{ kind: 'x' }] }],
+    });
+    assert.equal(badDates.status, 400);
+    const tooMany = await post(`${base}/batches/batch-e/normalize`, {
+      processingVersion: PROCESSING_VERSION,
+      documents: [
+        {
+          id: 'doc',
+          name: 'Lab document',
+          observations: Array.from({ length: 401 }, (_, n) => observation(n, `Test ${n}`)),
+        },
+      ],
+    });
+    assert.equal(tooMany.status, 400);
+    assert.match(((await tooMany.json()) as { message: string }).message, /at most 400/);
+  });
+
   it('has no synchronous or legacy routes', async () => {
     for (const path of ['extract', 'records'])
       assert.equal((await post(`${base}/${path}`, {})).status, 404);

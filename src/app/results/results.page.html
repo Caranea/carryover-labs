@@ -3,9 +3,20 @@
     <app-step-rail />
     <div class="results-intro" [class.with-aside]="demo">
       <div class="flex flex-col gap-3 min-w-0">
-        <h1 class="text-4xl sm:text-5xl tracking-tight">
-          <span class="font-bold">{{ demo ? 'Explore sample results' : 'Your results' }}</span>
-        </h1>
+        @if (demo) {
+          <span class="badge badge-soft badge-primary gap-1.5 py-3 px-3 self-start no-print">
+            <app-icon name="eye-off" size="0.9rem" /> Fictional patient: every name, lab and address
+            is made up
+          </span>
+          <h1 class="text-4xl sm:text-5xl leading-[1.05] tracking-tight">
+            <span class="font-bold">{{ sample.years }} years of Jane's tests,</span><br />
+            <span class="font-light">finally in one place</span>
+          </h1>
+        } @else {
+          <h1 class="text-4xl sm:text-5xl tracking-tight">
+            <span class="font-bold">Your results</span>
+          </h1>
+        }
         <p class="print-only exported">
           Exported {{ exportedOn | date: 'd MMM y' }} from Carryover Labs. Values as printed on the
           original documents.
@@ -26,8 +37,14 @@
           }
         </p>
         <p class="text-lg text-base-content/80 max-w-3xl leading-relaxed no-print">
-          Every test from your documents, by date, newest first. Select a value to see it on its
-          page, or a test name to see its chart.
+          @if (demo) {
+            Read from {{ sample.documents }} documents in {{ sample.languages }} languages and lined
+            up newest first. Select a value to see the page it came from, or a test name to see its
+            chart.
+          } @else {
+            Every test from your documents, by date, newest first. Select a value to see it on its
+            page, or a test name to see its chart.
+          }
         </p>
         <div class="flex flex-wrap gap-2 mt-2 no-print">
           @if (data()?.stats?.documents) {
@@ -50,12 +67,6 @@
         </aside>
       }
     </div>
-    @if (demo) {
-      <p class="p-3 rounded-box bg-base-200 text-sm">
-        <strong>Fictional sample:</strong> Jane Doe is an invented patient. Her documents and every
-        name, lab and address on them are made up. No upload is needed.
-      </p>
-    }
   </header>
 
   @if (demo) {

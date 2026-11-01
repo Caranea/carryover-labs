@@ -155,6 +155,24 @@ describe('buildRecords', () => {
     );
   });
 
+  it('keeps BUN apart from urea and converts its mmol/L by the nitrogen it carries', () => {
+    const records = buildRecords([
+      doc('a', [
+        obs('bun', 'BUN', '14', 'mg/dL', '2024-01-10'),
+        obs('bun', 'Urea nitrogen', '15', 'mg/dL', '2024-02-10'),
+        obs('bun', 'Urea nitrogen', '5', 'mmol/L', '2024-03-10'),
+        obs('urea', 'Mocznik', '30', 'mg/dl', '2024-01-10'),
+      ]),
+    ]);
+    const bun = series(records).find((s) => s.key === 'bun')!;
+    assert.equal(bun.unit, 'mg/dL');
+    assert.deepEqual(
+      bun.points.map((p) => p.value),
+      [14, 15, 14.007],
+    );
+    assert.ok(series(records).some((s) => s.key === 'urea' && s.points.length === 1));
+  });
+
   it('holds uncertain transcriptions for review until the user confirms them', () => {
     const uncertain = {
       ...obs('tsh', 'TSH', '1.5', 'mIU/L'),

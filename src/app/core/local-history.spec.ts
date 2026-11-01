@@ -91,6 +91,21 @@ describe('persistent browser demo history', () => {
     expect(localStorage.getItem(LOCAL_HISTORY_KEY)).not.toContain('base64');
   });
 
+  it('parses the saved history once for repeated reads, and again only when it changed', async () => {
+    const history = new LocalHistory();
+    const saved = await history.create(report(true), [new Blob(['px'], { type: 'image/jpeg' })]);
+    const parse = vi.spyOn(JSON, 'parse');
+    for (let i = 0; i < 5; i++) history.recordSnapshot();
+    expect(parse).not.toHaveBeenCalled();
+    // Another tab wrote a different history: the next read sees it.
+    const other = JSON.parse(localStorage.getItem(LOCAL_HISTORY_KEY)!);
+    parse.mockClear();
+    other.entries[0].document.name = 'Changed elsewhere';
+    localStorage.setItem(LOCAL_HISTORY_KEY, JSON.stringify(other));
+    expect((await history.list()).find((d) => d.id === saved.id)?.name).toBe('Changed elsewhere');
+    expect(parse).toHaveBeenCalledTimes(1);
+  });
+
   it('reads an older base64 image and keeps the same approval when retried after refresh', async () => {
     const history = new LocalHistory();
     const saved = await history.create(

@@ -103,8 +103,6 @@ export class JobQueue<R> {
       start: (signal) => this.runner.page(request, signal),
       finish: (value) => {
         job.result = value as PageTranscription;
-        // The image is no longer needed once Spark has answered.
-        job.request = { ...job.request, image: '' };
       },
     };
     batch.pages.set(request.pageId, job);
@@ -228,6 +226,7 @@ export class JobQueue<R> {
     if (job.state === 'queued' || job.state === 'running') job.abort.abort();
     job.state = 'failed';
     job.error = 'Cancelled.';
+    release(job);
   }
 
   private changed(batch: Batch<R>): void {
@@ -296,8 +295,9 @@ export class JobQueue<R> {
       job.state = 'failed';
       // Never keep provider text: it can echo submitted content.
       job.error = job.batch.normalization === job ? FAILED_BATCH : FAILED_PAGE;
-      job.bytes = 0;
     } finally {
+      // Done, failed or cancelled: the page image is never needed again (a retry sends it anew).
+      release(job);
       this.running--;
       if (!job.abort.signal.aborted) this.changed(job.batch);
       this.pump();
@@ -321,4 +321,13 @@ function normalizationView<R>(job: NormalizationJob<R>): NormalizationView<R> {
     ...(job.state === 'done' ? { result: job.result } : {}),
     ...(job.state === 'failed' ? { error: job.error } : {}),
   };
+}
+
+/** Drop a finished or failed page's image from memory. */
+function release<R>(job: Job<R>): void {
+  job.bytes = 0;
+  if ('request' in job) {
+    const page = job as PageJob<R>;
+    if (page.request.image) page.request = { ...page.request, image: '' };
+  }
 }

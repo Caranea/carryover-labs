@@ -271,6 +271,28 @@ describe('page transcription as jobs', () => {
     expect((await history.results()).observations).toHaveLength(1);
   });
 
+  it('stops with a clear message when the queue stays full', async () => {
+    await create();
+    server.pageOutcome = () => 'busy';
+    await expect(newService().records()).rejects.toThrow(/Many people are using Carryover/);
+    expect(server.submitted).toHaveLength(0);
+  });
+
+  it('reports a switched-off server at once instead of as a lost connection', async () => {
+    await create();
+    const fetch = server.fetch.getMockImplementation()!;
+    let polls = 0;
+    server.fetch.mockImplementation(async (url, init) => {
+      if ((init?.method ?? 'GET') !== 'GET') return fetch(url, init);
+      polls++;
+      return json({ message: 'Live reading is switched off on this server.' }, 503);
+    });
+    await expect(newService().records()).rejects.toThrow(
+      'Live reading is switched off on this server.',
+    );
+    expect(polls).toBe(1);
+  });
+
   it('survives a dropped connection while waiting for results', async () => {
     await create();
     server.pageOutcome = () => 'hold';

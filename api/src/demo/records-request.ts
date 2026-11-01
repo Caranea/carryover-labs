@@ -5,7 +5,11 @@ import type { SourceDocument } from './normalization.js';
 import { PROCESSING_VERSION, type PageDate } from '../shared/processing.js';
 import { transcriptionSchema } from './source-processing.js';
 
-const LIMITS = { documents: 100, observations: 5000, pages: 40 };
+/**
+ * `names` caps the distinct printed test names: each is one Muse Wonder question, so it bounds
+ * the calls one request can cause. Twenty years of real reports come to about 200.
+ */
+const LIMITS = { documents: 100, observations: 5000, pages: 40, names: 400 };
 const FLAGS = ['H', 'L', 'HH', 'LL', 'A'] as const;
 const rowSchema = { schema: transcriptionSchema.properties.rows.items };
 const datesSchema = {
@@ -27,6 +31,7 @@ export function parseRecordsRequest(body: unknown): SourceDocument[] {
 
   const documentIds = new Set<string>();
   const observationIds = new Set<string>();
+  const names = new Set<string>();
   const parsed = documents.map((raw): SourceDocument => {
     const doc = asObject(raw);
     const id = text(doc['id'], 100);
@@ -38,9 +43,13 @@ export function parseRecordsRequest(body: unknown): SourceDocument[] {
       if (observationIds.has(o.id) || observationIds.size >= LIMITS.observations)
         throw invalidSnapshot();
       observationIds.add(o.id);
+      names.add(o.name.trim().replace(/\s+/g, ' ').toLowerCase());
     }
-    const dates =
-      doc['dates'] === undefined ? [] : validateAnswer<PageDate[]>(datesSchema, doc['dates']);
+    if (names.size > LIMITS.names)
+      throw new InvalidRequest(
+        `Check at most ${LIMITS.names} different tests at once. Split your documents into smaller groups.`,
+      );
+    const dates = doc['dates'] === undefined ? [] : valid<PageDate[]>(datesSchema, doc['dates']);
     if (dates.some((d) => d.iso && toIsoDate(d.iso, 'YMD') !== d.iso)) throw invalidSnapshot();
     return { id, name, observations, dates };
   });
@@ -88,9 +97,18 @@ function parseObservation(raw: unknown, documentId: string): Observation {
     bbox: isBox(bbox) ? bbox : null,
     confirmed: o['confirmed'] === true,
     revision: typeof o['revision'] === 'string' ? o['revision'].slice(0, 100) : undefined,
-    ...(o['transcription'] ? { transcription: validateAnswer(rowSchema, o['transcription']) } : {}),
+    ...(o['transcription'] ? { transcription: valid(rowSchema, o['transcription']) } : {}),
     ...(sourceImage ? { sourceImage } : {}),
   };
+}
+
+/** A snapshot field in the transcription format; anything else is a bad request, not a 500. */
+function valid<T>(schema: Parameters<typeof validateAnswer>[0], value: unknown): T {
+  try {
+    return validateAnswer<T>(schema, value);
+  } catch {
+    throw invalidSnapshot();
+  }
 }
 
 function asObject(value: unknown): Record<string, unknown> {

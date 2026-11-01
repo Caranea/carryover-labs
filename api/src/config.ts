@@ -15,6 +15,8 @@ export interface AppConfig {
   model: ModelEndpoint | null;
   /** Model calls running at once across all users. */
   modelConcurrency: number;
+  /** Paid model calls allowed per UTC day across all users. */
+  modelDailyCalls: number;
 }
 
 /** An OpenAI-compatible chat completions endpoint. */
@@ -39,6 +41,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     throw new Error('MODEL_CONCURRENCY must be between 1 and 32.');
   }
 
+  const modelDailyCalls = Number(env['MODEL_DAILY_CALLS'] ?? 1000);
+  if (!Number.isInteger(modelDailyCalls) || modelDailyCalls < 1) {
+    throw new Error('MODEL_DAILY_CALLS must be a whole number of at least 1.');
+  }
+
   return {
     port,
     listenHost: env['HOST'] || '127.0.0.1',
@@ -52,5 +59,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
         }
       : null,
     modelConcurrency,
+    modelDailyCalls,
   };
 }

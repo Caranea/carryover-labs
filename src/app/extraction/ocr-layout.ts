@@ -33,26 +33,6 @@ export function pageToWords(page: Tesseract.Page, startId: number): WorkingWord[
   return out;
 }
 
-/** Characters in confidently read words: higher means the page is the right way up. */
-export function readingScore(page: Tesseract.Page): number {
-  let score = 0;
-  for (const block of page.blocks ?? []) {
-    for (const paragraph of block.paragraphs) {
-      for (const line of paragraph.lines) {
-        for (const w of line.words) {
-          const t = w.text.trim();
-          if (w.confidence >= 70 && /[\p{L}\d]{2,}/u.test(t)) score += t.length;
-        }
-      }
-    }
-  }
-  return score;
-}
-
-export function readsWell(page: Tesseract.Page): boolean {
-  return page.confidence >= 72 && readingScore(page) >= 120;
-}
-
 function bboxToBox(b: Tesseract.Bbox): Box {
   return { x: b.x0, y: b.y0, w: b.x1 - b.x0, h: b.y1 - b.y0 };
 }

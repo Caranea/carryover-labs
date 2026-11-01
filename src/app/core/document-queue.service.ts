@@ -20,6 +20,7 @@ import {
   removeRegion,
 } from '../redaction/burn';
 import { intersects } from '../redaction/geometry';
+import { turnImage, turnPageGeometry, type Turn } from '../redaction/rotate';
 import { LocalHistory } from './local-history';
 import { ResultsService } from './results.service';
 import {
@@ -575,6 +576,24 @@ export class DocumentQueueService {
       pages.map((p, i) =>
         i === pageIndex && regionIndex >= (p.lockedRegions ?? 0) && regionIndex < p.regions.length
           ? removeRegion(p, regionIndex)
+          : p,
+      ),
+    );
+  }
+
+  /**
+   * Turn a sideways or upside-down page a quarter. Masks turn with it and nothing is detected
+   * again: the person hides what is left by hand. Undo restores the previous orientation.
+   */
+  async rotatePage(localId: string, pageIndex: number, turn: Turn) {
+    const page = this.byId(localId)?.pages[pageIndex];
+    if (!page?.image) return;
+    const image = await turnImage(page.image, turn);
+    this.editPages(localId, (pages) =>
+      pages.map((p, i) =>
+        // A page changed while the image was turning (another click) keeps its newer state.
+        i === pageIndex && p.image === page.image
+          ? { ...turnPageGeometry(p, turn), image, imageUrl: URL.createObjectURL(image) }
           : p,
       ),
     );

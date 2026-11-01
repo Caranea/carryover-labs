@@ -14,12 +14,15 @@ export const LOAD_TIMEOUT_MS = 120_000;
 // FP16 may take tens of minutes on a slow connection. Keep the two-minute
 // no-progress timeout, but do not abort an active download after ten minutes.
 export const MAX_LOAD_TIME_MS = 60 * 60_000;
+/** A page check fails after this long without any progress (not after this long in total). */
 export const PREDICT_TIMEOUT_MS = 45_000;
 
 interface Pending {
   resolve: (p: [string, number][]) => void;
   reject: (e: Error) => void;
   cleanup: () => void;
+  /** Progress was made: restart the no-progress timeout. */
+  touch: () => void;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -163,6 +166,7 @@ export class NerService {
                 this.finishLoad?.(true);
                 break;
               case 'predict-progress':
+                this.pending.get(data.id)?.touch();
                 if (this.pending.has(data.id) && data.total > 0) {
                   const fraction =
                     (this.pageNumber() - 1 + data.completed / data.total) / this.pageCount();
@@ -347,14 +351,20 @@ export class NerService {
       return Promise.reject(new Error('Detector unavailable'));
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(
-        () =>
-          this.fail(
-            'Checking this page is taking too long. Choose manual review, then inspect the personal details yourself.',
-          ),
-        PREDICT_TIMEOUT_MS,
-      );
-      this.pending.set(id, { resolve, reject, cleanup: () => clearTimeout(timer) });
+      // A long page on a slow phone is fine while it keeps moving; only a stall fails it.
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const arm = () => {
+        clearTimeout(timer);
+        timer = setTimeout(
+          () =>
+            this.fail(
+              'Checking this page stopped making progress. Choose manual review, then inspect the personal details yourself.',
+            ),
+          PREDICT_TIMEOUT_MS,
+        );
+      };
+      arm();
+      this.pending.set(id, { resolve, reject, cleanup: () => clearTimeout(timer), touch: arm });
       this.send({ type: 'predict', id, lines });
     });
   }

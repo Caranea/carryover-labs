@@ -144,7 +144,7 @@ export class LocalHistory {
     const state = readState();
     return state.modelRecords?.version === PROCESSING_VERSION &&
       state.modelRecords.fingerprint === fingerprint(state.entries)
-      ? state.modelRecords.records
+      ? structuredClone(state.modelRecords.records)
       : null;
   }
 
@@ -284,7 +284,8 @@ export class LocalHistory {
         },
         count: observations.length,
       })),
-      observations: all.flatMap((entry) => entry.observations),
+      // A copy: the parsed history is cached, and callers must not change it by accident.
+      observations: structuredClone(all.flatMap((entry) => entry.observations)),
     };
   }
 
@@ -366,6 +367,14 @@ function fingerprint(entries: Entry[]): string {
 function read(): Entry[] {
   return readState().entries;
 }
+
+/**
+ * The last state read or written, with the exact text it came from. The results loop reads the
+ * history several times per poll; parsing megabytes each time is the cost this avoids. Reading
+ * the text back is cheap, and comparing it notices a change made in another tab.
+ */
+let parsed: { raw: string; state: HistoryState } | null = null;
+
 function readState(): HistoryState {
   let raw: string | null;
   try {
@@ -373,11 +382,16 @@ function readState(): HistoryState {
   } catch {
     throw new Error('Browser storage is unavailable. Allow site storage to use saved results.');
   }
-  if (raw === null) return { version: 1, entries: [] };
+  if (raw === null) {
+    parsed = null;
+    return { version: 1, entries: [] };
+  }
+  if (parsed?.raw === raw) return parsed.state;
   try {
     const value = JSON.parse(raw);
     if (value.version !== 1 || !Array.isArray(value.entries) || !value.entries.every(validEntry))
       throw new Error();
+    parsed = { raw, state: value };
     return value;
   } catch {
     throw new Error(
@@ -430,9 +444,14 @@ function validEntry(value: unknown): value is Entry {
 }
 
 function write(entries: Entry[], modelRecords?: HistoryState['modelRecords']): void {
+  const state: HistoryState = { version: 1, entries, modelRecords };
+  const raw = JSON.stringify(state);
   try {
-    localStorage.setItem(LOCAL_HISTORY_KEY, JSON.stringify({ version: 1, entries, modelRecords }));
+    localStorage.setItem(LOCAL_HISTORY_KEY, raw);
+    parsed = { raw, state };
   } catch {
+    // Callers change entries in place before writing: forget them, the stored text is the truth.
+    parsed = null;
     throw new Error(
       'This browser’s local storage is full or unavailable. Delete an old demo document or allow site storage, then try again. Your previous results are unchanged.',
     );

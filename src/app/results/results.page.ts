@@ -4,7 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { errorMessage } from '../core/errors';
 import { LocalHistory } from '../core/local-history';
 import { progressText, ResultsService } from '../core/results.service';
-import { DEMO_RECORDS, DEMO_RESULTS, DEMO_SOURCE_PAGES, demoPage } from '../core/demo-data';
+import { DEMO_DOCUMENTS, demoPage } from '../core/demo-documents';
 import {
   RecordChart,
   RecordPoint,
@@ -137,6 +137,10 @@ export class ResultsPage implements OnInit, OnDestroy {
   private request = 0;
   private readonly router = inject(Router);
   protected readonly demo = inject(ActivatedRoute).snapshot.data['demo'] === true;
+  /** Counts for the sample patient's headline, taken from her documents so they never drift. */
+  protected readonly sample = sampleSummary();
+  /** The sample's page text, loaded with the sample (demo only). */
+  private demoPages: Record<string, string[]> = {};
   protected readonly refreshing = signal(false);
   private destroyed = false;
   private readonly sourceDialog = viewChild.required(SourceDialog);
@@ -375,8 +379,12 @@ export class ResultsPage implements OnInit, OnDestroy {
 
   async ngOnInit() {
     if (this.demo) {
-      this.data.set(DEMO_RECORDS);
-      this.raw.set(DEMO_RESULTS);
+      // Loaded only here, so the sample never weighs on a real user's results page.
+      const sample = await import('../core/demo-data');
+      if (this.destroyed) return;
+      this.demoPages = sample.DEMO_SOURCE_PAGES;
+      this.data.set(sample.DEMO_RECORDS);
+      this.raw.set(sample.DEMO_RESULTS);
       return;
     }
     await this.refresh();
@@ -485,7 +493,7 @@ export class ResultsPage implements OnInit, OnDestroy {
         (o) => o.id === ref.observationId && o.documentId === ref.documentId,
       ),
       demoText: this.demo
-        ? (DEMO_SOURCE_PAGES[ref.documentId]?.[ref.page] ?? 'Fictional source text is unavailable.')
+        ? (this.demoPages[ref.documentId]?.[ref.page] ?? 'Fictional source text is unavailable.')
         : undefined,
       demoImage: this.demo ? demoPage(ref.documentId, ref.page) : undefined,
     });
@@ -550,4 +558,20 @@ function flagOf(flag: RecordPoint['flag']): Cell['flag'] {
   if (flag === 'H' || flag === 'HH') return 'high';
   if (flag === 'L' || flag === 'LL') return 'low';
   return flag === 'A' ? 'abnormal' : null;
+}
+
+const NUMBER_WORDS = [
+  'Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+  'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen',
+  'Nineteen', 'Twenty',
+];
+
+function sampleSummary() {
+  const years = DEMO_DOCUMENTS.map((d) => Number(d.date.slice(0, 4)));
+  const span = Math.max(...years) - Math.min(...years);
+  return {
+    documents: DEMO_DOCUMENTS.length,
+    languages: new Set(DEMO_DOCUMENTS.map((d) => d.language)).size,
+    years: NUMBER_WORDS[span] ?? String(span),
+  };
 }

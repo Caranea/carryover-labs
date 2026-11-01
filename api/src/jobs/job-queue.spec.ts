@@ -99,6 +99,29 @@ describe('job queue', () => {
     assert.equal(calls.length, 2);
   });
 
+  it('drops a page image from memory once its job has failed or finished', async () => {
+    const { runner, calls } = controlledRunner();
+    const queue = queueWith(runner);
+    queue.submitPage('b1', page(0));
+    queue.submitPage('b1', page(1));
+    calls[0].reject(new Error('busy'));
+    calls[1].resolve(transcription(page(1)));
+    await settle();
+    const held = [
+      ...(
+        queue as unknown as {
+          batches: Map<string, { pages: Map<string, { request: PageRequest }> }>;
+        }
+      ).batches
+        .get('b1')!
+        .pages.values(),
+    ];
+    assert.deepEqual(
+      held.map((job) => job.request.image),
+      ['', ''],
+    );
+  });
+
   it('wakes a waiting poll on change and otherwise answers after the timeout', async () => {
     const { runner, calls } = controlledRunner();
     const queue = queueWith(runner);

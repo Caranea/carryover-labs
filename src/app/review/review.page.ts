@@ -4,6 +4,7 @@ import { DocumentQueueService } from '../core/document-queue.service';
 import { ToastService } from '../core/toast.service';
 import { Box, PiiKind, WorkingWord } from '../core/models';
 import { redactionPlan } from '../redaction/burn';
+import type { Turn } from '../redaction/rotate';
 
 import { KIND_LABEL, KIND_PLURAL } from './describe';
 import { EditMode, PageView } from './page-view';
@@ -41,6 +42,7 @@ export class ReviewPage {
 
   protected readonly mode = signal<EditMode>('words');
   protected readonly reveal = signal(false);
+  protected readonly turning = signal(false);
 
   protected readonly doc = computed(() => this.queue.byId(this.localId()));
   protected readonly busy = computed(() => {
@@ -165,6 +167,23 @@ export class ReviewPage {
     for (const ref of g.refs) {
       const w = this.wordAt(ref.page, ref.id);
       if (w?.hidden) this.queue.toggleWord(this.localId(), ref.page, ref.id);
+    }
+  }
+
+  /** Turn a sideways page upright. Masks follow; nothing is detected again. */
+  protected async rotate(pageIndex: number, turn: Turn) {
+    if (this.busy() || this.turning()) return;
+    this.turning.set(true);
+    try {
+      await this.queue.rotatePage(this.localId(), pageIndex, turn);
+      this.toast.show(
+        'Page turned',
+        'Personal details are not looked for again. Check this page and hide anything left by hand.',
+      );
+    } catch {
+      this.toast.show('This page could not be turned. Try again.');
+    } finally {
+      this.turning.set(false);
     }
   }
 

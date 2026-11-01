@@ -115,9 +115,32 @@
         <div class="flex flex-col gap-6 p-4 sm:p-6">
           @for (page of doc.pages; track page.index; let i = $index) {
             <figure class="flex flex-col gap-2">
-              @if (doc.pages.length > 1) {
-                <figcaption class="text-sm text-base-content/80">
-                  Page {{ i + 1 }} of {{ doc.pages.length }}
+              @if (doc.pages.length > 1 || page.image) {
+                <figcaption class="flex flex-wrap items-center gap-2 text-sm text-base-content/80">
+                  @if (doc.pages.length > 1) {
+                    <span>Page {{ i + 1 }} of {{ doc.pages.length }}</span>
+                  }
+                  @if (page.image) {
+                    <span class="ml-auto">Sideways page?</span>
+                    <span class="join" role="group" [attr.aria-label]="'Turn page ' + (i + 1)">
+                      <button
+                        type="button"
+                        class="btn btn-sm join-item"
+                        [disabled]="busy() || turning()"
+                        (click)="rotate(i, -1)"
+                      >
+                        <app-icon name="turn-left" size="1rem" /> Turn left
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-sm join-item"
+                        [disabled]="busy() || turning()"
+                        (click)="rotate(i, 1)"
+                      >
+                        <app-icon name="turn-right" size="1rem" /> Turn right
+                      </button>
+                    </span>
+                  }
                 </figcaption>
               }
               @if (page.image) {

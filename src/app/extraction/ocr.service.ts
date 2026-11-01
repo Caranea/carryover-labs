@@ -3,7 +3,7 @@ import type Tesseract from 'tesseract.js';
 import { ASSETS, assetUrl, OCR_LANGUAGES } from '../core/assets';
 import { WorkingWord } from '../core/models';
 import { pageToWords } from './ocr-layout';
-export { pageToWords, readingScore } from './ocr-layout';
+export { pageToWords } from './ocr-layout';
 
 export type OcrSource = HTMLCanvasElement | OffscreenCanvas | Blob | ImageBitmap;
 

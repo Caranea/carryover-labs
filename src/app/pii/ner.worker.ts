@@ -13,7 +13,7 @@ import {
   Tensor,
 } from '@huggingface/transformers';
 import { aggregateWord, softmax } from './labels';
-import type { NerRequest, NerResponse } from './ner-protocol';
+import { NER_MODEL_REVISION, type NerRequest, type NerResponse } from './ner-protocol';
 import { buildSequences } from './ner-sequences';
 import { gpuExportAvailable, selectDetectorVariant, type ModelDevice } from './model-selection';
 
@@ -101,7 +101,7 @@ async function load(
   const initialize = async (useGpu: boolean) => {
     const weightsUrl = useGpu
       ? new URL('onnx/model_fp16.onnx', gpuModelBase).href
-      : `https://huggingface.co/${modelId}/resolve/main/onnx/model_quantized.onnx`;
+      : `https://huggingface.co/${modelId}/resolve/${NER_MODEL_REVISION}/onnx/model_quantized.onnx`;
     try {
       cachedWeights = typeof caches !== 'undefined' && !!(await caches.match(weightsUrl));
     } catch {
@@ -111,7 +111,11 @@ async function load(
     post({ type: 'load-stage', stage: 'preparing' });
     env.allowLocalModels = useGpu;
     const source = useGpu ? new URL(gpuModelBase).pathname.replace(/\/$/, '') : modelId;
-    const options = { progress_callback, local_files_only: useGpu };
+    const options = {
+      progress_callback,
+      local_files_only: useGpu,
+      ...(useGpu ? {} : { revision: NER_MODEL_REVISION }),
+    };
     tokenizer = await AutoTokenizer.from_pretrained(source, options);
     post({ type: 'load-stage', stage: cachedWeights ? 'starting' : 'downloading' });
     model = await AutoModelForTokenClassification.from_pretrained(source, {

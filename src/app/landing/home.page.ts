@@ -31,7 +31,7 @@ export class HomePage {
     {
       question: 'Where are my documents saved?',
       answer:
-        'The original file is read on your device. After you approve a copy, its results and page images are saved in this browser. Clearing site data removes them.',
+        'The original file is read on your device. After you approve a copy, its results and page images are saved in this browser. “Delete all my data from this browser”, at the bottom of every page, removes them.',
     },
     {
       question: 'Does Carryover tell me what my results mean?',

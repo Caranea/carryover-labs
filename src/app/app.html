@@ -129,6 +129,9 @@
             AI reads that checked copy; our server keeps it only while it is read, at most 15
             minutes.
           </p>
+          <button type="button" class="footer-clear" (click)="askClear()">
+            <app-icon name="trash" size="1rem" /> Delete all my data from this browser
+          </button>
         </div>
       </section>
     </div>
@@ -139,5 +142,41 @@
     </div>
   </div>
 </footer>
+
+<dialog #clearDialog class="modal" aria-labelledby="clear-h" aria-describedby="clear-d">
+  <div class="modal-box">
+    <h2 id="clear-h" class="font-display text-xl font-semibold">
+      Delete everything Carryover saved in this browser?
+    </h2>
+    <p id="clear-d" class="py-3 text-base-content/80">
+      This removes your approved documents, results, corrections and anything waiting for review. It
+      can't be undone. Files on your device outside the browser aren't affected, and the downloaded
+      privacy checker stays so you won't need to download it again.
+    </p>
+    @if (clearError(); as e) {
+      <div role="alert" class="alert alert-error alert-soft mb-2">
+        <span>{{ e }}</span>
+      </div>
+    }
+    <div class="modal-action">
+      <form method="dialog">
+        <button class="btn btn-ghost rounded-full" [disabled]="clearing()">Keep my data</button>
+      </form>
+      <button
+        type="button"
+        class="btn btn-error rounded-full"
+        [disabled]="clearing()"
+        (click)="confirmClear()"
+      >
+        @if (clearing()) {
+          <span class="loading loading-spinner loading-sm"></span> Deleting
+        } @else {
+          Delete everything
+        }
+      </button>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
 
 <app-toasts />

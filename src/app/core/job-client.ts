@@ -18,6 +18,12 @@ export type RecordsView = BatchView<RecordsResponse>;
 export class BusyError extends Error {}
 
 /**
+ * The server answered and said no: live reading is switched off, today's limit is reached,
+ * or the request was rejected. Asking again won't help, so the message is shown at once.
+ */
+export class ServerRefused extends Error {}
+
+/**
  * HTTP calls to the batch job API. The batch ID is kept in this browser so a refresh
  * resumes the same server jobs instead of paying for the pages again.
  */
@@ -81,11 +87,27 @@ export class JobClient {
 
 async function failure(response: Response): Promise<Error> {
   const body = (await response.json().catch(() => ({}))) as { message?: unknown };
-  return new Error(
+  const message =
     typeof body.message === 'string'
       ? body.message
-      : 'The Meta AI check failed. Try again shortly.',
-  );
+      : "Meta's service didn't answer. Wait a minute and try again.";
+  // 502 and 504 come from a proxy in between and usually pass; 429 is handled as busy.
+  const refused = response.status === 503 || (response.status >= 400 && response.status < 500);
+  return refused && response.status !== 429 ? new ServerRefused(message) : new Error(message);
+}
+
+/** Ask the server to drop this browser's batch, if there is one. Never creates an ID. */
+export async function forgetServerBatch(): Promise<void> {
+  try {
+    const id = localStorage.getItem(BATCH_KEY);
+    if (id && /^[a-zA-Z0-9-]{1,80}$/.test(id))
+      await fetch(`/api/demo/batches/${id}`, {
+        method: 'DELETE',
+        signal: AbortSignal.timeout(5000),
+      });
+  } catch {
+    /* Offline or no storage: the server forgets the batch within 15 minutes anyway. */
+  }
 }
 
 function storedBatchId(): string {

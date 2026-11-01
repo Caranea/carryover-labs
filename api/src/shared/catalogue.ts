@@ -474,6 +474,16 @@ export const CATALOGUE: CatalogueTest[] = [
     molarMass: 60.06,
     plausible: [1, 600],
   }),
+  // US labs report the nitrogen in urea, not urea itself: 1 mg/dL BUN = 2.14 mg/dL urea, so
+  // the two must never share a line. Its "molar mass" is the two nitrogens per urea (28.014).
+  t(
+    'bun',
+    'Blood urea nitrogen',
+    'kidney',
+    'mg/dL',
+    ['bun', 'blood urea nitrogen', 'urea nitrogen', 'azot mocznikowy', 'harnstoff-stickstoff'],
+    { molarMass: 28.014, plausible: [0.5, 280] },
+  ),
   t(
     'uric-acid',
     'Uric acid',

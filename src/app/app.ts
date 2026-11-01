@@ -14,6 +14,9 @@ import { Mark } from './shell/mark';
 import { Toasts } from './shell/toasts';
 import { Icon } from './ui/icon';
 import { DocumentQueueService } from './core/document-queue.service';
+import { CLEARED_FLAG, clearLocalData } from './core/clear-local-data';
+import { errorMessage } from './core/errors';
+import { ToastService } from './core/toast.service';
 
 @Component({
   selector: 'app-root',
@@ -34,9 +37,21 @@ export class App {
   private readonly navigation = viewChild<ElementRef<HTMLElement>>('navigation');
   private readonly menuToggle = viewChild<ElementRef<HTMLButtonElement>>('menuToggle');
   protected readonly menuOpen = signal(false);
+  private readonly toast = inject(ToastService);
+  private readonly clearDialog = viewChild<ElementRef<HTMLDialogElement>>('clearDialog');
+  protected readonly clearing = signal(false);
+  protected readonly clearError = signal<string | null>(null);
   protected readonly currentYear = new Date().getFullYear();
 
   constructor() {
+    try {
+      if (sessionStorage.getItem(CLEARED_FLAG)) {
+        sessionStorage.removeItem(CLEARED_FLAG);
+        this.toast.show('Your data was deleted', 'Nothing from Carryover is left in this browser.');
+      }
+    } catch {
+      /* Storage blocked: nothing was saved either. */
+    }
     let lastPath: string | null = null;
     this.router.events.pipe(takeUntilDestroyed()).subscribe((event) => {
       if (!(event instanceof NavigationEnd)) return;
@@ -47,6 +62,23 @@ export class App {
       if (lastPath !== null && path !== lastPath) this.focusPageHeading();
       lastPath = path;
     });
+  }
+
+  protected askClear() {
+    this.clearError.set(null);
+    this.clearDialog()?.nativeElement.showModal();
+  }
+
+  /** Delete everything saved in this browser, then start fresh from the home page. */
+  protected async confirmClear() {
+    this.clearing.set(true);
+    try {
+      await clearLocalData();
+      location.assign('/');
+    } catch (error) {
+      this.clearError.set(errorMessage(error));
+      this.clearing.set(false);
+    }
   }
 
   private focusPageHeading() {

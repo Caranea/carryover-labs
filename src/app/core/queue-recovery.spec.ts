@@ -166,6 +166,7 @@ describe('queue recovery after refresh', () => {
     const marker = localStorage.getItem(QUEUE_PROGRESS_KEY)!;
     expect(marker.length).toBeLessThan(2000);
     expect(marker).not.toContain('Fictional');
+    expect(marker).not.toContain(state.documents[0].fileName);
     const restored = (await new QueueRecovery().load())!;
     expect(restored.batchId).toBe(state.batchId);
     expect(restored.documents[0].localId).toBe(state.documents[0].localId);

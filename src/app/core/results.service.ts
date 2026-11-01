@@ -2,7 +2,7 @@ import { inject, Injectable, signal } from '@angular/core';
 import { MAX_WAIT_SECONDS } from '@shared/jobs';
 import { PROCESSING_VERSION } from '@shared/processing';
 import type { RecordsResponse } from '@shared/records';
-import { BusyError, JobClient, type RecordsView } from './job-client';
+import { BusyError, JobClient, ServerRefused, type RecordsView } from './job-client';
 import { LocalHistory } from './local-history';
 
 export interface ProcessingState {
@@ -26,6 +26,8 @@ const IDLE: ProcessingState = {
 };
 /** Consecutive connection failures tolerated (with backoff) before reporting an error. */
 const MAX_CONNECTION_FAILURES = 6;
+/** Rounds in a row the server's queue was full before we stop and say so (about two minutes). */
+const MAX_BUSY_ROUNDS = 30;
 /**
  * Pages kept on the server at once; the next is sent as each result arrives. Twice the
  * server's default model concurrency keeps it busy without ever hitting its batch limit.
@@ -52,7 +54,7 @@ export class ResultsService {
   /** Pages the server is reading or will read: from the last view, plus pages sent since. */
   private onServer = new Set<string>();
   private check: { fingerprint: string; promise: Promise<RecordsResponse> } | null = null;
-  /** Pages whose job failed; they are sent again only on an explicit retry. */
+  /** Pages whose job failed in this session; a retry or a page refresh sends them again. */
   private readonly failed = new Map<string, string>();
   /** Backoff after a dropped connection (overridable in tests). */
   protected retryDelay = (attempt: number) => Math.min(1000 * 2 ** attempt, 15_000);
@@ -156,6 +158,7 @@ export class ResultsService {
   private async collectPages(): Promise<void> {
     let view: RecordsView | undefined;
     let connectionFailures = 0;
+    let busyRounds = 0;
     this.onServer = new Set();
     // Nothing approved and unsaved: the server has nothing for us, so do not ask it.
     while (this.waiting().length) {
@@ -165,7 +168,9 @@ export class ResultsService {
         // Asking from version 0 answers at once, so a refresh sees what the server already holds.
         fresh = await this.jobs.view(view?.version ?? 0, MAX_WAIT_SECONDS, nudge.signal);
         connectionFailures = 0;
-      } catch {
+      } catch (error) {
+        // Switched off or out of today's budget: say so now instead of "connection lost" later.
+        if (error instanceof ServerRefused) throw error;
         if (!nudge.signal.aborted) {
           // A locked phone or a dropped connection: back off and try again.
           if (++connectionFailures > MAX_CONNECTION_FAILURES) {
@@ -185,6 +190,11 @@ export class ResultsService {
       const busy = await this.submit(this.unsent().slice(0, Math.max(room, 0)));
       await this.report(view, this.history.recordSnapshot().sources);
       // The server's queue is full: give it a moment before offering the pages again.
+      busyRounds = busy ? busyRounds + 1 : 0;
+      if (busyRounds > MAX_BUSY_ROUNDS)
+        throw new Error(
+          'Many people are using Carryover right now. Your documents are saved; try again in a few minutes.',
+        );
       if (busy) await pause(this.retryDelay(2));
     }
     const remaining = this.history.recordSnapshot().sources.length;
@@ -290,7 +300,8 @@ export class ResultsService {
       try {
         view = await this.jobs.view(version, MAX_WAIT_SECONDS);
         connectionFailures = 0;
-      } catch {
+      } catch (error) {
+        if (error instanceof ServerRefused) throw error;
         if (++connectionFailures > MAX_CONNECTION_FAILURES) {
           throw new Error(
             'The connection was lost while organizing your results. Check your connection and retry.',
