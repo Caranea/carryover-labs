@@ -607,3 +607,217 @@ app-spark.wide {
     display: none;
   }
 }
+
+/*
+ * Printed, or saved as a PDF from the print dialog: the same page as a portrait A4 report.
+ * The page size, margins and site header and footer are set in styles.css. Each panel's table
+ * is printed as one or more tables as wide as the page (newest dates first), so no date is
+ * cut off; anything only useful on screen (search, paging, "Show" links) is left out.
+ */
+.print-only,
+.print-sheets {
+  display: none;
+}
+@media print {
+  .results-page {
+    max-width: none;
+    padding: 0;
+    gap: 6mm;
+    color: var(--ink);
+  }
+  .results-page h1 {
+    font-size: 22pt;
+  }
+  .no-print,
+  .pager,
+  .head-clone,
+  .screen-sheet,
+  .cards,
+  app-info-tip,
+  .sheet .test .hint {
+    display: none !important;
+  }
+  .print-only {
+    display: block;
+  }
+  .exported {
+    font-size: 9pt;
+    color: var(--ink-soft);
+  }
+  .exported strong {
+    color: var(--ink);
+  }
+
+  .report-head dl {
+    grid-template-columns: repeat(auto-fit, minmax(28mm, 1fr));
+  }
+  .report-head dd {
+    font-size: 13pt;
+  }
+  .legend {
+    display: flex;
+    font-size: 7.5pt;
+  }
+
+  .panel {
+    gap: 2mm;
+  }
+  .panel-head {
+    position: static;
+    margin: 0;
+    padding: 0;
+    break-after: avoid;
+  }
+  .panel h2 {
+    font-size: 14pt;
+  }
+  .panel .note {
+    font-size: 7.5pt;
+    max-width: none;
+  }
+  .print-sheets {
+    display: flex;
+    flex-direction: column;
+    gap: 2mm;
+  }
+  .chunk-note {
+    margin-top: 2mm;
+    font-size: 8pt;
+    font-weight: 600;
+    color: var(--ink-soft);
+    break-after: avoid;
+  }
+
+  /* Every table fills the page width; the test name wraps instead of being cut off. */
+  .print-sheets .sheet,
+  .to-check .sheet {
+    display: block;
+    overflow: visible;
+    max-width: none;
+  }
+  .sheet table {
+    width: 100%;
+    font-size: 8.5pt;
+  }
+  .sheet thead {
+    display: table-header-group;
+  }
+  .sheet tr {
+    break-inside: avoid;
+  }
+  .sheet thead th {
+    padding: 1mm 1.2mm;
+    font-size: 7.5pt;
+  }
+  .sheet thead th small {
+    font-size: 6.5pt;
+  }
+  .sheet td,
+  .sheet tbody th {
+    padding: 1.1mm 1.2mm;
+  }
+  .sheet .test {
+    position: static;
+    width: 38mm;
+    min-width: 0;
+    max-width: 38mm;
+    padding-left: 1.2mm;
+  }
+  .sheet .test small {
+    max-width: none;
+    font-size: 7pt;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .sheet .trend {
+    width: 22mm;
+  }
+  .sheet td.trend app-spark {
+    width: 100%;
+    height: 7mm;
+  }
+  .sheet .ref {
+    width: 18mm;
+    white-space: normal;
+  }
+  .sheet td.ref small {
+    font-size: 7pt;
+  }
+  .sheet .num {
+    width: auto;
+    min-width: 0;
+  }
+  .sheet .gap {
+    width: 4mm;
+    min-width: 4mm;
+  }
+  .value {
+    padding: 0;
+    font-size: 8.5pt;
+  }
+  .value .flag {
+    font-size: 6.5pt;
+  }
+  .sheet .why {
+    min-width: 0;
+  }
+  .sheet .doc {
+    white-space: normal;
+  }
+  .sheet tr.detail app-line-chart {
+    position: static;
+    width: 100%;
+  }
+
+  /* The readings that still need a look: marked in yellow, and named again at the end. */
+  .to-check {
+    padding-left: 3mm;
+    border-left: 3pt solid #e0a800;
+  }
+  .check-warning {
+    display: flex;
+    gap: 3mm;
+    align-items: flex-start;
+    padding: 3.5mm 4mm;
+    border: 1pt solid #e0a800;
+    border-radius: 2mm;
+    background: #fff4c2;
+    color: #3b2600;
+    font-size: 9.5pt;
+    line-height: 1.4;
+    break-inside: avoid;
+  }
+  .check-warning .sign {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 6mm;
+    height: 6mm;
+    border-radius: 50%;
+    background: #e0a800;
+    color: #fff;
+    font-weight: 800;
+  }
+
+  /* "Everything that was read" only when it is open on screen. */
+  .raw-all:not(:has(> input:checked)) {
+    display: none;
+  }
+
+  .results-page * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
+
+/* Demo: the sample patient's original documents sit beside the title. */
+.results-intro {
+  display: grid;
+  gap: 1.5rem;
+}
+@media (min-width: 64rem) {
+  .results-intro.with-aside {
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 25rem);
+    align-items: center;
+  }
+}

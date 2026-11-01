@@ -26,7 +26,7 @@ describe('appointment PDF', () => {
     expect(content).toContain('Płytki krwi, żółć, Überprüfung, Grüße');
     expect(content).toContain('Readings to check');
     expect(content).toContain('Source bibliography');
-    expect(content).toContain('2020-02-12');
+    expect(content).toContain('2012-05-21');
     expect(content).not.toContain('TSH (');
     expect(content).toContain('Matching status at export: automatic matching is not configured');
     expect(content).toContain('FICTIONAL SAMPLE');

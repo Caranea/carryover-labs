@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { Component, computed, ElementRef, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { DocumentQueueService } from '../core/document-queue.service';
 import { ToastService } from '../core/toast.service';
@@ -27,19 +27,20 @@ interface HiddenGroup {
   imports: [PageView, TextView, RouterLink, Icon, StepRail, StorageNotice],
   templateUrl: './review.page.html',
   styleUrl: './review.page.css',
+  host: { '(document:keydown)': 'onKeydown($event)' },
 })
 export class ReviewPage {
   protected readonly queue = inject(DocumentQueueService);
 
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   readonly localId = input.required<string>();
   readonly embedded = input(false);
 
   protected readonly mode = signal<EditMode>('words');
   protected readonly reveal = signal(false);
-  protected readonly textView = signal(false);
 
   protected readonly doc = computed(() => this.queue.byId(this.localId()));
   protected readonly busy = computed(() => {
@@ -121,6 +122,39 @@ export class ReviewPage {
   );
 
   protected readonly kindLabel = KIND_LABEL;
+  protected readonly canUndo = computed(() => this.queue.canUndo(this.localId()));
+  protected readonly canRedo = computed(() => this.queue.canRedo(this.localId()));
+
+  protected undo() {
+    if (!this.busy()) this.queue.undo(this.localId());
+  }
+
+  protected redo() {
+    if (!this.busy()) this.queue.redo(this.localId());
+  }
+
+  /** Ctrl/Cmd+Z undoes; Ctrl/Cmd+Shift+Z or Ctrl+Y redoes. Text fields keep their own undo. */
+  protected onKeydown(e: KeyboardEvent) {
+    if (e.defaultPrevented || e.altKey || !(e.ctrlKey || e.metaKey)) return;
+    const key = e.key.toLowerCase();
+    if (key !== 'z' && key !== 'y') return;
+    if (!this.ownsShortcut(e.target)) return;
+    e.preventDefault();
+    if (key === 'y' || e.shiftKey) this.redo();
+    else this.undo();
+  }
+
+  /**
+   * Several documents can be open at once. The one holding focus answers the shortcut;
+   * with focus elsewhere, the most recently edited one does.
+   */
+  private ownsShortcut(target: EventTarget | null): boolean {
+    const el = target instanceof Element ? target : null;
+    if (el && isTextEntry(el)) return false;
+    const review = el?.closest('app-review');
+    if (review) return review === this.host.nativeElement;
+    return this.queue.lastEdited() === this.localId();
+  }
 
   protected toggle(pageIndex: number, wordId: number) {
     if (!this.busy()) this.queue.toggleWord(this.localId(), pageIndex, wordId);
@@ -177,4 +211,11 @@ export class ReviewPage {
   private wordAt(page: number, id: number): WorkingWord | undefined {
     return this.doc()?.pages[page]?.words.find((w) => w.id === id);
   }
+}
+
+const NON_TEXT_INPUTS = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color', 'file']);
+
+function isTextEntry(el: Element): boolean {
+  if (el instanceof HTMLInputElement) return !NON_TEXT_INPUTS.has(el.type);
+  return !!el.closest('textarea, select, [contenteditable]:not([contenteditable="false"])');
 }

@@ -1,30 +1,59 @@
-<div class="mx-auto max-w-7xl px-5 sm:px-8 py-6 sm:py-12 flex flex-col gap-8">
+<div class="results-page mx-auto max-w-7xl px-5 sm:px-8 py-6 sm:py-12 flex flex-col gap-8">
   <header class="flex flex-col gap-3">
     <app-step-rail />
-    <h1 class="text-4xl sm:text-5xl tracking-tight">
-      <span class="font-bold">{{ demo ? 'Explore sample results' : 'Your results' }}</span>
-    </h1>
-    <p class="text-lg text-base-content/80 max-w-3xl leading-relaxed">
-      Every test from your documents, by date, newest first. Select a value to see it on its page,
-      or a test name to see its chart.
-    </p>
-    <div class="flex flex-wrap gap-2 mt-2">
-      @if (data()?.stats?.documents) {
-        <a
-          routerLink="/appointment"
-          [queryParams]="demo ? { demo: 'true' } : {}"
-          class="btn btn-primary rounded-full"
-          >Prepare for my appointment</a
-        >
-      }
+    <div class="results-intro" [class.with-aside]="demo">
+      <div class="flex flex-col gap-3 min-w-0">
+        <h1 class="text-4xl sm:text-5xl tracking-tight">
+          <span class="font-bold">{{ demo ? 'Explore sample results' : 'Your results' }}</span>
+        </h1>
+        <p class="print-only exported">
+          Exported {{ exportedOn | date: 'd MMM y' }} from Carryover Labs. Values as printed on the
+          original documents.
+          @if (query() || flaggedOnly()) {
+            <strong
+              >Filtered: only tests
+              @if (query()) {
+                matching “{{ query() }}”
+              }
+              @if (query() && flaggedOnly()) {
+                and
+              }
+              @if (flaggedOnly()) {
+                with values the lab flagged
+              }
+              .</strong
+            >
+          }
+        </p>
+        <p class="text-lg text-base-content/80 max-w-3xl leading-relaxed no-print">
+          Every test from your documents, by date, newest first. Select a value to see it on its
+          page, or a test name to see its chart.
+        </p>
+        <div class="flex flex-wrap gap-2 mt-2 no-print">
+          @if (data()?.stats?.documents) {
+            <button
+              type="button"
+              class="btn btn-primary rounded-full export-pdf"
+              (click)="exportPdf()"
+            >
+              <app-icon name="file-text" size="1.1rem" />Export PDF
+            </button>
+          }
+          @if (demo) {
+            <a routerLink="/documents" class="btn btn-outline rounded-full">Use my own documents</a>
+          }
+        </div>
+      </div>
       @if (demo) {
-        <a routerLink="/documents" class="btn btn-outline rounded-full">Use my own documents</a>
+        <aside class="no-print" aria-label="The patient's original documents">
+          <app-demo-documents />
+        </aside>
       }
     </div>
     @if (demo) {
       <p class="p-3 rounded-box bg-base-200 text-sm">
-        <strong>Fictional sample:</strong> these invented results show how Carryover works. No
-        upload is needed.
+        <strong>Fictional sample:</strong> Jane Doe is an invented patient. Her documents and every
+        name, lab and address on them are made up. No upload is needed.
       </p>
     }
   </header>
@@ -102,7 +131,7 @@
     </section>
 
     <div class="flex flex-col gap-3">
-      <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
+      <div class="flex flex-wrap items-center gap-x-5 gap-y-3 no-print">
         <label class="input w-full sm:w-80">
           <app-icon name="scan" size="1rem" />
           <input
@@ -127,7 +156,7 @@
         }
       </div>
       @if (panels().length > 1) {
-        <nav class="panel-nav" aria-label="Jump to a panel">
+        <nav class="panel-nav no-print" aria-label="Jump to a panel">
           @for (p of panels(); track p.key) {
             <a [href]="anchor(p.key)" (click)="$event.preventDefault(); jump(p.key)"
               >{{ p.label }}
@@ -203,7 +232,9 @@
           >
             <table>
               <thead>
-                <ng-container *ngTemplateOutlet="headRows; context: { $implicit: p }" />
+                <ng-container
+                  *ngTemplateOutlet="headRows; context: { $implicit: p, cols: p, trend: true }"
+                />
               </thead>
             </table>
           </div>
@@ -211,7 +242,7 @@
 
         <!-- Wide screens: the cumulative table, grouped by year. -->
         <div
-          class="sheet"
+          class="sheet screen-sheet"
           appScrollSheet
           #sheet="scrollSheet"
           [clone]="clone"
@@ -222,87 +253,16 @@
         >
           <table>
             <thead>
-              <ng-container *ngTemplateOutlet="headRows; context: { $implicit: p }" />
+              <ng-container
+                *ngTemplateOutlet="headRows; context: { $implicit: p, cols: p, trend: true }"
+              />
             </thead>
             <tbody>
               @for (row of p.rows; track row.key) {
                 <tr [class.open]="expanded() === row.key">
-                  <th scope="row" class="test">
-                    @if (row.chart) {
-                      <button
-                        type="button"
-                        (click)="toggle(row)"
-                        [attr.aria-expanded]="expanded() === row.key"
-                        [attr.aria-label]="'Chart of ' + row.label"
-                      >
-                        {{ row.label }}<app-icon name="chart" size="0.8rem" class="hint" />
-                      </button>
-                    } @else {
-                      <span>{{ row.label }}</span>
-                    }
-                    @if (row.printedAs && row.printedAs !== row.label) {
-                      <small [attr.title]="row.printedAs">{{ row.printedAs }}</small>
-                    }
-                  </th>
-                  <td class="trend">
-                    @if (row.spark; as s) {
-                      <app-spark [spark]="s" />
-                    }
-                  </td>
-                  <td class="ref">
-                    {{ row.reference }}
-                    @if (row.rangeNote; as note) {
-                      <app-info-tip [text]="note" label="Why some flags differ from this range" />
-                    }
-                    @if (row.unit) {
-                      <small>{{ row.unit }}</small>
-                    }
-                  </td>
-                  @for (c of p.columns; track $index) {
-                    @if (c.kind === 'gap') {
-                      <td class="gap"></td>
-                    } @else {
-                      <td
-                        class="num"
-                        [class.ys]="c.yearStart"
-                        [class.flagged]="flaggedCell(row.cells[c.date])"
-                      >
-                        @for (cell of row.cells[c.date] ?? []; track $index) {
-                          <button
-                            type="button"
-                            class="value"
-                            [class.high]="cell.flag === 'high'"
-                            [class.low]="cell.flag === 'low'"
-                            [class.abnormal]="cell.flag === 'abnormal'"
-                            [class.dated]="cell.dated"
-                            [attr.title]="cell.title"
-                            [attr.aria-label]="row.label + ' ' + cell.text + ' — show on its page'"
-                            (click)="cell.open()"
-                          >
-                            @if (cell.parts; as n) {
-                              <span class="i">{{ n.int }}</span
-                              ><span class="fr">{{ n.frac }}</span>
-                            } @else {
-                              <span class="w">{{ cell.text }}</span>
-                            }
-                            <span class="flag">{{
-                              cell.flag === 'high'
-                                ? '↑H'
-                                : cell.flag === 'low'
-                                  ? '↓L'
-                                  : cell.flag === 'abnormal'
-                                    ? '!'
-                                    : ''
-                            }}</span>
-                          </button>
-                        } @empty {
-                          <span class="value none" aria-label="Not tested"
-                            ><span class="i">–</span></span
-                          >
-                        }
-                      </td>
-                    }
-                  }
+                  <ng-container
+                    *ngTemplateOutlet="rowCells; context: { $implicit: row, cols: p, trend: true }"
+                  />
                 </tr>
                 @if (expanded() === row.key && row.chart) {
                   <tr class="detail">
@@ -411,6 +371,46 @@
             </li>
           }
         </ul>
+
+        <!-- Printed (A4): the same table, its dates split into tables as wide as the page. -->
+        <div class="print-sheets" [style]="'--frac: ' + p.frac + 'ch'">
+          @for (chunk of p.print; track $index; let first = $first) {
+            @if (!first) {
+              <p class="chunk-note">{{ p.label }}, continued: older dates</p>
+            }
+            <div class="sheet">
+              <table>
+                <thead>
+                  <ng-container
+                    *ngTemplateOutlet="
+                      headRows;
+                      context: { $implicit: p, cols: chunk, trend: first }
+                    "
+                  />
+                </thead>
+                <tbody>
+                  @for (row of p.rows; track row.key) {
+                    <tr>
+                      <ng-container
+                        *ngTemplateOutlet="
+                          rowCells;
+                          context: { $implicit: row, cols: chunk, trend: first }
+                        "
+                      />
+                    </tr>
+                    @if (first && expanded() === row.key && row.chart) {
+                      <tr class="detail">
+                        <td [attr.colspan]="chunk.columns.length + 3">
+                          <app-line-chart [chart]="row.chart" />
+                        </td>
+                      </tr>
+                    }
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
         @if (p.approximate) {
           <p class="note">
             Values underlined with dots are dated by when the test was performed or issued: the
@@ -429,7 +429,7 @@
     }
 
     @if (d.warnings.length) {
-      <section id="review-readings" class="panel scroll-mt-24" aria-labelledby="warn-h">
+      <section id="review-readings" class="panel to-check scroll-mt-24" aria-labelledby="warn-h">
         <h2 id="warn-h">Readings to check</h2>
         <p class="note">
           Read from your documents but not placed in a table yet. Open each one to check it on its
@@ -443,7 +443,7 @@
                 <th scope="col" class="num">Result</th>
                 <th scope="col">Why</th>
                 <th scope="col">Document</th>
-                <th scope="col"><span class="sr-only">Show on page</span></th>
+                <th scope="col" class="no-print"><span class="sr-only">Show on page</span></th>
               </tr>
             </thead>
             <tbody>
@@ -457,7 +457,7 @@
                     <strong>{{ reasonLabel[w.reason] }}.</strong> {{ w.detail }}
                   </td>
                   <td class="doc">{{ w.documentName }}, page {{ w.page + 1 }}</td>
-                  <td>
+                  <td class="no-print">
                     <button
                       type="button"
                       class="show"
@@ -476,7 +476,7 @@
     }
 
     @if (raw(); as r) {
-      <div class="collapse collapse-arrow border border-base-300 rounded-box bg-base-100">
+      <div class="raw-all collapse collapse-arrow border border-base-300 rounded-box bg-base-100">
         <input type="checkbox" aria-label="Everything that was read" />
         <div class="collapse-title font-semibold">
           Everything that was read
@@ -542,21 +542,39 @@
         </div>
       </div>
     }
+
+    <!-- Printed only: sends the reader to the readings that still need a look. -->
+    @if (d.warnings.length) {
+      <aside class="print-only check-warning" role="note">
+        <span class="sign" aria-hidden="true">!</span>
+        <p>
+          <strong
+            >{{ d.warnings.length }}
+            {{ d.warnings.length === 1 ? 'reading needs' : 'readings need' }} checking.</strong
+          >
+          {{ d.warnings.length === 1 ? 'It was' : 'They were' }} read from the documents but not
+          placed in the tables above. See “Readings to check” and compare with the original document
+          before relying on {{ d.warnings.length === 1 ? 'it' : 'them' }}.
+        </p>
+      </aside>
+    }
   }
 </div>
 
 <!-- The heading rows of a panel's table: used by the table and by its pinned copy. -->
-<ng-template #headRows let-p>
+<ng-template #headRows let-p let-cols="cols" let-trend="trend">
   <tr>
     <th scope="col" rowspan="2" class="test">Test</th>
-    <th scope="col" rowspan="2" class="trend">
-      Trend
-      @if (p.from) {
-        <small>{{ p.from === p.to ? p.from : p.from + '–' + p.to }}</small>
-      }
-    </th>
+    @if (trend) {
+      <th scope="col" rowspan="2" class="trend">
+        Trend
+        @if (p.from) {
+          <small>{{ p.from === p.to ? p.from : p.from + '–' + p.to }}</small>
+        }
+      </th>
+    }
     <th scope="col" rowspan="2" class="ref">Range<small>latest report</small></th>
-    @for (h of p.head; track $index) {
+    @for (h of cols.head; track $index) {
       @if (h.kind === 'gap') {
         <th rowspan="2" class="gap" [attr.title]="h.label + ': no tests'">
           <span aria-hidden="true">{{ shortYears(h.label) }}</span
@@ -568,7 +586,7 @@
     }
   </tr>
   <tr>
-    @for (c of p.columns; track $index) {
+    @for (c of cols.columns; track $index) {
       @if (c.kind === 'date') {
         <th scope="col" class="num day" [class.ys]="c.yearStart">
           @if (c.date) {
@@ -581,6 +599,82 @@
       }
     }
   </tr>
+</ng-template>
+
+<!-- A test's cells in a panel's table: on screen, and in each printed table. -->
+<ng-template #rowCells let-row let-cols="cols" let-trend="trend">
+  <th scope="row" class="test">
+    @if (row.chart) {
+      <button
+        type="button"
+        (click)="toggle(row)"
+        [attr.aria-expanded]="expanded() === row.key"
+        [attr.aria-label]="'Chart of ' + row.label"
+      >
+        {{ row.label }}<app-icon name="chart" size="0.8rem" class="hint" />
+      </button>
+    } @else {
+      <span>{{ row.label }}</span>
+    }
+    @if (row.printedAs && row.printedAs !== row.label) {
+      <small [attr.title]="row.printedAs">{{ row.printedAs }}</small>
+    }
+  </th>
+  @if (trend) {
+    <td class="trend">
+      @if (row.spark; as s) {
+        <app-spark [spark]="s" />
+      }
+    </td>
+  }
+  <td class="ref">
+    {{ row.reference }}
+    @if (row.rangeNote; as note) {
+      <app-info-tip [text]="note" label="Why some flags differ from this range" />
+    }
+    @if (row.unit) {
+      <small>{{ row.unit }}</small>
+    }
+  </td>
+  @for (c of cols.columns; track $index) {
+    @if (c.kind === 'gap') {
+      <td class="gap"></td>
+    } @else {
+      <td class="num" [class.ys]="c.yearStart" [class.flagged]="flaggedCell(row.cells[c.date])">
+        @for (cell of row.cells[c.date] ?? []; track $index) {
+          <button
+            type="button"
+            class="value"
+            [class.high]="cell.flag === 'high'"
+            [class.low]="cell.flag === 'low'"
+            [class.abnormal]="cell.flag === 'abnormal'"
+            [class.dated]="cell.dated"
+            [attr.title]="cell.title"
+            [attr.aria-label]="row.label + ' ' + cell.text + ' — show on its page'"
+            (click)="cell.open()"
+          >
+            @if (cell.parts; as n) {
+              <span class="i">{{ n.int }}</span
+              ><span class="fr">{{ n.frac }}</span>
+            } @else {
+              <span class="w">{{ cell.text }}</span>
+            }
+            <span class="flag">{{
+              cell.flag === 'high'
+                ? '↑H'
+                : cell.flag === 'low'
+                  ? '↓L'
+                  : cell.flag === 'abnormal'
+                    ? '!'
+                    : ''
+            }}</span>
+          </button>
+        } @empty {
+          <span class="value none" aria-label="Not tested"><span class="i">–</span></span>
+        }
+      </td>
+    }
+  }
 </ng-template>
 
 <app-source-dialog (corrected)="refresh()" />

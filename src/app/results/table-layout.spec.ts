@@ -2,6 +2,7 @@ import {
   formatReference,
   layoutColumns,
   parseRange,
+  printChunks,
   rangeNote,
   sparkline,
   splitDecimal,
@@ -102,5 +103,15 @@ describe('results table layout', () => {
     );
     expect(note).toContain('earlier reports printed 20–45 (2012–2019)');
     expect(rangeNote([point('2019-02-16', 47, '20 - 45', true)], null)).toBeNull();
+  });
+
+  it('splits dates into A4-wide printed tables, newest first, each laid out by year', () => {
+    const dates = Array.from({ length: 16 }, (_, i) => `${2026 - i}-01-01`);
+    const chunks = printChunks(dates, 6, 8);
+    expect(chunks.map((c) => c.columns.filter((col) => col.kind === 'date').length)).toEqual([
+      6, 8, 2,
+    ]);
+    expect(chunks[1].columns[0]).toEqual({ kind: 'date', date: '2020-01-01', yearStart: true });
+    expect(printChunks([])).toEqual([]);
   });
 });

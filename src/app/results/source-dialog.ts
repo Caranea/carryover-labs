@@ -17,6 +17,8 @@ export interface SourceTarget {
   observation?: Observation;
   /** Present only for the explicitly labelled, fabricated guest sample. */
   demoText?: string;
+  /** The fabricated guest sample's page image. */
+  demoImage?: { src: string; width: number; height: number };
 }
 interface Shown {
   target: SourceTarget;
@@ -81,8 +83,8 @@ export function sourceText(words: StoredWord[]): string {
           <div class="p-4 sm:p-5 space-y-4">
             @if (s.target.demoText !== undefined) {
               <p class="rounded-box bg-base-200 p-3 text-sm">
-                Fictional sample. This text was created for the demo and is not a person's medical
-                record.
+                Fictional sample. Jane Doe is an invented patient; the names, labs and addresses on
+                this page are not real.
               </p>
             }
             @if (s.loading) {
@@ -99,7 +101,7 @@ export function sourceText(words: StoredWord[]): string {
                 <select
                   class="select select-bordered w-36"
                   [ngModel]="zoom()"
-                  (ngModelChange)="zoom.set(+$event)"
+                  (ngModelChange)="zoom.set(+$event); revealSoon(s)"
                 >
                   <option [ngValue]="100">Fit width</option>
                   <option [ngValue]="200">200%</option>
@@ -107,6 +109,7 @@ export function sourceText(words: StoredWord[]): string {
                 </select>
               </label>
               <div
+                #pageScroll
                 class="overflow-auto max-h-[50vh] rounded-box border border-base-300"
                 tabindex="0"
                 aria-label="Source page. Scroll to inspect the page."
@@ -114,6 +117,7 @@ export function sourceText(words: StoredWord[]): string {
                 <div class="relative" [style.width.%]="zoom()">
                   <img
                     [src]="s.url"
+                    (load)="reveal(s)"
                     class="block w-full"
                     [alt]="
                       s.target.documentName +
@@ -318,6 +322,7 @@ export class SourceDialog implements OnDestroy {
   private readonly history = inject(LocalHistory);
   private destroyed = false;
   private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>('dialog');
+  private readonly pageScroll = viewChild<ElementRef<HTMLElement>>('pageScroll');
   readonly corrected = output<Observation>();
   protected readonly shown = signal<Shown | null>(null);
   protected readonly zoom = signal(100);
@@ -338,10 +343,10 @@ export class SourceDialog implements OnDestroy {
     this.zoom.set(100);
     this.shown.set({
       target,
-      url: null,
+      url: target.demoImage?.src ?? null,
       text: target.demoText ?? '',
-      width: 0,
-      height: 0,
+      width: target.demoImage?.width ?? 0,
+      height: target.demoImage?.height ?? 0,
       loading: target.demoText === undefined,
       error: null,
     });
@@ -417,6 +422,19 @@ export class SourceDialog implements OnDestroy {
           .join(' · ')
       : 'Confirmed without changing the reading.';
   }
+  /** Scroll the page so the outlined row is in view, not below the fold. */
+  protected reveal(s: Shown) {
+    const b = s.target.bbox;
+    const box = this.pageScroll()?.nativeElement;
+    const img = box?.querySelector('img');
+    if (!b || !box || !img || !s.width) return;
+    const k = img.clientWidth / s.width;
+    box.scrollTop = Math.max(0, (b[1] + b[3] / 2) * k - box.clientHeight / 2);
+    box.scrollLeft = Math.max(0, (b[0] + b[2] / 2) * k - box.clientWidth / 2);
+  }
+  protected revealSoon(s: Shown) {
+    requestAnimationFrame(() => this.reveal(s));
+  }
   close() {
     if (!this.saving()) this.dialog().nativeElement.close();
   }
@@ -440,6 +458,6 @@ export class SourceDialog implements OnDestroy {
   }
   private release() {
     const url = this.shown()?.url;
-    if (url) URL.revokeObjectURL(url);
+    if (url?.startsWith('blob:')) URL.revokeObjectURL(url);
   }
 }

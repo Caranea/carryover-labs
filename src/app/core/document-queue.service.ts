@@ -125,6 +125,12 @@ export class DocumentQueueService {
   private counter = 0;
   private readonly activeChecks = new Map<string, AbortController>();
   private readonly rememberedDetails = signal<RememberedDetails>({});
+  /** Hand-edit history per document: page snapshots to step back and forward through. */
+  private readonly edits = signal<Record<string, { undo: WorkingPage[][]; redo: WorkingPage[][] }>>(
+    {},
+  );
+  /** The document edited most recently, for keyboard undo when focus is outside any page. */
+  readonly lastEdited = signal<string | null>(null);
 
   constructor() {
     inject(DestroyRef).onDestroy(() => {
@@ -475,6 +481,8 @@ export class DocumentQueueService {
         strict: !manual && strict,
         ...privacyStatus(pages, predictions, current.privacyMode, this.ner.error()),
       });
+      // Detection replaced the pages, so earlier snapshots would undo it as well.
+      this.clearEdits(localId);
       this.refreshReviewDetails(localId);
     } catch (e) {
       this.patch(localId, {
@@ -521,7 +529,7 @@ export class DocumentQueueService {
 
   /** Hide or show one word. Hiding also hides the same word everywhere else in the document. */
   toggleWord(localId: string, pageIndex: number, wordId: number) {
-    this.updatePages(localId, (pages) => {
+    this.editPages(localId, (pages) => {
       const word = pages[pageIndex]?.words.find((w) => w.id === wordId);
       if (!word || word.locked || word.text === null) return pages;
       // A region remains opaque until removed. Keeping its text must not change the upload.
@@ -557,17 +565,36 @@ export class DocumentQueueService {
 
   addRegion(localId: string, pageIndex: number, region: Box) {
     if (region.w < 4 || region.h < 4) return;
-    this.updatePages(localId, (pages) =>
+    this.editPages(localId, (pages) =>
       pages.map((p, i) => (i === pageIndex ? applyRegion(p, region) : p)),
     );
   }
 
   removeRegion(localId: string, pageIndex: number, regionIndex: number) {
-    this.updatePages(localId, (pages) =>
+    this.editPages(localId, (pages) =>
       pages.map((p, i) =>
-        i === pageIndex && regionIndex >= (p.lockedRegions ?? 0) ? removeRegion(p, regionIndex) : p,
+        i === pageIndex && regionIndex >= (p.lockedRegions ?? 0) && regionIndex < p.regions.length
+          ? removeRegion(p, regionIndex)
+          : p,
       ),
     );
+  }
+
+  canUndo(localId: string): boolean {
+    return !!this.edits()[localId]?.undo.length;
+  }
+
+  canRedo(localId: string): boolean {
+    return !!this.edits()[localId]?.redo.length;
+  }
+
+  /** Step back through hand edits: clicked words and drawn areas. */
+  undo(localId: string) {
+    this.stepEdit(localId, 'undo');
+  }
+
+  redo(localId: string) {
+    this.stepEdit(localId, 'redo');
   }
 
   rename(localId: string, name: string) {
@@ -580,6 +607,7 @@ export class DocumentQueueService {
     const doc = this.byId(localId);
     if (doc) revokePages(doc.pages);
     this.predictions.delete(localId);
+    this.clearEdits(localId);
     this.documents.update((docs) => docs.filter((d) => d.localId !== localId));
     this.rememberedDetails.update((memory) => {
       const { [localId]: _removed, ...rest } = memory;
@@ -651,6 +679,7 @@ export class DocumentQueueService {
       });
       this.upsertSaved(summary);
       this.predictions.delete(localId);
+      this.clearEdits(localId);
       return true;
     } catch (e) {
       this.patch(localId, { status: 'review', message: '', error: errorMessage(e) });
@@ -763,6 +792,47 @@ export class DocumentQueueService {
     this.refreshReviewDetails(localId);
   }
 
+  /** A hand edit: records the pages before it so it can be undone. */
+  private editPages(localId: string, fn: (pages: WorkingPage[]) => WorkingPage[]) {
+    let before = null as WorkingPage[] | null;
+    this.updatePages(localId, (pages) => {
+      const next = fn(pages);
+      if (next.length !== pages.length || next.some((p, i) => p !== pages[i])) before = pages;
+      return next;
+    });
+    if (!before) return;
+    const snapshot = before;
+    this.edits.update((all) => ({
+      ...all,
+      [localId]: { undo: [...(all[localId]?.undo ?? []), snapshot].slice(-MAX_UNDO), redo: [] },
+    }));
+    this.lastEdited.set(localId);
+  }
+
+  private stepEdit(localId: string, direction: 'undo' | 'redo') {
+    const doc = this.byId(localId);
+    const history = this.edits()[localId];
+    if (!doc || doc.status !== 'review' || !history) return;
+    const from = direction === 'undo' ? history.undo : history.redo;
+    const pages = from.at(-1);
+    if (!pages) return;
+    const rest = from.slice(0, -1);
+    this.edits.update((all) => ({
+      ...all,
+      [localId]:
+        direction === 'undo'
+          ? { undo: rest, redo: [...history.redo, doc.pages] }
+          : { undo: [...history.undo, doc.pages], redo: rest },
+    }));
+    this.updatePages(localId, () => pages);
+    this.lastEdited.set(localId);
+  }
+
+  private clearEdits(localId: string) {
+    this.edits.update(({ [localId]: _cleared, ...rest }) => rest);
+    if (this.lastEdited() === localId) this.lastEdited.set(null);
+  }
+
   private refreshReviewDetails(sourceId?: string) {
     const source = sourceId ? this.byId(sourceId) : undefined;
     if (source?.status === 'review') {
@@ -790,6 +860,8 @@ export class DocumentQueueService {
     );
   }
 }
+
+const MAX_UNDO = 100;
 
 function revokePages(pages: WorkingPage[]) {
   for (const p of pages) if (p.imageUrl) URL.revokeObjectURL(p.imageUrl);

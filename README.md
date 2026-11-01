@@ -2,7 +2,7 @@
 
 Carryover turns years of lab reports in Polish, German and English into one timeline a patient can bring to a short doctor's appointment. Every chart point links back to the page it came from. It does not diagnose, interpret results or give medical advice.
 
-Open `/demo` for an account-free, entirely fictional sample. It is prepared data and does not call an AI model.
+Open `/demo` for an account-free, entirely fictional sample: Jane Doe, an invented patient with 20 lab documents from 2012–2024 (Polish PDFs and English and German phone photos). Every name, lab and address on them is made up; "See initial tests" shows the original pages. It is prepared data and does not call an AI model.
 
 ## How it works
 

@@ -23,8 +23,8 @@
       </h1>
       <p class="mt-2 text-base-content/80 max-w-3xl leading-relaxed">
         Text under black bars is removed from the saved copy. Tap a word to hide it or tap a
-        removable bar to keep it. Hide stamps and signatures with an area. Use Text only for
-        keyboard access to words.
+        removable bar to keep it. Hide stamps and signatures with an area. Undo with Ctrl+Z,
+        redo with Ctrl+Shift+Z.
       </p>
     }
 
@@ -38,7 +38,7 @@
           class="review-tools sticky top-[var(--app-header-height)] z-10 flex flex-wrap items-center gap-3 rounded-t-box bg-base-200 px-4 py-3 border-b border-base-300"
           aria-label="Editing tools"
         >
-          @if (hasImages() && !textView()) {
+          @if (hasImages()) {
             <div class="join" role="group" aria-label="What clicking does">
               <button
                 type="button"
@@ -58,15 +58,6 @@
               >
                 <app-icon name="draw-box" size="1rem" /> Draw a box
               </button>
-              <button
-                type="button"
-                class="btn btn-sm join-item"
-                [class.btn-primary]="mode() === 'corners'"
-                [attr.aria-pressed]="mode() === 'corners'"
-                (click)="mode.set('corners')"
-              >
-                Tap two corners
-              </button>
             </div>
           }
           <label class="label text-sm gap-2 cursor-pointer text-base-content">
@@ -78,17 +69,28 @@
             />
             See under bars
           </label>
-          @if (hasImages()) {
-            <label class="label text-sm gap-2 cursor-pointer text-base-content">
-              <input
-                type="checkbox"
-                class="toggle toggle-sm toggle-primary"
-                [checked]="textView()"
-                (change)="textView.set(!textView())"
-              />
-              Text only
-            </label>
-          }
+          <div class="join" role="group" aria-label="History">
+            <button
+              type="button"
+              class="btn btn-sm join-item"
+              [disabled]="!canUndo() || busy()"
+              (click)="undo()"
+              aria-keyshortcuts="Control+Z Meta+Z"
+              title="Undo (Ctrl+Z)"
+            >
+              <app-icon name="undo" size="1rem" /> Undo
+            </button>
+            <button
+              type="button"
+              class="btn btn-sm join-item"
+              [disabled]="!canRedo() || busy()"
+              (click)="redo()"
+              aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z Control+Y"
+              title="Redo (Ctrl+Shift+Z or Ctrl+Y)"
+            >
+              <app-icon name="redo" size="1rem" /> Redo
+            </button>
+          </div>
           <span class="badge badge-ghost ml-auto"
             >{{ doc.pages.length }} {{ doc.pages.length === 1 ? 'page' : 'pages' }}</span
           >
@@ -100,7 +102,7 @@
           }
         </div>
 
-        @if (mode() === 'draw' && !textView()) {
+        @if (mode() === 'draw') {
           <div role="status" class="alert alert-info alert-soft mx-4 mt-4">
             <app-icon name="draw-box" />
             <span
@@ -118,7 +120,7 @@
                   Page {{ i + 1 }} of {{ doc.pages.length }}
                 </figcaption>
               }
-              @if (page.image && !textView()) {
+              @if (page.image) {
                 <app-page-view
                   [page]="page"
                   [mode]="mode()"

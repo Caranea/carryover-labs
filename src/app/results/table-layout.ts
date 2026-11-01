@@ -158,3 +158,26 @@ export function rangeNote(
     ? `${head}; earlier reports printed ${earlier.join(', ')}.`
     : `${head}, so a value flagged on an older report can sit inside it.`;
 }
+
+/** Dates per printed table on a portrait A4 page: the first also carries the trend, so fewer. */
+export const PRINT_FIRST = 6;
+export const PRINT_NEXT = 8;
+
+/**
+ * The dates, newest first, split into tables that fit across a portrait A4 page: the first with
+ * the newest dates, each next one continuing with older dates. Laid out like the screen table.
+ */
+export function printChunks(
+  dates: string[],
+  first = PRINT_FIRST,
+  next = PRINT_NEXT,
+): { columns: Column[]; head: HeadCell[] }[] {
+  const chunks: { columns: Column[]; head: HeadCell[] }[] = [];
+  let start = 0;
+  while (start < dates.length) {
+    const size = chunks.length ? next : first;
+    chunks.push(layoutColumns(dates.slice(start, start + size)));
+    start += size;
+  }
+  return chunks;
+}

@@ -5,7 +5,7 @@ import { boxFromPoints } from '../redaction/geometry';
 import { redactionAction, redactionPlan } from '../redaction/burn';
 import { describeWord } from './describe';
 
-export type EditMode = 'words' | 'draw' | 'corners';
+export type EditMode = 'words' | 'draw';
 
 /**
  * One page image with the redaction drawn on top, exactly as it will be
@@ -25,7 +25,7 @@ export type EditMode = 'words' | 'draw' | 'corners';
     <div
       class="overflow-auto max-h-[75vh]"
       tabindex="0"
-      aria-label="Document page. Scroll to inspect it or use the text-only view."
+      aria-label="Document page. Scroll to inspect it."
     >
       <div
         class="sheet"
@@ -35,7 +35,7 @@ export type EditMode = 'words' | 'draw' | 'corners';
         @if (page().imageUrl) {
           <img
             [src]="page().imageUrl"
-            alt="Document page. Use Text only above to read and hide words with the keyboard."
+            alt="Document page with hidden details covered in black."
             draggable="false"
           />
         }
@@ -101,20 +101,6 @@ export type EditMode = 'words' | 'draw' | 'corners';
         </svg>
       </div>
     </div>
-    @if (mode() === 'corners') {
-      <p role="status" class="text-sm mt-2">
-        {{
-          draft()
-            ? 'Now tap the opposite corner to hide the rectangle.'
-            : 'Tap one corner of the area to hide, then its opposite corner.'
-        }}
-      </p>
-      @if (draft()) {
-        <button type="button" class="btn btn-ghost btn-sm" (click)="cancelDraw()">
-          Cancel area
-        </button>
-      }
-    }
     <details class="mt-3 border border-base-300 rounded-box p-3">
       <summary class="font-medium cursor-pointer py-1">Hide an area using the keyboard</summary>
       <form (ngSubmit)="addByNumbers()" class="mt-3 space-y-3">
@@ -376,14 +362,6 @@ export class PageView {
   }
 
   protected endDraw(e: PointerEvent) {
-    if (this.mode() === 'corners' && !this.start) {
-      const pt = this.toPage(e);
-      if (pt) {
-        this.start = pt;
-        this.draft.set({ ...pt, w: 0, h: 0 });
-      }
-      return;
-    }
     if (!this.start) return;
     const pt = this.toPage(e);
     const box = pt ? boxFromPoints(this.start.x, this.start.y, pt.x, pt.y) : this.draft();

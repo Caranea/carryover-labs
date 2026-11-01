@@ -4,7 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { errorMessage } from '../core/errors';
 import { LocalHistory } from '../core/local-history';
 import { progressText, ResultsService } from '../core/results.service';
-import { DEMO_RECORDS, DEMO_RESULTS, DEMO_SOURCE_PAGES } from '../core/demo-data';
+import { DEMO_RECORDS, DEMO_RESULTS, DEMO_SOURCE_PAGES, demoPage } from '../core/demo-data';
 import {
   RecordChart,
   RecordPoint,
@@ -22,6 +22,7 @@ import { Icon } from '../ui/icon';
 import { formatUnit, LineChart, PointPick } from './line-chart';
 import { calendarTimestamp } from './calendar-date';
 import { SourceDialog } from './source-dialog';
+import { DemoDocuments } from './demo-documents';
 import { InfoTip } from './info-tip';
 import { ScrollSheet } from './scroll-sheet';
 import { SparkLine } from './spark';
@@ -31,6 +32,7 @@ import {
   HeadCell,
   layoutColumns,
   parseRange,
+  printChunks,
   rangeNote,
   Spark,
   sparkline,
@@ -93,6 +95,8 @@ export interface Panel {
   /** Date columns grouped by year, with markers for years with no tests. */
   columns: Column[];
   head: HeadCell[];
+  /** The date columns split into tables that fit across a printed A4 page. */
+  print: { columns: Column[]; head: HeadCell[] }[];
   rows: PanelRow[];
   /** Whether any value is dated by a date other than collection. */
   approximate: boolean;
@@ -115,6 +119,7 @@ export interface Panel {
     StepRail,
     LineChart,
     SourceDialog,
+    DemoDocuments,
     SparkLine,
     ScrollSheet,
     InfoTip,
@@ -196,6 +201,7 @@ export class ResultsPage implements OnInit, OnDestroy {
           label,
           dates,
           ...layoutColumns(dates),
+          print: printChunks(dates),
           rows: list,
           approximate,
           flagged: list.reduce((n, r) => n + r.flagged, 0),
@@ -309,6 +315,24 @@ export class ResultsPage implements OnInit, OnDestroy {
       latestDate: null,
       chart: null,
     };
+  }
+
+  /** When the page was opened, for the printed copy. */
+  protected readonly exportedOn = new Date();
+
+  /**
+   * Print this page as it is, laid out for A4 by the print styles; "Save as PDF" in the print
+   * dialog makes the file. The page title is the file's suggested name.
+   */
+  protected exportPdf() {
+    const title = document.title;
+    const now = new Date();
+    const day = [now.getFullYear(), now.getMonth() + 1, now.getDate()]
+      .map((n) => String(n).padStart(2, '0'))
+      .join('-');
+    document.title = `Carryover results ${day}`;
+    window.addEventListener('afterprint', () => (document.title = title), { once: true });
+    window.print();
   }
 
   protected toggle(row: PanelRow) {
@@ -456,6 +480,7 @@ export class ResultsPage implements OnInit, OnDestroy {
       demoText: this.demo
         ? (DEMO_SOURCE_PAGES[ref.documentId]?.[ref.page] ?? 'Fictional source text is unavailable.')
         : undefined,
+      demoImage: this.demo ? demoPage(ref.documentId, ref.page) : undefined,
     });
   }
 

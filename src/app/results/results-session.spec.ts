@@ -52,7 +52,7 @@ describe('results view lifecycle', () => {
     const component = fixture.componentInstance as any;
     expect(fixture.nativeElement.textContent).toContain('Preparing your results');
     expect(fixture.nativeElement.querySelector('.report-head')).toBeNull();
-    expect(fixture.nativeElement.querySelector('a[href="/appointment"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.export-pdf')).toBeNull();
     reject(new Error('Results processing did not finish. Please try again.'));
     await settled(() => expect(component.error()).toContain('Please try again'));
     fixture.detectChanges();
@@ -67,6 +67,7 @@ describe('results view lifecycle', () => {
     expect(api.retryRecords).toHaveBeenCalledOnce();
     expect(component.error()).toBeNull();
     expect(fixture.nativeElement.querySelector('.report-head')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.export-pdf')?.textContent).toContain('Export PDF');
     fixture.destroy();
   });
 

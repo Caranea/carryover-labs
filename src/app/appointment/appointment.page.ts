@@ -2,7 +2,7 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, inject, OnDestroy, OnInit, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { DEMO_RECORDS, DEMO_RESULTS, DEMO_SOURCE_PAGES } from '../core/demo-data';
+import { DEMO_RECORDS, DEMO_RESULTS, DEMO_SOURCE_PAGES, demoPage } from '../core/demo-data';
 import { errorMessage } from '../core/errors';
 import { LocalHistory } from '../core/local-history';
 import { ResultsService } from '../core/results.service';
@@ -198,6 +198,7 @@ export class AppointmentPage implements OnInit, OnDestroy {
       demoText: this.demo
         ? (DEMO_SOURCE_PAGES[ref.documentId]?.[ref.page] ?? 'Fictional source text unavailable.')
         : undefined,
+      demoImage: this.demo ? demoPage(ref.documentId, ref.page) : undefined,
     });
   }
 }

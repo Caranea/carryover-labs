@@ -128,6 +128,42 @@ describe('document privacy boundary', () => {
     expect(queue.byId(third)?.pages[0].words[0].hidden).toBe(false);
   });
 
+  it('undoes and redoes hand edits in order, and a new edit clears redo', async () => {
+    const { queue, extraction } = setup();
+    extraction.extract.mockImplementation(async () => [
+      { ...page(), words: [{ id: 0, text: 'Alexandra', line: 0, hidden: false }] },
+    ]);
+    const [id] = queue.add([new File(['fictional'], 'one.txt')], 'lightweight');
+    await settled(() => expect(queue.byId(id)?.status).toBe('review'));
+    const word = () => queue.byId(id)!.pages[0].words[0];
+    expect(queue.canUndo(id)).toBe(false);
+
+    queue.toggleWord(id, 0, 0);
+    queue.addRegion(id, 0, { x: 40, y: 40, w: 10, h: 10 });
+    expect(word().hidden).toBe(true);
+    expect(queue.byId(id)!.pages[0].regions).toHaveLength(1);
+
+    queue.undo(id);
+    expect(queue.byId(id)!.pages[0].regions).toHaveLength(0);
+    expect(word().hidden).toBe(true);
+    queue.undo(id);
+    expect(word().hidden).toBe(false);
+    expect(queue.canUndo(id)).toBe(false);
+
+    queue.redo(id);
+    expect(word().hidden).toBe(true);
+    expect(queue.canRedo(id)).toBe(true);
+    queue.removeRegion(id, 0, 0); // No region to remove: not an edit, redo survives.
+    expect(queue.canRedo(id)).toBe(true);
+    queue.toggleWord(id, 0, 0);
+    expect(queue.canRedo(id)).toBe(false);
+    expect(queue.lastEdited()).toBe(id);
+
+    queue.remove(id);
+    expect(queue.canUndo(id)).toBe(false);
+    expect(queue.lastEdited()).toBe(null);
+  });
+
   it('undoes learned matches when the original click or source document is removed', async () => {
     const { queue, extraction } = setup();
     extraction.extract.mockImplementation(async () => [

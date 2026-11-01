@@ -25,6 +25,8 @@ import {
   Stethoscope,
   Trash2,
   TriangleAlert,
+  Redo2,
+  Undo2,
   Upload,
   X,
 } from 'lucide-static';
@@ -54,6 +56,8 @@ const ICONS = {
   stethoscope: Stethoscope,
   trash: Trash2,
   warning: TriangleAlert,
+  undo: Undo2,
+  redo: Redo2,
   upload: Upload,
   x: X,
 } as const;
