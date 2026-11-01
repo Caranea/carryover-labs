@@ -22,7 +22,8 @@ export class BusyError extends Error {}
  * resumes the same server jobs instead of paying for the pages again.
  */
 export class JobClient {
-  readonly batchId = storedBatchId();
+  /** Defaults to this browser's saved batch; the live demo passes a throwaway one. */
+  constructor(readonly batchId = storedBatchId()) {}
 
   private get base(): string {
     return `/api/demo/batches/${this.batchId}`;

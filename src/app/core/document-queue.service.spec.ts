@@ -250,7 +250,7 @@ describe('document privacy boundary', () => {
       expect(queue.byId(id)?.pages).toHaveLength(1);
       expect(queue.byId(id)?.file).not.toBeNull();
       expect(queue.byId(id)?.privacyMode).toBe('lightweight');
-      expect(queue.byId(id)?.privacyMessage).toContain('email addresses');
+      expect(queue.byId(id)?.privacyCheck).toBe('manual');
       expect(await queue.approve(id)).toBe(true);
     }
     expect(create).toHaveBeenCalledTimes(ids.length);
@@ -313,7 +313,6 @@ describe('document privacy boundary', () => {
     expect(ner.predict).not.toHaveBeenCalled();
     expect(ner.retry).not.toHaveBeenCalled();
     expect(queue.byId(id)?.privacyCheck).toBe('manual');
-    expect(queue.byId(id)?.privacyMessage).toContain('Click or tap any other personal details');
     expect(create).not.toHaveBeenCalled();
     expect(await queue.approve(id)).toBe(true);
     expect(create).toHaveBeenCalledOnce();
@@ -341,13 +340,11 @@ describe('document privacy boundary', () => {
     expect(queue.saved()?.[0].originalFileName).toBe('Jane_Doe_44051401359.txt');
   });
 
-  it('retains a per-document incomplete warning and prevents Keep under an existing region', async () => {
+  it('marks a document incomplete when the check could not start and prevents Keep under an existing region', async () => {
     const { queue } = setup(true);
     const [id] = queue.add([new File(['TSH'], 'report.txt', { type: 'text/plain' })]);
     await settled(() => expect(queue.byId(id)?.status).toBe('review'));
     expect(queue.byId(id)?.privacyCheck).toBe('incomplete');
-    expect(queue.byId(id)?.privacyMessage).toContain('could not start');
-    expect(queue.byId(id)?.privacyMessage).toContain('Names and addresses may have been missed');
     queue.addRegion(id, 0, { x: 0, y: 0, w: 30, h: 20 });
     queue.toggleWord(id, 0, 1);
     expect(toStoredPage(queue.byId(id)!.pages[0]).words[0].h).toBe(true);

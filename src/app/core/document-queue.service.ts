@@ -427,7 +427,7 @@ export class DocumentQueueService {
         message: '',
         pages: detected,
         strict: current.strict,
-        ...privacyStatus(pages, predictions, current.privacyMode, this.ner.error()),
+        ...privacyCheck(pages, predictions, current.privacyMode),
       });
       this.refreshReviewDetails(id);
       console.info('[Carryover timing]', {
@@ -479,7 +479,7 @@ export class DocumentQueueService {
         message: '',
         pages,
         strict: !manual && strict,
-        ...privacyStatus(pages, predictions, current.privacyMode, this.ner.error()),
+        ...privacyCheck(pages, predictions, current.privacyMode),
       });
       // Detection replaced the pages, so earlier snapshots would undo it as well.
       this.clearEdits(localId);
@@ -516,7 +516,7 @@ export class DocumentQueueService {
     for (const doc of affected) {
       this.patch(doc.localId, {
         privacyMode: 'lightweight',
-        ...(doc.status === 'review' ? privacyStatus(doc.pages, [], 'lightweight') : {}),
+        ...(doc.status === 'review' ? privacyCheck(doc.pages, [], 'lightweight') : {}),
       });
     }
     for (const doc of affected) this.activeChecks.get(doc.localId)?.abort();
@@ -736,7 +736,6 @@ export class DocumentQueueService {
         strict: false,
         progress: 1,
         privacyCheck: 'manual',
-        privacyMessage: 'Check every page and confirm the permanent blackouts before saving.',
         message: '',
         pages,
         file: null,
@@ -867,38 +866,15 @@ function revokePages(pages: WorkingPage[]) {
   for (const p of pages) if (p.imageUrl) URL.revokeObjectURL(p.imageUrl);
 }
 
-function privacyStatus(
+/** Whether the automatic check covered every page with text, or the user hides details by hand. */
+function privacyCheck(
   pages: WorkingPage[],
   predictions: PagePredictions[],
   mode: PrivacyMode = 'automatic',
-  reason?: string | null,
-): Pick<LocalDocument, 'privacyCheck' | 'privacyMessage'> {
-  if (mode === 'lightweight')
-    return {
-      privacyCheck: 'manual',
-      privacyMessage:
-        'Manual review: matches to personal details hidden in earlier documents are already hidden. Click or tap any other personal details to hide them, including names, addresses, email addresses, phone numbers and identification numbers. Draw boxes over stamps and signatures. Check every page before saving.',
-    };
-  if (pages.some((page) => page.image))
-    return {
-      privacyCheck: 'incomplete',
-      privacyMessage:
-        'The local privacy check uses one OCR pass without rotating pages. Sideways, upside-down or difficult pages can have missed names and incorrect text boxes. Inspect every page and draw boxes over remaining personal details before approving upload.',
-    };
-  const incomplete = pages.some((page, i) => {
-    const hasText = page.words.some((w) => w.text !== null);
-    return (hasText && !predictions[i]) || (!!page.image && !hasText);
-  });
-  return incomplete
-    ? {
-        privacyCheck: 'incomplete',
-        privacyMessage:
-          (reason ? reason + ' ' : 'The full privacy check could not check every page. ') +
-          'A basic check still looked for details such as email addresses and phone numbers. Names and addresses may have been missed. Inspect every page and hide any remaining personal details before saving.',
-      }
-    : {
-        privacyCheck: 'complete',
-        privacyMessage:
-          'Automatic checks finished. They can still miss details, so check each page before saving.',
-      };
+): Pick<LocalDocument, 'privacyCheck'> {
+  if (mode === 'lightweight') return { privacyCheck: 'manual' };
+  const missed = pages.some(
+    (page, i) => page.words.some((w) => w.text !== null) && !predictions[i],
+  );
+  return { privacyCheck: missed ? 'incomplete' : 'complete' };
 }

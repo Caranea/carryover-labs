@@ -142,7 +142,10 @@ describe('without a Meta key', () => {
     const { app, base } = await start(null);
     try {
       assert.equal((await post(`${base}/batches/batch-x/pages`, body(0))).status, 503);
-      assert.deepEqual(await (await fetch(`${base}/config`)).json(), { modelName: null });
+      assert.deepEqual(await (await fetch(`${base}/config`)).json(), {
+        modelName: null,
+        models: null,
+      });
     } finally {
       await app.close();
     }

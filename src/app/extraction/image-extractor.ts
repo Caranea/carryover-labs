@@ -1,4 +1,4 @@
-import { createCanvas } from './render';
+import { createCanvas, MAX_SIDE } from './render';
 
 const HEIC_TYPES = ['image/heic', 'image/heif'];
 
@@ -7,7 +7,9 @@ export function isHeic(file: File): boolean {
 }
 
 /**
- * Decode the full-resolution photo as displayed, without OCR orientation changes.
+ * Decode the photo as displayed, without OCR orientation changes, scaled down so its longest
+ * side is at most MAX_SIDE. A 12 MP phone photo would otherwise be too large to upload and
+ * too heavy for phone canvases; 2600 px is still more than OCR and Muse Spark need.
  *
  * Re-drawing onto a canvas also drops all metadata (EXIF, GPS position,
  * camera serial), so the uploaded image carries only pixels.
@@ -27,7 +29,8 @@ export async function loadImage(file: File): Promise<HTMLCanvasElement> {
     throw new Error('This image could not be opened. Try saving it as JPEG or PNG.');
   }
 
-  const canvas = createCanvas(bitmap.width, bitmap.height);
+  const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height));
+  const canvas = createCanvas(bitmap.width * scale, bitmap.height * scale);
   const ctx = canvas.getContext('2d')!;
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);

@@ -11,7 +11,7 @@
     "build": "nest build",
     "start": "node dist/main.js",
     "start:dev": "nest start --watch",
-    "test": "tsc -p tsconfig.json --outDir .test-build && node --test \".test-build/**/*.spec.js\""
+    "test": "node -e \"fs.rmSync('.test-build', { recursive: true, force: true })\" && tsc -p tsconfig.json --outDir .test-build && node --test \".test-build/**/*.spec.js\""
   },
   "dependencies": {
     "@nestjs/common": "12.3.2",

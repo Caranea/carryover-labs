@@ -1,0 +1,25 @@
+# Built inside the image, for Linux: never copy host builds or Windows binaries.
+node_modules
+api/node_modules
+dist
+api/dist
+.angular
+api/.test-build
+out-tsc
+
+# Secrets and private data stay out of the build context.
+.env
+api/.env
+api/storage
+private-test-data
+
+# Local working files, large and not needed to build.
+.git
+tmp
+artifacts
+output
+.test-temp
+coverage
+public/models/pii-fp16-*
+.vscode
+*.log

@@ -7,7 +7,7 @@ flowchart LR
   F[Photo / PDF / Word / text] --> O[Local OCR and text reading]
   O --> P[Local personal-detail detection]
   P --> R[Person reviews and approves]
-  R --> B[Masks burned into fresh PNG]
+  R --> B[Masks burned into fresh JPEG]
   B --> H[(Browser history)]
   H -- one job per page --> S[Muse Spark: literal transcription]
   S --> H
@@ -15,7 +15,7 @@ flowchart LR
   W --> D[Server: unit arithmetic and charts]
   D --> H
   H --> C[Charts, source viewer, corrections]
-  C --> A[Appointment PDF on device]
+  C --> A[Printed or saved as PDF on device]
 ```
 
 ## Browser
@@ -28,7 +28,7 @@ flowchart LR
 | Queue         | `core/document-queue.service.ts`, `core/queue-recovery.ts` | Processes files one at a time; unfinished work survives a refresh (IndexedDB checkpoint).                                                                                                                                               |
 | Storage       | `core/local-history.ts`                                    | Approved documents, transcriptions and results in localStorage; page images in IndexedDB. Clearing site data removes everything.                                                                                                        |
 | Processing    | `core/results.service.ts`, `core/job-client.ts`            | Submits each unsaved page as a job, collects results with one long poll, saves each page and confirms it, then queues normalization once every document is approved. A refresh resumes the same batch; a dropped connection is retried. |
-| Results       | `results/`, `appointment/`                                 | Charts with keyboard access and data tables, a source viewer, corrections with history, and PDF export in a worker.                                                                                                                     |
+| Results       | `results/`                                                 | Charts with keyboard access and data tables, a source viewer, corrections with history, and an A4 print layout for saving as PDF.                                                                                                       |
 
 ## API
 
@@ -41,7 +41,7 @@ Page transcription and normalization run as **jobs**. A request returns `202 Acc
 | `GET /api/demo/batches/:batchId?since=:version&wait=25`     | The batch's jobs and results. Answers on the next change, or after at most 25 s.                                                                                                                                                                      |
 | `DELETE /api/demo/batches/:batchId/pages/:pageId?revision=` | Confirm a saved page, or cancel it (the Meta call is aborted).                                                                                                                                                                                        |
 | `DELETE /api/demo/batches/:batchId`                         | Cancel and forget the whole batch.                                                                                                                                                                                                                    |
-| `GET /api/health`, `GET /api/demo/config`                   | Availability and model name.                                                                                                                                                                                                                          |
+| `GET /api/health`, `GET /api/demo/config`                   | Availability and model names.                                                                                                                                                                                                                         |
 
 The batch ID is a random UUID kept in the browser; it is never listed. A full queue answers `429` when a page is submitted, never halfway through; an unknown or expired batch reads as empty, and the browser sends its unsaved pages again. While a long poll is open, a newly approved page ends it early so the page is sent at once.
 

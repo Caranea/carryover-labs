@@ -144,6 +144,14 @@ export function parseNumber(
   return Number.isFinite(value) ? { value, comparator, flag } : null;
 }
 
+/**
+ * "3,200" or "250,000": a comma that may group thousands (3200) or be a decimal comma (3.2).
+ * parseNumber reads it as a decimal; for cell counts the other reading is just as likely.
+ */
+export function maybeThousands(raw: string): boolean {
+  return /^(<=|>=|[<>≤≥])?\s*[1-9]\d{0,2},\d{3}(HH|LL|[HL↑↓*!])?$/.test(raw.trim());
+}
+
 /** A value that is a number and not a date, time, year or identifier. */
 export function isValueToken(raw: string): boolean {
   if (isDateLike(raw) || isTimeLike(raw)) return false;

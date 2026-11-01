@@ -37,9 +37,29 @@ export class App {
   protected readonly currentYear = new Date().getFullYear();
 
   constructor() {
+    let lastPath: string | null = null;
     this.router.events.pipe(takeUntilDestroyed()).subscribe((event) => {
-      if (event instanceof NavigationEnd) this.closeMenu();
+      if (!(event instanceof NavigationEnd)) return;
+      this.closeMenu();
+      const path = event.urlAfterRedirects.split(/[?#]/)[0];
+      // Screen readers get no cue that a new page loaded unless focus moves to it. Skip the
+      // first load (the browser handles that) and query-only changes on the same page.
+      if (lastPath !== null && path !== lastPath) this.focusPageHeading();
+      lastPath = path;
     });
+  }
+
+  private focusPageHeading() {
+    afterNextRender(
+      () => {
+        const main = document.getElementById('main-content');
+        const heading = main?.querySelector<HTMLElement>('h1') ?? main;
+        if (!heading) return;
+        if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
+        heading.focus({ preventScroll: true });
+      },
+      { injector: this.injector },
+    );
   }
 
   protected toggleMenu() {

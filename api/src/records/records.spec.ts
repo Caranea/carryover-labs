@@ -137,6 +137,24 @@ describe('buildRecords', () => {
     assert.equal(records.textResults[0].printedValue, 'niereaktywny');
   });
 
+  it('holds a cell count with a possible thousands comma for review instead of reading 3,200 as 3.2', () => {
+    const records = buildRecords([
+      doc('a', [
+        obs('neut', 'Neutrophils', '3,200', '/µL'),
+        obs('wbc', 'Leukocyty', '6,45', 'tys/µl'),
+        obs('hgb', 'Hemoglobina', '13,900', 'g/dl'),
+      ]),
+    ]);
+    const held = records.warnings.filter((w) => w.printedValue === '3,200');
+    assert.equal(held.length, 1);
+    assert.equal(held[0].reason, 'implausible');
+    assert.match(held[0].detail, /3200 or 3\.2/);
+    assert.ok(series(records).some((s) => s.points.some((p) => p.printedValue === '6,45')));
+    assert.ok(
+      !records.warnings.some((w) => w.printedValue === '13,900' && /could be/.test(w.detail)),
+    );
+  });
+
   it('holds uncertain transcriptions for review until the user confirms them', () => {
     const uncertain = {
       ...obs('tsh', 'TSH', '1.5', 'mIU/L'),

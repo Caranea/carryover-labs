@@ -17,7 +17,8 @@ import { QueueFullError, type JobQueue } from '../jobs/job-queue.js';
 import { MAX_WAIT_SECONDS } from '../shared/jobs.js';
 import type { RecordsResult } from './normalization.js';
 import { InvalidRequest, parseRecordsRequest } from './records-request.js';
-import { ID, parsePageRequest } from './source-processing.js';
+import { ID, parsePageRequest, SPARK_MODEL } from './source-processing.js';
+import { WONDER_MODEL } from './normalization.js';
 
 export const DEMO_QUEUE = Symbol('DEMO_QUEUE');
 
@@ -37,9 +38,13 @@ export class HealthController {
 export class DemoController {
   constructor(@Inject(DEMO_QUEUE) private readonly queue: JobQueue<RecordsResult> | null) {}
 
+  /** Whether live reading is switched on, and with which Meta models. */
   @Get('config')
   config() {
-    return { modelName: this.queue ? 'Meta Model API' : null };
+    return {
+      modelName: this.queue ? 'Meta Model API' : null,
+      models: this.queue ? { transcription: SPARK_MODEL, identification: WONDER_MODEL } : null,
+    };
   }
 
   /** Queue one approved, redacted page for Muse Spark. */

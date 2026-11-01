@@ -23,8 +23,8 @@
       </h1>
       <p class="mt-2 text-base-content/80 max-w-3xl leading-relaxed">
         Text under black bars is removed from the saved copy. Tap a word to hide it or tap a
-        removable bar to keep it. Hide stamps and signatures with an area. Undo with Ctrl+Z,
-        redo with Ctrl+Shift+Z.
+        removable bar to keep it. Hide stamps and signatures with an area. Undo with Ctrl+Z, redo
+        with Ctrl+Shift+Z.
       </p>
     }
 
@@ -290,11 +290,12 @@
                 <span class="loading loading-spinner loading-sm"></span> Saving
               } @else {
                 <app-icon name="check-circle" size="1.2rem" />
-                {{ doc.serverId ? 'Save changes' : 'Approve and save' }}
+                {{ doc.serverId ? 'Save changes' : 'Approve and send' }}
               }
             </button>
             <p class="text-xs text-center text-base-content/80">
-              Saves page images with the bars burned in. Removes the original from the saved queue.
+              Only this blacked-out copy is sent to Meta's AI to read your results. Your original
+              file stays on this device.
             </p>
             @if (!doc.serverId) {
               <button

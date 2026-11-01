@@ -11,6 +11,7 @@ import type {
   TextResult,
 } from '../shared/records.js';
 import { asCount, cleanUnit, conversionFactor, parseUnit, type Unit } from './units.js';
+import { maybeThousands } from '../shared/tokens.js';
 
 export interface BuildDocument {
   id: string;
@@ -132,6 +133,15 @@ export function buildRecords(
           !printed
             ? 'The unit is missing. Check the source and enter its unit before this reading can be compared.'
             : `The unit “${printed}” could not be verified for ${test.label}. Check the source before comparing this reading.`,
+        );
+        continue;
+      }
+      if (!o.confirmed && unit.dim === 'count' && maybeThousands(o.valueText)) {
+        warn(
+          o,
+          src,
+          'implausible',
+          `“${o.valueText}” could be ${o.valueText.replace(',', '')} or ${o.valueText.replace(',', '.')}. Check the source and confirm the value.`,
         );
         continue;
       }

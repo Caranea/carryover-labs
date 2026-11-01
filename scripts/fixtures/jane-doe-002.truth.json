@@ -1,0 +1,54 @@
+{
+  "image": "public/samples/live/german-cumulative.jpg",
+  "description": "Fictional German cumulative report (Jane Doe, MUSTER Klinikum Beispielstadt), phone photo, with the patient name, birth date and order number blacked out. Every result row as printed, transcribed by hand and checked against the image.",
+  "dates": [
+    { "kind": "registered", "printed": "03.03.2022 07:45", "iso": "2022-03-03" },
+    { "kind": "received", "printed": "03.03.2022 08:29", "iso": "2022-03-03" }
+  ],
+  "rows": [
+    {
+      "name": "Glucose i.P. (SI-Einheit)",
+      "value": "5.18",
+      "unit": "mmol/l",
+      "reference": "3,9 - 6,0"
+    },
+    { "name": "Natrium i.P.", "value": "136", "unit": "mmol/l", "reference": "136 - 145" },
+    { "name": "Chlorid i.P.", "value": "99.7", "unit": "mmol/l", "reference": "98 - 107" },
+    { "name": "Kalium i.P.", "value": "4.06", "unit": "mmol/l", "reference": "3,4 - 4,5" },
+    { "name": "Calcium i.P.", "value": "2.31", "unit": "mmol/l", "reference": "2,15 - 2,50" },
+    { "name": "Phosphat i. P.", "value": "1.12", "unit": "mmol/l", "reference": "0,87 - 1,45" },
+    { "name": "Creatinin i.P.", "value": "60", "unit": "µmol/l", "reference": "< 81" },
+    { "name": "GFR-Schätzung (CKD-EPI)", "value": "122", "unit": "ml/Min.", "reference": "> 89" },
+    { "name": "GFR CKD-Stadium", "value": "I (1)", "unit": null, "reference": null },
+    { "name": "Bilirubin gesamt i. P.", "value": "6.2", "unit": "µmol/l", "reference": "< 15" },
+    { "name": "ALAT(GPT) i.P.", "value": "29.6", "unit": "U/l", "reference": "< 36" },
+    { "name": "LDH IFCC i.P.", "value": "161", "unit": "U/l", "reference": "< 215" },
+    { "name": "AP IFCC i.P.", "value": "62", "unit": "U/l", "reference": "35-104" },
+    { "name": "Gamma-GT i. P.", "value": "12", "unit": "U/l", "reference": "<40" },
+    { "name": "CRP i. P.", "value": "<0,6", "unit": "mg/l", "reference": "< 5,0" },
+    { "name": "Albumin i.P.", "value": "47.0", "unit": "g/l", "reference": "35 - 52" },
+    { "name": "Quick i.P.", "value": "86", "unit": "%", "reference": ">74" },
+    { "name": "INR i.P.", "value": "1.05", "unit": null, "reference": null },
+    { "name": "aPTT i.P.", "value": "30.8", "unit": "sec", "reference": "24 - 33" },
+    { "name": "Hb i. VB.", "value": "13.0", "unit": "g/dl", "reference": "12,0 - 15,4" },
+    { "name": "Erythrozyten i. VB.", "value": "4.35", "unit": "Tpt/l", "reference": "3,90 - 5,15" },
+    { "name": "PCV (Hämatokrit) i. VB.", "value": "37.5", "unit": "%", "reference": "35,5 - 45,0" },
+    { "name": "MCV i. VB.", "value": "86.2", "unit": "fl", "reference": "80 - 99" },
+    { "name": "MCH i. VB.", "value": "29.9", "unit": "pg", "reference": "27,0 - 33,5" },
+    { "name": "MCHC i. VB.", "value": "34.7", "unit": "g/dl", "reference": "31,5 - 36,0" },
+    {
+      "name": "Ery-Verteilungsbreite i.VB.",
+      "value": "12.8",
+      "unit": "%",
+      "reference": "12,4 - 15,1"
+    },
+    {
+      "name": "Thrombozyten i. VB.",
+      "value": "130",
+      "unit": "Gpt/l",
+      "reference": "150 - 370",
+      "flag": "-"
+    },
+    { "name": "MPV i.VB.", "value": "10.5", "unit": "fl", "reference": "9,6 - 12,0" }
+  ]
+}

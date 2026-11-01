@@ -34,8 +34,9 @@ export function isCovered(page: WorkingPage, word: WorkingPage['words'][number])
 
 /**
  * Paint solid black over every hidden word and drawn region, then re-encode.
- * The result is a new PNG made only from pixels: no text layer, no metadata,
- * nothing under the boxes to recover.
+ * The result is a new JPEG made only from pixels: no text layer, no metadata,
+ * nothing under the boxes to recover. JPEG keeps a phone photo's page a few MB instead of
+ * the 20+ MB a PNG of the same noisy photo takes, which would exceed the upload limit.
  */
 export async function burnPage(page: WorkingPage): Promise<Blob | null> {
   if (!page.image) return null;
@@ -43,7 +44,7 @@ export async function burnPage(page: WorkingPage): Promise<Blob | null> {
   const ctx = canvas.getContext('2d')!;
   ctx.fillStyle = '#000';
   for (const b of boxesToBurn(page)) ctx.fillRect(b.x, b.y, b.w, b.h);
-  const blob = await canvasToBlob(canvas, 'image/png');
+  const blob = await canvasToBlob(canvas, 'image/jpeg', 0.9);
   canvas.width = canvas.height = 0;
   return blob;
 }

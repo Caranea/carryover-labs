@@ -102,7 +102,7 @@ export class StepRail {
   protected readonly index = computed(() =>
     this.queue.reviewOpened() || this.queue.resultsBlocked()
       ? 1
-      : /^\/(results|demo|appointment)/.test(this.url())
+      : /^\/(results|demo)/.test(this.url())
         ? 2
         : /^\/(review|saved)/.test(this.url()) || this.queue.batch().length
           ? 1

@@ -75,7 +75,6 @@ export interface LocalDocument {
   error?: string;
   /** Per-document result: global model readiness does not prove this document was checked. */
   privacyCheck?: 'complete' | 'incomplete' | 'manual';
-  privacyMessage?: string;
   privacyMode?: PrivacyMode;
   /** Version of the rules and model interpretation used for these OCR words. */
   privacyVersion?: number;

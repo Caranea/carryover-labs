@@ -365,7 +365,7 @@ export class LineChart implements OnInit, OnDestroy {
           y: y(p.value),
           t,
           color,
-          label: `${s.label} ${p.printedValue} ${p.printedUnit ?? ''} on ${p.date}, from ${p.documentName}. Open the page.`,
+          label: `${s.label} ${p.printedValue} ${p.printedUnit ?? ''}${flagWords(p.flag)} on ${p.date}, from ${p.documentName}. Open the page.`,
         };
         dots.push(dot);
         return dot;
@@ -561,4 +561,11 @@ export function nearestPointIndex(
     }
   });
   return best;
+}
+
+/** The lab's flag in words, for screen readers: the chart shows it only as a red dot. */
+function flagWords(flag: string | null | undefined): string {
+  if (flag === 'H' || flag === 'HH') return ', flagged high by the lab,';
+  if (flag === 'L' || flag === 'LL') return ', flagged low by the lab,';
+  return flag === 'A' ? ', flagged abnormal by the lab,' : '';
 }

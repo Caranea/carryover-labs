@@ -60,7 +60,6 @@ async function setup() {
       provideRouter([
         { path: 'documents', component: Destination },
         { path: 'results', component: Destination, canActivate: [resultsReadyGuard] },
-        { path: 'appointment', component: Destination, canActivate: [resultsReadyGuard] },
       ]),
       { provide: NerService, useValue: ner },
       {
@@ -153,11 +152,11 @@ describe('continuous document review', () => {
     queue.toggleWord('first', 0, 0);
     queue.rename('first', 'Example report');
     fixture.detectChanges();
-    button('Approve and save').click();
+    button('Approve and send').click();
     await fixture.whenStable();
     fixture.detectChanges();
     expect(queue.byId('first')?.status).toBe('review');
-    const approve = button('Approve and save');
+    const approve = button('Approve and send');
     const alert = dialog.querySelector('#approval-error');
     expect(alert?.textContent).toContain('document name');
     expect(alert?.getAttribute('role')).toBe('alert');
@@ -166,7 +165,7 @@ describe('continuous document review', () => {
     queue.rename('first', 'Thyroid tests');
     fixture.detectChanges();
     expect(dialog.querySelector('#approval-error')).toBeNull();
-    button('Approve and save').click();
+    button('Approve and send').click();
     await settled(() => expect(queue.byId('first')?.status).toBe('saved'));
     fixture.destroy();
   });
@@ -216,7 +215,7 @@ describe('continuous document review', () => {
     await begin([document('first'), document('second', 'reading')]);
     const navigate = vi.spyOn(router, 'navigate');
     expect(button('Continue to Results').disabled).toBe(true);
-    button('Approve and save').click();
+    button('Approve and send').click();
     await settled(() => expect(queue.byId('first')?.status).toBe('saved'));
     fixture.detectChanges();
     expect(dialog.open).toBe(true);
@@ -229,7 +228,7 @@ describe('continuous document review', () => {
       'second.txt',
     );
     expect(button('Continue to Results').disabled).toBe(true);
-    button('Approve and save').click();
+    button('Approve and send').click();
     await settled(() => expect(queue.byId('second')?.status).toBe('saved'));
     fixture.detectChanges();
     expect(dialog.textContent).toContain('All documents approved');
@@ -242,12 +241,12 @@ describe('continuous document review', () => {
     fixture.destroy();
   });
 
-  it('blocks direct results and appointment navigation for waiting, review, saving and failed files', async () => {
+  it('blocks direct results navigation for waiting, review, saving and failed files', async () => {
     const { fixture, queue, router, begin, change } = await setup();
     await begin([document('unfinished', 'queued')]);
     for (const status of ['queued', 'reading', 'detecting', 'review', 'saving', 'error'] as const) {
       await change('unfinished', status);
-      for (const destination of ['/results', '/appointment']) {
+      for (const destination of ['/results']) {
         queue.closeReview();
         await router.navigateByUrl(destination);
         fixture.detectChanges();
@@ -285,7 +284,6 @@ describe('continuous document review', () => {
               ...doc,
               privacyMode: 'lightweight',
               privacyCheck: 'manual',
-              privacyMessage: 'Click details to hide them.',
             }
           : doc,
       ),
@@ -294,9 +292,9 @@ describe('continuous document review', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
-    expect(button('Approve and save').disabled).toBe(false);
+    expect(button('Approve and send').disabled).toBe(false);
     expect(fixture.nativeElement.textContent).not.toContain('I checked every page myself');
-    button('Approve and save').click();
+    button('Approve and send').click();
     await settled(() => expect(queue.byId('first')?.status).toBe('saved'));
     fixture.detectChanges();
     expect(button('Continue to Results').disabled).toBe(true);

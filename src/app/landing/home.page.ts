@@ -23,7 +23,7 @@ export class HomePage {
     {
       icon: 'check-circle' as const,
       title: 'View your history',
-      text: 'Save the approved copy in this browser, explore results over time, and prepare an appointment record.',
+      text: 'Save the approved copy in this browser, explore results over time, and print them for your appointment.',
     },
   ];
 

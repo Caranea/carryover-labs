@@ -95,8 +95,7 @@
               "xmlbuilder",
               "heic2any",
               "tesseract.js",
-              "regenerator-runtime",
-              "pdfmake"
+              "regenerator-runtime"
             ]
           },
           "configurations": {

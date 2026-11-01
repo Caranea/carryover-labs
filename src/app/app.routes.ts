@@ -14,12 +14,6 @@ export const routes: Routes = [
     loadComponent: () => import('./results/results.page').then((m) => m.ResultsPage),
   },
   {
-    path: 'appointment',
-    canActivate: [resultsReadyGuard],
-    title: 'Appointment record – Carryover',
-    loadComponent: () => import('./appointment/appointment.page').then((m) => m.AppointmentPage),
-  },
-  {
     path: 'documents',
     title: 'Add documents – Carryover',
     loadComponent: () => import('./upload/upload.page').then((m) => m.UploadPage),

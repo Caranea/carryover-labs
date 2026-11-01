@@ -37,7 +37,6 @@ function sameDocument(a: LocalDocument | undefined, b: LocalDocument): boolean {
     a.privacyMode === b.privacyMode &&
     a.privacyCheck === b.privacyCheck &&
     a.privacyVersion === b.privacyVersion &&
-    a.privacyMessage === b.privacyMessage &&
     a.error === b.error
   );
 }

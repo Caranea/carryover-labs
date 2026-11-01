@@ -213,7 +213,16 @@ export class ReviewPage {
   }
 }
 
-const NON_TEXT_INPUTS = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color', 'file']);
+const NON_TEXT_INPUTS = new Set([
+  'checkbox',
+  'radio',
+  'button',
+  'submit',
+  'reset',
+  'range',
+  'color',
+  'file',
+]);
 
 function isTextEntry(el: Element): boolean {
   if (el instanceof HTMLInputElement) return !NON_TEXT_INPUTS.has(el.type);

@@ -1,147 +1,121 @@
-// Explicit live verification: only the previously reviewed, permanently redacted fixture is sent.
-// No original file paths, OCR, identities or provider bodies enter logs.
+// Live check of the Meta model steps against a committed, fully fictional page with a
+// hand-checked ground truth. Makes paid calls: up to 3 Muse Spark pages + 1 Muse Wonder batch.
+//
+//   npm --prefix api ci && npm --prefix api run build
+//   node scripts/check-pipeline-models.mjs            # upright, 90° and 180°
+//   node scripts/check-pipeline-models.mjs --upright  # one Spark call only
+//
+// Needs META_MODEL_API_KEY in api/.env. Writes raw answers to artifacts/pipeline-verification/
+// (gitignored) and prints a Markdown table for docs/evaluation.md.
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { randomUUID } from 'node:crypto';
-import { loadConfig } from '../api/.test-build/config.js';
-import { MetaModelClient } from '../api/.test-build/records/meta-model.js';
-import { processPage } from '../api/.test-build/demo/source-processing.js';
-import { normalizeBatch } from '../api/.test-build/demo/normalization.js';
+import { score } from './eval-compare.mjs';
+
+const api = (path) => import(new URL(`../api/dist/${path}`, import.meta.url).href);
+const { loadConfig } = await api('config.js').catch(() => {
+  throw new Error('Build the API first: npm --prefix api run build');
+});
+const { MetaModelClient } = await api('records/meta-model.js');
+const { processPage } = await api('demo/source-processing.js');
+const { normalizeBatch } = await api('demo/normalization.js');
 const sharp = createRequire(new URL('../api/package.json', import.meta.url))('sharp');
-const out = new URL('../artifacts/pipeline-verification/', import.meta.url);
-await mkdir(out, { recursive: true });
+
 const config = loadConfig();
 if (!config.model) throw new Error('Set META_MODEL_API_KEY in api/.env first.');
 const model = new MetaModelClient(config.model);
-const input = await readFile(
-  new URL('../artifacts/spark-vision/redacted-page.png', import.meta.url),
+
+const truth = JSON.parse(
+  await readFile(new URL('./fixtures/jane-doe-002.truth.json', import.meta.url), 'utf8'),
 );
-const batchId = randomUUID(),
-  documents = [],
-  metrics = { pages: [], normalizationMs: null, normalization: null };
-const normalizationOnly = process.argv.includes('--normalization-only');
-for (const angle of normalizationOnly ? [] : [0, 90, 180]) {
-  // Test input rotations, never runtime orientation detection/retry.
-  const image = await sharp(input).rotate(angle).png().toBuffer();
-  const documentId = randomUUID(),
-    started = performance.now();
+const input = await readFile(new URL(`../${truth.image}`, import.meta.url));
+const out = new URL('../artifacts/pipeline-verification/', import.meta.url);
+await mkdir(out, { recursive: true });
+
+const batchId = randomUUID();
+const angles = process.argv.includes('--upright') ? [0] : [0, 90, 180];
+const results = [];
+const documents = [];
+for (const angle of angles) {
+  // Rotations test the model on sideways photos; the app itself never rotates pages.
+  const image = await sharp(input).rotate(angle).jpeg({ quality: 90 }).toBuffer();
+  const documentId = randomUUID();
+  const started = performance.now();
   try {
-    const result = await processPage(
+    const page = await processPage(
       {
         batchId,
         documentId,
         pageId: `${documentId}:0`,
         page: 0,
         revision: randomUUID(),
-        image: `data:image/png;base64,${image.toString('base64')}`,
+        image: `data:image/jpeg;base64,${image.toString('base64')}`,
       },
       model,
     );
-    const record = {
-      angle,
-      elapsedMs: Math.round(performance.now() - started),
-      rows: result.rows.length,
-      boundedRows: result.observations.filter((o) => o.comparator).length,
-      collectionDates: result.observations.filter((o) => o.date).length,
-      uncertainRows: result.rows.filter((r) => r.uncertainty.length).length,
-    };
-    metrics.pages.push(record);
-    console.log(JSON.stringify(record));
-    await writeFile(new URL(`spark-${angle}.json`, out), JSON.stringify(result, null, 2));
+    const seconds = (performance.now() - started) / 1000;
+    results.push({ angle, seconds, ...score(truth.rows, page.rows) });
+    await writeFile(new URL(`spark-${angle}.json`, out), JSON.stringify(page, null, 2));
     documents.push({
       id: documentId,
       name: 'Lab document',
-      observations: result.observations,
-      review: null,
+      observations: page.observations,
+      dates: page.dates,
     });
-  } catch {
-    metrics.pages.push({
-      angle,
-      error: 'Transcription failed',
-      elapsedMs: Math.round(performance.now() - started),
-    });
-    console.log('Transcription failed; no provider content logged.');
+  } catch (error) {
+    // Our own words only: provider text can echo submitted content.
+    results.push({ angle, error: error instanceof Error ? error.name : 'Error' });
   }
-  await writeFile(new URL('model-timings.json', out), JSON.stringify(metrics, null, 2));
 }
-if (normalizationOnly) {
-  const id = randomUUID();
-  const cases = [
-    ['Glukose', '90', 'mg/dL', 'Serum'],
-    ['Glucose', '5', 'mmol/L', 'serum'],
-    ['Glukoza', '92', 'mg/dL', 'surowica'],
-    ['Glucose', '5', 'mmol/L', 'urine'],
-    ['Monocytes', '0.4', '10^9/L', null],
-    ['Monocytes', '4', '%', null],
-    ['Free T4', '15', 'pmol/L', null],
-    ['Total T4', '100', 'nmol/L', null],
-    ['CRP', '<0.6', 'mg/L', null],
-    ['CRP', '0.6', null, null],
-  ];
-  const observations = cases.map(([name, valueText, unit, specimen], i) => ({
-    id: `${id}:0:${i}`,
-    documentId: id,
-    page: 0,
-    words: [],
-    bbox: null,
-    name,
-    valueText,
-    value: Number(valueText.replace('<', '')),
-    comparator: valueText.startsWith('<') ? '<' : null,
-    unit,
-    date: '2026-10-15',
-    dateSource: 'label',
-    refText: null,
-    refLow: null,
-    refHigh: null,
-    flag: null,
-    transcription: { specimen, method: null, uncertainty: [] },
-  }));
-  const before = JSON.stringify(observations),
-    started = performance.now();
-  const result = await normalizeBatch(
-    [{ id, name: 'Synthetic', observations, review: null }],
-    model,
-  );
-  const series = result.domains.flatMap((d) => d.charts.flatMap((c) => c.series));
-  const summary = {
-    elapsedMs: Math.round(performance.now() - started),
-    observations: observations.length,
-    unchangedMeasurements: JSON.stringify(observations) === before,
-    series: series.length,
-    warnings: result.warnings.length,
-    equivalentMultilingualPoints: series
-      .filter((s) => s.key.startsWith('glucose:'))
-      .map((s) => s.points.length)
-      .sort(),
-    countAndPercentageSeparate:
-      series.some((s) => s.key.startsWith('mono:')) &&
-      series.some((s) => s.key.startsWith('mono-pct:')),
-    boundedPoints: series.flatMap((s) => s.points).filter((p) => p.comparator === '<').length,
-    missingUnitUnresolved: result.warnings.some(
-      (w) => w.reason === 'unit' && w.printedUnit === null,
-    ),
-  };
-  await writeFile(new URL('synthetic-normalization.json', out), JSON.stringify(summary, null, 2));
-  console.log(JSON.stringify(summary));
-}
-if (documents.length === 3) {
+
+let normalization = null;
+if (documents.length) {
   const started = performance.now();
   try {
-    const records = await normalizeBatch(documents, model);
-    metrics.normalizationMs = Math.round(performance.now() - started);
-    metrics.normalization = {
-      series: records.domains.flatMap((d) => d.charts.flatMap((c) => c.series)).length,
-      warnings: records.warnings.length,
-      values: records.stats.values,
+    const records = await normalizeBatch([documents[0]], model);
+    const series = records.domains.flatMap((d) => d.charts.flatMap((c) => c.series));
+    const reasons = {};
+    for (const w of records.warnings) reasons[w.reason] = (reasons[w.reason] ?? 0) + 1;
+    normalization = {
+      seconds: (performance.now() - started) / 1000,
+      charted: records.stats.values,
+      series: series.length,
+      held: records.warnings.length,
+      reasons,
     };
     await writeFile(new URL('normalized.json', out), JSON.stringify(records, null, 2));
-  } catch {
-    metrics.normalization = { error: 'Normalization failed' };
-    metrics.normalizationMs = Math.round(performance.now() - started);
+  } catch (error) {
+    normalization = { error: error instanceof Error ? error.name : 'Error' };
   }
-  await writeFile(new URL('model-timings.json', out), JSON.stringify(metrics, null, 2));
-  console.log(
-    JSON.stringify({ normalizationMs: metrics.normalizationMs, ...metrics.normalization }),
-  );
 }
+
+await writeFile(
+  new URL('summary.json', out),
+  JSON.stringify({ measuredAt: new Date().toISOString(), results, normalization }, null, 2),
+);
+
+const n = truth.rows.length;
+const lines = [
+  `Muse Spark on ${truth.image} (${n} rows in the ground truth)`,
+  '',
+  '| Rotation | Round trip | Rows found | Values correct | Units correct | Marked doubtful | Extra rows |',
+  '| -------- | ---------: | ---------: | -------------: | ------------: | --------------: | ---------: |',
+  ...results.map((r) =>
+    r.error
+      ? `| ${r.angle}° | failed (${r.error}) | | | | | |`
+      : `| ${r.angle}° | ${r.seconds.toFixed(1)} s | ${r.namesFound}/${n} | ${r.valuesCorrect}/${n} | ${r.unitsCorrect}/${n} | ${r.markedDoubtful} | ${r.extraRows} |`,
+  ),
+];
+for (const r of results.filter((r) => r.wrongValues?.length || r.missing?.length))
+  lines.push(
+    '',
+    `${r.angle}°: wrong values ${JSON.stringify(r.wrongValues)}; missing ${JSON.stringify(r.missing)}`,
+  );
+if (normalization?.error) lines.push('', `Muse Wonder failed (${normalization.error}).`);
+else if (normalization)
+  lines.push(
+    '',
+    `Muse Wonder and server charts (upright page): ${normalization.charted} values charted in ${normalization.series} series, ` +
+      `${normalization.held} held for review ${JSON.stringify(normalization.reasons)}, ${normalization.seconds.toFixed(1)} s.`,
+  );
+console.log(lines.join('\n'));

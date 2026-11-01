@@ -17,7 +17,11 @@ Automatic detection fails on rotated pages because OCR runs once without orienta
 
 ## Live Meta models
 
-`node scripts/check-pipeline-models.mjs` (after `npm --prefix api test` compiles the API) sends one previously redacted German report page, kept locally in `artifacts/`, to Muse Spark at three rotations, then normalizes the rows with Muse Wonder. It makes paid calls.
+`node scripts/check-pipeline-models.mjs` (after `npm --prefix api run build`) sends a committed, entirely fictional German phone photo with its identifiers blacked out, `public/samples/live/german-cumulative.jpg`, to Muse Spark upright and rotated 90° and 180°, then normalizes the upright result with Muse Wonder. It scores every row against a hand-checked ground truth, `scripts/fixtures/jane-doe-002.truth.json` (28 rows: name, value, unit and range as printed), and prints the table below. It makes paid calls; `--upright` makes one Spark call only. Scoring lives in `scripts/eval-compare.mjs` and ignores case, spacing, decimal separators and a trailing flag.
+
+_Results on the fictional page: run the script and paste its table here._
+
+Earlier measurement (31 October), on a previously redacted real German report that is not in the repository and therefore can't be reproduced from it:
 
 | Page orientation | Spark round trip | Rows | Printed values matching the 28-row reference | Rows marked uncertain |
 | ---------------- | ---------------: | ---: | -------------------------------------------: | --------------------: |
@@ -25,9 +29,9 @@ Automatic detection fails on rotated pages because OCR runs once without orienta
 | 90°              |           36.9 s |   28 |                                        28/28 |                     8 |
 | 180°             |           47.8 s |   28 |                                        26/28 |                     4 |
 
-Value comparison ignores whitespace and decimal separators; it does not audit names, units, ranges, dates or regions. Wonder normalized the 84 rows (59 distinct combinations) in 44.8 s. The report prints order and report dates but no collection date, so every reading correctly stayed in "Readings to check" instead of using another date.
+Wonder normalized the 84 rows (59 distinct combinations) in 44.8 s. That report prints order and report dates but no collection date, so every reading correctly stayed in "Readings to check" instead of using another date.
 
-A separate `--normalization-only` run on ten invented rows took 10.0 s. Polish, German and English serum glucose shared one series; absolute monocyte counts and percentages stayed separate; a CRP comparator survived; a CRP row without a unit stayed unresolved.
+Specimen and form rules are covered by `api/src/demo/normalization.spec.ts`: "Kalium", "Harnstoff" and "Mocznik" stay blood tests, ionized and total calcium and direct and total bilirubin get separate lines, and a cell count printed as "3,200" is held for review instead of being read as 3.2.
 
 ## Timing logs
 
@@ -43,8 +47,8 @@ Set `MODEL_TRACE_DIR` (for example `../tmp/model-trace`) during development to w
 
 - Rotated or difficult pages need careful manual masking.
 - Spark can omit or misread rows, and its regions can be inaccurate. The source page is always available for checking.
-- A value like `1,234` is read as 1.234 regardless of the document's locale.
-- A test gets a separate line only for a different body fluid (urine, CSF), form (free, total) or a percentage; the analyser or method does not split it.
+- A value like `1,234` is read as 1.234 regardless of the document's locale; for cell counts it is held for review instead.
+- A test gets a separate line only for a different body fluid (urine, CSF), form (free, total, ionized, direct, indirect) or a percentage; the analyser or method does not split it.
 - When the collection date is not printed, a reading is dated by the best other printed date of its report (received, performed, registered, issued, in that order), and the table marks the later kinds. Two different dates of the best kind leave it undated.
 - An ambiguous date such as 01/06/2012 is read in the day/month order the batch's other dates settle; without that evidence it stays undated.
 - Browser storage is limited, not encrypted by the app, and tied to one browser profile.

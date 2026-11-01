@@ -23,6 +23,7 @@ import { formatUnit, LineChart, PointPick } from './line-chart';
 import { calendarTimestamp } from './calendar-date';
 import { SourceDialog } from './source-dialog';
 import { DemoDocuments } from './demo-documents';
+import { LiveRead } from './live-read';
 import { InfoTip } from './info-tip';
 import { ScrollSheet } from './scroll-sheet';
 import { SparkLine } from './spark';
@@ -120,6 +121,7 @@ export interface Panel {
     LineChart,
     SourceDialog,
     DemoDocuments,
+    LiveRead,
     SparkLine,
     ScrollSheet,
     InfoTip,
@@ -348,6 +350,11 @@ export class ResultsPage implements OnInit, OnDestroy {
     return label.replace(/^(\d{2})(\d{2})–\1(\d{2})$/, '$1$2–$3');
   }
 
+  /** A value's spoken name, including the lab's flag, which is otherwise shown only as ↑H/↓L. */
+  protected cellLabel(rowLabel: string, cell: Cell): string {
+    return `${rowLabel} ${cell.text}${FLAG_WORDS[cell.flag ?? 'none']} — show on its page`;
+  }
+
   /** Whether the lab flagged any value in a table cell. */
   protected flaggedCell(cells: Cell[] | undefined): boolean {
     return !!cells?.some((c) => c.flag);
@@ -531,6 +538,13 @@ function approximate(kind: string | null): string | null {
 function datedNote(kind: string | null): string {
   return kind ? ` (dated by when ${DATED[kind] ?? kind}; the collection date is not printed)` : '';
 }
+
+const FLAG_WORDS: Record<NonNullable<Cell['flag']> | 'none', string> = {
+  high: ', flagged high by the lab',
+  low: ', flagged low by the lab',
+  abnormal: ', flagged abnormal by the lab',
+  none: '',
+};
 
 function flagOf(flag: RecordPoint['flag']): Cell['flag'] {
   if (flag === 'H' || flag === 'HH') return 'high';

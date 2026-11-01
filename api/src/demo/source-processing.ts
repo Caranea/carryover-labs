@@ -81,10 +81,12 @@ export const transcriptionSchema = {
   },
 };
 
+export const SPARK_MODEL = 'muse-spark-1.3';
+
 export function extractionTask(image: string): ModelTask {
   return {
     kind: 'transcribe-page',
-    model: 'muse-spark-1.3',
+    model: SPARK_MODEL,
     image,
     // A dense page took 15,800 tokens, most of them reasoning; a page cannot be split.
     maxTokens: 32000,

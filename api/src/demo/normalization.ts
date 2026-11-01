@@ -63,10 +63,12 @@ const UNCONFIRMED = 'Carryover could not confirm which test this is. Check the s
 
 const log = new Logger('Normalization');
 
+export const WONDER_MODEL = 'muse-wonder-1.0';
+
 export function identificationTask(questions: Question[], specimens: string[]): ModelTask {
   return {
     kind: 'normalize-batch',
-    model: 'muse-wonder-1.0',
+    model: WONDER_MODEL,
     maxTokens: 16000,
     // Matching names to a catalogue is a lookup, not a puzzle: little reasoning is needed.
     reasoningEffort: 'low',
@@ -222,7 +224,7 @@ export async function normalizeBatch(
           'The proposed identity conflicts with the printed measurement context. Check the source.',
       };
     // One line per test, whatever analyser or method: only a different body fluid
-    // (urine, CSF), form (free, total) or a percentage gets a line of its own.
+    // (urine, CSF), form (free, total, ionized, direct) or a percentage gets a line of its own.
     const suffix = createHash('sha256')
       .update(JSON.stringify([specimen, form, dim === 'percent']))
       .digest('hex')
@@ -419,9 +421,27 @@ function unusable(reason: string): never {
   throw new Error(reason);
 }
 
-function namedForm(name: string): 'free' | 'total' | null {
-  if (/\b(free|frei|freies|woln[ay])\b/i.test(name)) return 'free';
-  if (/\b(total|gesamt|calkowit[ay]|całkowit[ay])\b/i.test(name)) return 'total';
+type Form = 'free' | 'total' | 'ionized' | 'direct' | 'indirect';
+
+/**
+ * The printed form of a test that must not share a line with another form: ionized and total
+ * calcium differ by about half, direct and total bilirubin by much more.
+ */
+export function namedForm(name: string): Form | null {
+  const t = name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ł/g, 'l');
+  if (/\b(free|frei|freies|woln[ay])\b/.test(t)) return 'free';
+  if (/(ioni[sz]\w*|zjonizowan\w*)/.test(t)) return 'ionized';
+  if (
+    /(^|[^a-z])(indirect|indirekt\w*|posredni\w*|nieskoniugowan\w*|unconjugated)([^a-z]|$)/.test(t)
+  )
+    return 'indirect';
+  if (/(^|[^a-z])(direct|direkt\w*|bezposredni\w*|skoniugowan\w*|conjugated)([^a-z]|$)/.test(t))
+    return 'direct';
+  if (/\b(total|gesamt|calkowit[ay])\b/.test(t)) return 'total';
   return null;
 }
 
@@ -451,14 +471,17 @@ function fluidOf(o: Row, english?: Map<string, string>): string | null {
  * Blood, serum, plasma and an anticoagulant tube are the default and share a line; another
  * body fluid is named ("urine"). Reads the English translation, or the printed text.
  */
-function specimenClass(text: string): string | null {
+export function specimenClass(text: string): string | null {
   const t = text
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-  if (/\b(urin\w*|mocz\w*|harn\w*)/.test(t)) return 'urine';
-  if (/\b(csf|cerebrospinal|liquor|mozgowo)/.test(t)) return 'CSF';
-  if (/\b(stool|faec|fec|kal|stuhl)/.test(t)) return 'stool';
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ł/g, 'l');
+  // Whole words only: "Harnstoff", "Mocznik" (urea) and "Kalium" (potassium) are blood tests,
+  // not urine or stool. "Harn", "Spontanharn", "mocz", "moczu", "kał" and "kału" are fluids.
+  if (/(^|[^a-z])(urin\w*|mocz|moczu|harn|\w+harn)([^a-z]|$)/.test(t)) return 'urine';
+  if (/(^|[^a-z])(csf|cerebrospinal|liquor|mozgowo\w*)/.test(t)) return 'CSF';
+  if (/(^|[^a-z])(stool|faec\w*|fec\w*|kal|kalu|stuhl)([^a-z]|$)/.test(t)) return 'stool';
   if (/\b(saliva|slina|speichel)/.test(t)) return 'saliva';
   if (/\b(synovial|pleural|ascit|peritoneal|maziowy|oplucnow|otrzewnow)/.test(t))
     return 'body fluid';

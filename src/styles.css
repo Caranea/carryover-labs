@@ -32,13 +32,13 @@
   --color-accent-content: #3b2c00;
   --color-neutral: #16302c;
   --color-neutral-content: #eef4f2;
-  --color-info: #2f7fd8;
+  --color-info: #1b5fae;
   --color-info-content: #ffffff;
-  --color-success: #17a058;
+  --color-success: #127a44;
   --color-success-content: #ffffff;
   --color-warning: #f2a516;
   --color-warning-content: #3b2600;
-  --color-error: #d4372c;
+  --color-error: #b42318;
   --color-error-content: #ffffff;
 
   --radius-selector: 2rem;
@@ -125,6 +125,10 @@ html {
 :focus-visible {
   outline: 3px solid #0d7a68;
   outline-offset: 3px;
+}
+/* The teal ring is 2:1 on the dark footer; a light ring keeps it visible there. */
+.app-footer :focus-visible {
+  outline-color: #9ee5d1;
 }
 .btn,
 summary,

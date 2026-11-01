@@ -58,6 +58,10 @@
     }
   </header>
 
+  @if (demo) {
+    <app-live-read class="no-print" />
+  }
+
   @if (error()) {
     <div role="alert" class="alert alert-error alert-soft">
       <app-icon name="alert" />
@@ -342,7 +346,7 @@
                         <button
                           type="button"
                           (click)="cell.open()"
-                          [attr.aria-label]="row.label + ' ' + cell.text + ' — show on its page'"
+                          [attr.aria-label]="cellLabel(row.label, cell)"
                         >
                           <span>
                             <span class="d">{{
@@ -650,7 +654,7 @@
             [class.abnormal]="cell.flag === 'abnormal'"
             [class.dated]="cell.dated"
             [attr.title]="cell.title"
-            [attr.aria-label]="row.label + ' ' + cell.text + ' — show on its page'"
+            [attr.aria-label]="cellLabel(row.label, cell)"
             (click)="cell.open()"
           >
             @if (cell.parts; as n) {

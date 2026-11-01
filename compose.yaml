@@ -1,0 +1,17 @@
+# docker compose up --build, then open http://localhost:3000
+services:
+  carryover:
+    build: .
+    ports:
+      # Local only: the API spends your Meta credits, so don't publish it on your network.
+      - '127.0.0.1:3000:3000'
+    # Optional: the same api/.env as a local run (META_MODEL_API_KEY, MODEL_CONCURRENCY).
+    # Without a key, /demo and on-device redaction work and live reading is off.
+    env_file:
+      - path: api/.env
+        required: false
+    environment:
+      # Fixed inside the container, whatever api/.env says.
+      HOST: 0.0.0.0
+      PORT: '3000'
+    restart: unless-stopped
