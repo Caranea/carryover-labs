@@ -25,4 +25,4 @@ export interface BatchView<R> {
 }
 
 /** A long poll answers within this many seconds even when nothing changed. */
-export const MAX_WAIT_SECONDS = 25;
+export const MAX_WAIT_SECONDS = 20;
