@@ -101,7 +101,7 @@ export class BatchesController {
     return limited(() => this.queue.submitNormalization(id, documents));
   }
 
-  /** The batch's jobs. With `wait`, answers on the next change or after at most 25 s. */
+  /** The batch's jobs. With `wait`, answers on the next change or after at most 20 s. */
   @Get('batches/:batchId')
   async batch(
     @Param('batchId') batchId: string,

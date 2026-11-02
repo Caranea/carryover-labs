@@ -80,6 +80,21 @@ CI runs the same steps. Tests use synthetic data and stubbed model calls; they n
 
 `npm --prefix api start` serves the built app and the API from one origin. Keep the model key on the server and use HTTPS. `ops/` has example nginx and systemd files. Browser storage is not encrypted by the app, so use fictional data for shared demos.
 
+### Netlify and Heroku
+
+Netlify serves the app and proxies `/api` to the API on Heroku. The API can't run as Netlify Functions: it keeps jobs and the daily spending total in one process's memory, and model calls outlast the function limit. Netlify ends proxied requests after 26 seconds, so long polls answer within 20. Approved page images pass through both services on their way to Meta.
+
+```sh
+heroku create --stack container --region eu
+heroku config:set META_MODEL_API_KEY=... MODEL_DAILY_BUDGET_USD=5 MODEL_CONCURRENCY=4
+heroku container:login
+heroku container:push web
+heroku container:release web
+heroku ps:type web=basic   # Eco dynos sleep
+```
+
+Put the app's host in `netlify.toml`, then run `netlify deploy --build --prod`. Heroku restarts a dyno about once a day and on every release or config change, and each restart resets the spending total, so a day's spending can reach about twice the limit.
+
 ### What a public deployment costs
 
 Only new documents cost money: each page is one Muse Spark call, and each batch a few Muse Wonder calls. `MODEL_DAILY_BUDGET_USD` (default `10`) caps that spending per UTC day for all visitors together. Each call is priced from the token usage Meta reports, at the rates in `api/src/jobs/daily-spend.ts` (per million input / output tokens: Spark $1.25 / $4.25, Wonder $4 / $20; reasoning is billed as output; check them against your Meta billing). While calls run, their worst case is held back, so parallel calls can't overshoot by much. Once the limit is reached, new documents get a plain "try again tomorrow" message until midnight UTC; the sample patient and the demo keep working, because they never call Meta. There is no other rate limiting.

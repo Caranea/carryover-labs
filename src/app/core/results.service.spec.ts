@@ -27,7 +27,7 @@ class FakeJobServer {
   normalizations: Record<string, unknown>[] = [];
   pageOutcome: (body: Record<string, unknown>) => Outcome | 'busy' = () => 'done';
   normalizeOutcome: Outcome = 'done';
-  /** How long an unanswered long poll waits (the real server waits up to 25 s). */
+  /** How long an unanswered long poll waits (the real server waits up to 20 s). */
   pollMs = 30;
   private waiters: (() => void)[] = [];
 
