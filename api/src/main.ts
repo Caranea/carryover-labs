@@ -5,7 +5,7 @@ import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { NextFunction, Request, Response } from 'express';
-import { DemoModule } from './demo/demo.module.js';
+import { BatchesModule } from './batches/batches.module.js';
 import { loadConfig } from './config.js';
 import { requestLimits, securityHeaders } from './security/http-security.js';
 
@@ -13,7 +13,7 @@ async function bootstrap() {
   const config = loadConfig();
   const log = new Logger('Carryover');
 
-  const app = await NestFactory.create<NestExpressApplication>(DemoModule.forRoot(config), {
+  const app = await NestFactory.create<NestExpressApplication>(BatchesModule.forRoot(config), {
     logger: ['error', 'warn', 'log'],
     bodyParser: false,
   });

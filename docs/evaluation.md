@@ -31,7 +31,7 @@ Earlier measurement (31 October), on a previously redacted real German report th
 
 Wonder normalized the 84 rows (59 distinct combinations) in 44.8 s. That report prints order and report dates but no collection date, so every reading correctly stayed in "Readings to check" instead of using another date.
 
-Specimen and form rules are covered by `api/src/demo/normalization.spec.ts`: "Kalium", "Harnstoff" and "Mocznik" stay blood tests, ionized and total calcium and direct and total bilirubin get separate lines, and a cell count printed as "3,200" is held for review instead of being read as 3.2.
+Specimen and form rules are covered by `api/src/batches/specimens.spec.ts`: "Kalium", "Harnstoff" and "Mocznik" stay blood tests, ionized and total calcium and direct and total bilirubin get separate lines, and a cell count printed as "3,200" is held for review instead of being read as 3.2.
 
 ## Timing logs
 

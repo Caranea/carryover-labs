@@ -21,8 +21,8 @@ import { InvalidRequest, parseRecordsRequest } from './records-request.js';
 import { ID, parsePageRequest, SPARK_MODEL } from './source-processing.js';
 import { WONDER_MODEL } from './normalization.js';
 
-export const DEMO_QUEUE = Symbol('DEMO_QUEUE');
-export const DEMO_BUDGET = Symbol('DEMO_BUDGET');
+export const JOB_QUEUE = Symbol('JOB_QUEUE');
+export const MODEL_BUDGET = Symbol('MODEL_BUDGET');
 
 @Controller()
 export class HealthController {
@@ -36,11 +36,11 @@ export class HealthController {
  * Page transcription and normalization as jobs. Requests return at once; the browser
  * collects results with one long poll per batch. Nothing is written to disk.
  */
-@Controller('demo')
-export class DemoController {
+@Controller()
+export class BatchesController {
   constructor(
-    @Inject(DEMO_QUEUE) private readonly queue: JobQueue<RecordsResult> | null,
-    @Inject(DEMO_BUDGET) private readonly budget: DailyBudget | null,
+    @Inject(JOB_QUEUE) private readonly queue: JobQueue<RecordsResult> | null,
+    @Inject(MODEL_BUDGET) private readonly budget: DailyBudget | null,
   ) {}
 
   /** Whether live reading is switched on, and with which Meta models. */

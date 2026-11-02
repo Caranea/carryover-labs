@@ -1,37 +1,19 @@
 import { errorMessage } from './errors';
 import { computed, DestroyRef, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { ExtractionService, sourceKindOf } from '../extraction/extraction.service';
-import {
-  applyDetections,
-  clearAutomaticDetections,
-  NORMAL,
-  PagePredictions,
-  PRIVACY_VERSION,
-  STRICT,
-} from '../pii/detect';
+import { applyDetections, NORMAL, PagePredictions, PRIVACY_VERSION, STRICT } from '../pii/detect';
 import { NerService } from '../pii/ner.service';
 import { fileNameHints, sanitizeFileName } from '../pii/rules';
-import {
-  applyRegion,
-  buildManifest,
-  burnPage,
-  fromTuple,
-  redactionPlan,
-  removeRegion,
-} from '../redaction/burn';
-import { intersects } from '../redaction/geometry';
+import { buildManifest, burnPage, fromTuple, redactionPlan } from '../redaction/burn';
+import { addArea, removeArea, revokePageUrls, toggleWord } from '../redaction/page-edits';
 import { turnImage, turnPageGeometry, type Turn } from '../redaction/rotate';
 import { LocalHistory } from './local-history';
 import { ResultsService } from './results.service';
-import {
-  Box,
-  LocalDocument,
-  PrivacyMode,
-  SavedDocumentSummary,
-  WorkingPage,
-  WorkingWord,
-} from './models';
+import { Box, LocalDocument, PrivacyMode, SavedDocumentSummary, WorkingPage } from './models';
 import { QueueRecovery, QueueSnapshot } from './queue-recovery';
+import { EditHistory } from './edit-history';
+import { restoredDocument } from './restore-document';
+import { privacyCheck } from '../pii/privacy-check';
 import { applyRememberedDetails, learnDetails, RememberedDetails } from '../pii/remembered-details';
 import { documentReportDate } from './document-name';
 import { protectMedicalTerms } from '../pii/medical-terms';
@@ -48,7 +30,6 @@ export class DocumentQueueService {
   private readonly results = inject(ResultsService);
   private readonly history = inject(LocalHistory);
   readonly processing = this.results.processing;
-  readonly batchId = signal<string>(crypto.randomUUID());
   readonly recovery = inject(QueueRecovery);
   readonly recoveryReady = signal(!this.recovery.available);
   readonly restoring = signal(this.recovery.available);
@@ -127,11 +108,9 @@ export class DocumentQueueService {
   private readonly activeChecks = new Map<string, AbortController>();
   private readonly rememberedDetails = signal<RememberedDetails>({});
   /** Hand-edit history per document: page snapshots to step back and forward through. */
-  private readonly edits = signal<Record<string, { undo: WorkingPage[][]; redo: WorkingPage[][] }>>(
-    {},
-  );
+  private readonly edits = new EditHistory();
   /** The document edited most recently, for keyboard undo when focus is outside any page. */
-  readonly lastEdited = signal<string | null>(null);
+  readonly lastEdited = this.edits.lastEdited.asReadonly();
 
   constructor() {
     inject(DestroyRef).onDestroy(() => {
@@ -151,9 +130,8 @@ export class DocumentQueueService {
     effect(() => {
       if (!this.recoveryReady()) return;
       const ready = this.pending().length === 0;
-      const batchId = this.batchId();
       // Approval can start transcription while the remaining originals are still being prepared.
-      untracked(() => this.results.prepareBatch(batchId, ready));
+      untracked(() => this.results.prepareBatch(ready));
     });
     const protect = (event: BeforeUnloadEvent) => {
       const snapshot = this.snapshot();
@@ -183,7 +161,6 @@ export class DocumentQueueService {
 
   private snapshot(): QueueSnapshot {
     return {
-      batchId: this.batchId(),
       documents: this.documents(),
       batchIds: this.batchIds(),
       reviewId: this.reviewId(),
@@ -213,71 +190,10 @@ export class DocumentQueueService {
     try {
       const snapshot = await this.recovery.load();
       if (snapshot) {
-        this.batchId.set(snapshot.batchId ?? crypto.randomUUID());
         const approved = this.history.approvedQueueDocuments();
-        const documents = snapshot.documents.map((doc): LocalDocument => {
-          const saved = !doc.serverId ? approved.get(doc.localId) : undefined;
-          if (saved)
-            return {
-              ...doc,
-              status: 'saved',
-              serverId: saved.id,
-              pages: [],
-              file: null,
-              error: undefined,
-            };
-          const pages = doc.pages.map((page) => ({
-            ...page,
-            imageUrl: page.image ? URL.createObjectURL(page.image) : null,
-          }));
-          const file = doc.file
-            ? new File([doc.file], doc.fileName, { type: doc.file.type })
-            : null;
-          if (
-            !doc.serverId &&
-            doc.status !== 'saved' &&
-            doc.privacyVersion !== PRIVACY_VERSION &&
-            pages.length
-          ) {
-            if (doc.privacyMode === 'lightweight') {
-              const clean = clearAutomaticDetections(pages);
-              return {
-                ...doc,
-                file,
-                pages: clean,
-                privacyVersion: PRIVACY_VERSION,
-                status: 'review',
-                message: '',
-              };
-            }
-            // Recheck saved OCR, never reread the photo. Existing masks and hand
-            // edits stay in the checkpoint while this queued check is running.
-            return {
-              ...doc,
-              file,
-              pages,
-              status: 'queued',
-              progress: 0.7,
-              message: 'Updating privacy check',
-            };
-          }
-          if (['queued', 'reading', 'detecting'].includes(doc.status))
-            return {
-              ...doc,
-              file,
-              pages,
-              status: 'queued',
-              progress: 0,
-              message: 'Waiting to resume',
-            };
-          return {
-            ...doc,
-            file,
-            pages,
-            status: doc.status === 'saving' ? 'review' : doc.status,
-            message: '',
-          };
-        });
+        const documents = snapshot.documents.map((doc) =>
+          restoredDocument(doc, !doc.serverId ? approved.get(doc.localId) : undefined),
+        );
         this.documents.set(documents);
         this.batchIds.set(snapshot.batchIds);
         this.counter = snapshot.counter;
@@ -342,12 +258,11 @@ export class DocumentQueueService {
     // Start a fresh batch after the previous one has been approved or discarded.
     if (!this.resultsBlocked()) {
       this.batchIds.set([]);
-      this.batchId.set(crypto.randomUUID());
       this.reviewId.set(null);
     }
     this.batchIds.update((ids) => [...ids, ...added.map((doc) => doc.localId)]);
     this.documents.update((docs) => [...docs, ...added]);
-    this.results.prepareBatch(this.batchId(), false);
+    this.results.prepareBatch(false);
     this.reviewOpened.set(true);
     if (added.some((d) => d.status === 'queued')) {
       void this.run();
@@ -390,7 +305,7 @@ export class DocumentQueueService {
         : await this.extraction.extract(doc.file!, (fraction, message) =>
             this.patch(id, { progress: fraction * 0.7, message }),
           );
-      if (this.destroyed || !this.byId(id)) return revokePages(pages);
+      if (this.destroyed || !this.byId(id)) return revokePageUrls(pages);
 
       const mode = this.byId(id)!.privacyMode;
       this.patch(id, {
@@ -433,7 +348,6 @@ export class DocumentQueueService {
       this.refreshReviewDetails(id);
       console.info('[Carryover timing]', {
         stage: 'pii-detection',
-        batchId: this.batchId(),
         documentId: id,
         pages: pages.length,
         elapsedMs: Math.round(performance.now() - piiStarted),
@@ -528,57 +442,17 @@ export class DocumentQueueService {
   // Hand edits
   // ---------------------------------------------------------------------------
 
-  /** Hide or show one word. Hiding also hides the same word everywhere else in the document. */
+  /** Hide or show one word by hand. */
   toggleWord(localId: string, pageIndex: number, wordId: number) {
-    this.editPages(localId, (pages) => {
-      const word = pages[pageIndex]?.words.find((w) => w.id === wordId);
-      if (!word || word.locked || word.text === null) return pages;
-      // A region remains opaque until removed. Keeping its text must not change the upload.
-      if (word.box && pages[pageIndex].regions.some((r) => intersects(word.box!, r))) return pages;
-      const hide = !word.hidden;
-      return pages.map((page, p) => ({
-        ...page,
-        words: page.words.map((w): WorkingWord => {
-          if (p === pageIndex && w.id === wordId) {
-            return hide
-              ? {
-                  ...w,
-                  hidden: true,
-                  userSet: true,
-                  source: 'you',
-                  kind: w.kind ?? w.candidate ?? 'other',
-                  candidate: undefined,
-                }
-              : {
-                  ...w,
-                  hidden: false,
-                  userSet: true,
-                  source: undefined,
-                  kind: undefined,
-                  candidate: undefined,
-                };
-          }
-          return w;
-        }),
-      }));
-    });
+    this.editPages(localId, (pages) => toggleWord(pages, pageIndex, wordId));
   }
 
   addRegion(localId: string, pageIndex: number, region: Box) {
-    if (region.w < 4 || region.h < 4) return;
-    this.editPages(localId, (pages) =>
-      pages.map((p, i) => (i === pageIndex ? applyRegion(p, region) : p)),
-    );
+    this.editPages(localId, (pages) => addArea(pages, pageIndex, region));
   }
 
   removeRegion(localId: string, pageIndex: number, regionIndex: number) {
-    this.editPages(localId, (pages) =>
-      pages.map((p, i) =>
-        i === pageIndex && regionIndex >= (p.lockedRegions ?? 0) && regionIndex < p.regions.length
-          ? removeRegion(p, regionIndex)
-          : p,
-      ),
-    );
+    this.editPages(localId, (pages) => removeArea(pages, pageIndex, regionIndex));
   }
 
   /**
@@ -600,11 +474,11 @@ export class DocumentQueueService {
   }
 
   canUndo(localId: string): boolean {
-    return !!this.edits()[localId]?.undo.length;
+    return this.edits.canUndo(localId);
   }
 
   canRedo(localId: string): boolean {
-    return !!this.edits()[localId]?.redo.length;
+    return this.edits.canRedo(localId);
   }
 
   /** Step back through hand edits: clicked words and drawn areas. */
@@ -624,7 +498,7 @@ export class DocumentQueueService {
     this.activeChecks.get(localId)?.abort();
     this.activeChecks.delete(localId);
     const doc = this.byId(localId);
-    if (doc) revokePages(doc.pages);
+    if (doc) revokePageUrls(doc.pages);
     this.predictions.delete(localId);
     this.clearEdits(localId);
     this.documents.update((docs) => docs.filter((d) => d.localId !== localId));
@@ -677,7 +551,6 @@ export class DocumentQueueService {
       const manifest = buildManifest(doc, name);
       console.info('[Carryover timing]', {
         stage: 'redacted-image-preparation',
-        batchId: this.batchId(),
         documentId: localId,
         pages: images.length,
         elapsedMs: Math.round(performance.now() - started),
@@ -685,10 +558,10 @@ export class DocumentQueueService {
       this.patch(localId, { message: 'Saving on this device' });
       const summary = doc.serverId
         ? await this.history.replace(doc.serverId, manifest, images)
-        : await this.history.create(manifest, images, doc.fileName, doc.localId, this.batchId());
+        : await this.history.create(manifest, images, doc.fileName, doc.localId);
       if (!this.byId(localId)) return false;
       // The originals are no longer needed on this device either.
-      revokePages(this.byId(localId)?.pages ?? []);
+      revokePageUrls(this.byId(localId)?.pages ?? []);
       this.patch(localId, {
         status: 'saved',
         serverId: summary.id,
@@ -738,7 +611,7 @@ export class DocumentQueueService {
         });
       }
     } catch (error) {
-      revokePages(pages);
+      revokePageUrls(pages);
       throw error;
     }
 
@@ -812,43 +685,24 @@ export class DocumentQueueService {
 
   /** A hand edit: records the pages before it so it can be undone. */
   private editPages(localId: string, fn: (pages: WorkingPage[]) => WorkingPage[]) {
-    let before = null as WorkingPage[] | null;
+    let before: WorkingPage[] | null = null;
     this.updatePages(localId, (pages) => {
       const next = fn(pages);
       if (next.length !== pages.length || next.some((p, i) => p !== pages[i])) before = pages;
       return next;
     });
-    if (!before) return;
-    const snapshot = before;
-    this.edits.update((all) => ({
-      ...all,
-      [localId]: { undo: [...(all[localId]?.undo ?? []), snapshot].slice(-MAX_UNDO), redo: [] },
-    }));
-    this.lastEdited.set(localId);
+    if (before) this.edits.record(localId, before);
   }
 
   private stepEdit(localId: string, direction: 'undo' | 'redo') {
     const doc = this.byId(localId);
-    const history = this.edits()[localId];
-    if (!doc || doc.status !== 'review' || !history) return;
-    const from = direction === 'undo' ? history.undo : history.redo;
-    const pages = from.at(-1);
-    if (!pages) return;
-    const rest = from.slice(0, -1);
-    this.edits.update((all) => ({
-      ...all,
-      [localId]:
-        direction === 'undo'
-          ? { undo: rest, redo: [...history.redo, doc.pages] }
-          : { undo: [...history.undo, doc.pages], redo: rest },
-    }));
-    this.updatePages(localId, () => pages);
-    this.lastEdited.set(localId);
+    if (doc?.status !== 'review') return;
+    const pages = this.edits.step(localId, direction, doc.pages);
+    if (pages) this.updatePages(localId, () => pages);
   }
 
   private clearEdits(localId: string) {
-    this.edits.update(({ [localId]: _cleared, ...rest }) => rest);
-    if (this.lastEdited() === localId) this.lastEdited.set(null);
+    this.edits.clear(localId);
   }
 
   private refreshReviewDetails(sourceId?: string) {
@@ -877,23 +731,4 @@ export class DocumentQueueService {
       }),
     );
   }
-}
-
-const MAX_UNDO = 100;
-
-function revokePages(pages: WorkingPage[]) {
-  for (const p of pages) if (p.imageUrl) URL.revokeObjectURL(p.imageUrl);
-}
-
-/** Whether the automatic check covered every page with text, or the user hides details by hand. */
-function privacyCheck(
-  pages: WorkingPage[],
-  predictions: PagePredictions[],
-  mode: PrivacyMode = 'automatic',
-): Pick<LocalDocument, 'privacyCheck'> {
-  if (mode === 'lightweight') return { privacyCheck: 'manual' };
-  const missed = pages.some(
-    (page, i) => page.words.some((w) => w.text !== null) && !predictions[i],
-  );
-  return { privacyCheck: missed ? 'incomplete' : 'complete' };
 }

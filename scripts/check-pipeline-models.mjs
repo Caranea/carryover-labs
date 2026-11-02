@@ -17,8 +17,8 @@ const { loadConfig } = await api('config.js').catch(() => {
   throw new Error('Build the API first: npm --prefix api run build');
 });
 const { MetaModelClient } = await api('records/meta-model.js');
-const { processPage } = await api('demo/source-processing.js');
-const { normalizeBatch } = await api('demo/normalization.js');
+const { processPage } = await api('batches/source-processing.js');
+const { normalizeBatch } = await api('batches/normalization.js');
 const sharp = createRequire(new URL('../api/package.json', import.meta.url))('sharp');
 
 const config = loadConfig();

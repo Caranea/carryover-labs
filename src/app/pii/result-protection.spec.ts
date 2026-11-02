@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { textToWords } from '../extraction/layout';
+import { textToWords } from '../../testing/words';
 import type { WorkingPage } from '../core/models';
 import { applyDetections, NORMAL, STRICT } from './detect';
 import { protectMedicalTerms } from './medical-terms';
 import { applyRememberedDetails, learnDetails } from './remembered-details';
-import { isProtectedResultToken, isResultLine } from './rules';
+import { isResultLine } from './rules';
 import { isUnitToken } from './text-utils';
 import { toStoredPage } from '../redaction/burn';
 
@@ -190,9 +190,7 @@ describe('result values and flags are protected by context, not a value allowlis
     ).toBe(true);
   });
 
-  it('recognises flags only in result context and does not make arbitrary numbers universally safe', () => {
-    expect(isProtectedResultToken('LL', true)).toBe(true);
-    expect(isProtectedResultToken('LL', false)).toBe(false);
+  it('does not make arbitrary numbers or flags universally safe outside a result row', () => {
     expect(detect(page('1.4')).words[0]).toMatchObject({ hidden: false, candidate: 'id-number' });
     expect(detect(page('LL')).words[0]).toMatchObject({ hidden: false, candidate: 'id-number' });
   });

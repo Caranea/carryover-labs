@@ -5,7 +5,7 @@ import { requestLimits, securityHeaders } from './http-security.js';
 
 function request(method = 'GET'): Request {
   return {
-    path: '/api/demo/batches/b1/pages',
+    path: '/api/batches/b1/pages',
     ip: '127.0.0.1',
     socket: {},
     headers: {},
@@ -46,6 +46,9 @@ describe('HTTP privacy and resource limits', () => {
     assert.equal(r.headers.get('Cache-Control'), 'private, no-store');
     assert.equal(r.headers.get('X-Content-Type-Options'), 'nosniff');
     assert.equal(r.headers.get('Strict-Transport-Security'), 'max-age=31536000');
+    const csp = r.headers.get('Content-Security-Policy') ?? '';
+    assert.match(csp, /script-src 'self' 'wasm-unsafe-eval'(;|$)/, 'no inline or remote script');
+    assert.match(csp, /frame-ancestors 'none'/);
   });
   it('rejects excess reads with a retry time', () => {
     const limit = requestLimits({ reads: 1, writes: 1, windowMs: 60_000, maxClients: 2 });

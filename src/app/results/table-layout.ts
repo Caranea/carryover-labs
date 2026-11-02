@@ -2,6 +2,7 @@
  * Layout helpers for the cumulative results table: year-grouped date columns, decimal-aligned
  * values, readable reference ranges and the per-test trend line. Pure functions, no Angular.
  */
+import { parseRange } from '@shared/tokens';
 
 /** A body column: a date (YYYY-MM-DD, or '' for undated results), or a run of years with no tests. */
 export type Column =
@@ -60,12 +61,11 @@ export function formatReference(reference: string): string {
 }
 
 /** A two-sided printed range as numbers, for the band behind the trend line; null otherwise. */
-export function parseRange(reference: string): { lo: number; hi: number } | null {
-  const m = /^(-?\d+(?:\.\d+)?)–(-?\d+(?:\.\d+)?)(?:\s.*)?$/.exec(formatReference(reference));
-  if (!m) return null;
-  const lo = Number(m[1]);
-  const hi = Number(m[2]);
-  return lo < hi ? { lo, hi } : null;
+export function bandOf(reference: string): { lo: number; hi: number } | null {
+  const range = parseRange(reference);
+  return range?.low != null && range.high != null && range.low < range.high
+    ? { lo: range.low, hi: range.high }
+    : null;
 }
 
 /** One value on the trend line: when (ms, UTC calendar day), what, and whether the lab flagged it. */
@@ -138,7 +138,7 @@ export function rangeNote(
     return null;
   const years = new Map<string, { from: string; to: string }>();
   for (const p of points) {
-    const range = p.reference ? parseRange(p.reference) : null;
+    const range = p.reference ? bandOf(p.reference) : null;
     if (!range || (range.lo === band.lo && range.hi === band.hi)) continue;
     const text = formatReference(p.reference!);
     const year = p.date.slice(0, 4);

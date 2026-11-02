@@ -19,7 +19,6 @@ interface Entry {
   /** Local idempotency key: reconnect an approval if refresh interrupted queue saving. */
   sourceLocalId?: string;
   observations: Observation[];
-  batchId?: string;
   transcriptions?: Record<string, PageTranscription>;
   images: Record<string, string>;
   /** New page images use binary storage; images above remains readable for older saves. */
@@ -57,7 +56,6 @@ export class LocalHistory {
             page: page.index,
             pageId: `${entry.document.id}:${page.index}`,
             revision: entry.revision,
-            batchId: entry.batchId,
           })),
       ),
       documents: all.map(({ document, observations, transcriptions }) => ({
@@ -200,7 +198,6 @@ export class LocalHistory {
     images: (Blob | null)[],
     originalFileName?: string,
     sourceLocalId?: string,
-    batchId?: string,
   ): Promise<SavedDocumentSummary> {
     const existing = sourceLocalId
       ? read().find((entry) => entry.sourceLocalId === sourceLocalId)
@@ -215,7 +212,6 @@ export class LocalHistory {
       updatedAt: now,
     };
     const entry = await prepare(document, images);
-    entry.batchId = batchId;
     if (originalFileName) entry.originalFileName = originalFileName;
     if (sourceLocalId) entry.sourceLocalId = sourceLocalId;
     try {
@@ -251,7 +247,6 @@ export class LocalHistory {
       updatedAt: new Date().toISOString(),
     };
     const replacement = await prepare(document, images);
-    replacement.batchId = previous.batchId;
     replacement.originalFileName = previous.originalFileName;
     replacement.sourceLocalId = previous.sourceLocalId;
     try {

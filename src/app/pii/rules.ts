@@ -11,273 +11,34 @@ import {
   normalizeToken,
   unitTokenIndices,
 } from './text-utils';
+import {
+  LABELS,
+  LABEL_STARTERS,
+  STREET_CUES,
+  TITLES,
+  NAME_TITLES,
+  KVNR_RE,
+  EMAIL_RE,
+  PL_POSTAL_RE,
+  PHONE_RE,
+  NOT_NAMES,
+  CLINICAL_FIELD,
+  GENERIC_FILE_WORDS,
+  type Label,
+} from './rules-data';
 
 export interface Hit {
   kind: PiiKind;
   source: 'rule';
 }
 
-export interface RuleOptions {
-  strict: boolean;
-}
-
 type LineWord = WorkingWord & { text: string };
-
-interface Label {
-  tokens: string[];
-  kind: PiiKind;
-  /** Max words captured after the label. */
-  take: number;
-}
-
-/**
- * Field labels after which the value is personal data. Tokens are normalised
- * (lowercase, no diacritics, no trailing colon). Polish, German and English.
- */
-const LABELS: Label[] = [
-  ...people([
-    'pacjent',
-    'pacjentka',
-    'imie i nazwisko',
-    'nazwisko i imie',
-    'nazwisko',
-    'imie',
-    'imiona',
-    'lekarz',
-    'lekarz zlecajacy',
-    'lekarz kierujacy',
-    'zlecajacy',
-    'kierujacy',
-    'wykonal',
-    'wykonala',
-    'autoryzowal',
-    'autoryzowala',
-    'zatwierdzil',
-    'zatwierdzila',
-    'diagnosta',
-    'technik',
-    'opiekun',
-    'patient',
-    'patient name',
-    'name',
-    'surname',
-    'given name',
-    'doctor',
-    'requested by',
-    'referring doctor',
-    'referred by',
-    'collected by',
-    'authorised by',
-    'authorized by',
-    'reported by',
-    'vorname',
-    'nachname',
-    'patientenname',
-    'name des patienten',
-    'versicherter',
-    'arzt',
-    'arztin',
-    'validiert von',
-    'befundet von',
-    'copy to',
-    'addressee',
-    'attention',
-    'freigegeben von',
-    'unterschrift',
-  ]),
-  ...fields('address', 8, [
-    'adres',
-    'adres zamieszkania',
-    'address',
-    'anschrift',
-    'adresse',
-    'wohnort',
-  ]),
-  ...fields('national-id', 2, ['pesel']),
-  ...fields('id-number', 3, [
-    'nr karty',
-    'nr pacjenta',
-    'id pacjenta',
-    'numer karty',
-    'nr ubezpieczenia',
-    'nr dokumentu',
-    'medicare',
-    'medicare no',
-    'medicare number',
-    'mrn',
-    'ur no',
-    'urn',
-    'patient id',
-    'lab no',
-    'lab number',
-    'lab reference',
-    'lab id',
-    'order number',
-    'your reference',
-    'dml reference',
-    'qml reference',
-    'versichertennummer',
-    'versicherten-nr',
-    'patientennummer',
-    'pat.-nr',
-    'fallnummer',
-  ]),
-  ...fields('birth-date', 2, [
-    'data urodzenia',
-    'ur',
-    'urodzony',
-    'urodzona',
-    'dob',
-    'd.o.b',
-    'date of birth',
-    'birth date',
-    'birthdate',
-    'geburtsdatum',
-    'geb',
-    'geboren am',
-  ]),
-  ...fields('age', 2, ['wiek', 'age', 'alter']),
-  ...fields('contact', 4, [
-    'tel',
-    'telefon',
-    'tel. kom',
-    'phone',
-    'phone enquiries',
-    'telephone',
-    'mobile',
-    'e-mail',
-    'email',
-    'fax',
-  ]),
-];
-
-function people(names: string[]): Label[] {
-  return fields('person', 5, names);
-}
-
-function fields(kind: PiiKind, take: number, names: string[]): Label[] {
-  return names.map((n) => ({ tokens: n.split(' '), kind, take }));
-}
-
-/** First words of field labels that span two words ("Data pobrania:", "Nr karty:"). */
-const LABEL_STARTERS = new Set([
-  'data',
-  'datum',
-  'date',
-  'nr',
-  'numer',
-  'kod',
-  'order',
-  'specimen',
-  'sample',
-  'lab',
-  'probe',
-  'adres',
-  'address',
-  'telefon',
-  'tel',
-  'plec',
-  'sex',
-  'wiek',
-  'age',
-  'oddzial',
-  'lekarz',
-  'kontrahent',
-  'material',
-  'godz',
-  'time',
-  'uhrzeit',
-  'material',
-  'collected',
-  'requested',
-  'reported',
-  'auftrag',
-  'eingang',
-  'befund',
-  'your',
-  'our',
-  'patient',
-  'pacjent',
-]);
-
-/** Words that introduce a street name. */
-const STREET_CUES = new Set([
-  'ul',
-  'ulica',
-  'al',
-  'aleja',
-  'aleje',
-  'os',
-  'osiedle',
-  'pl',
-  'plac',
-  'str',
-  'strasse',
-  'weg',
-  'street',
-  'road',
-  'rd',
-  'avenue',
-  'ave',
-  'lane',
-  'ln',
-  'court',
-  'ct',
-]);
-
-/** Titles before a person's name: "dr n. med. Anna Nowak", "Prof. Dr. Weber". */
-const TITLES = new Set([
-  'dr',
-  'lek',
-  'prof',
-  'mgr',
-  'doc',
-  'inz',
-  'hab',
-  'med',
-  'n',
-  'dent',
-  'wet',
-  'dipl',
-  'mudr',
-  'mr',
-  'mrs',
-  'ms',
-  'miss',
-  'herr',
-  'frau',
-  'pan',
-  'pani',
-]);
-const NAME_TITLES = new Set([
-  'dr',
-  'lek',
-  'prof',
-  'mgr',
-  'doc',
-  'inz',
-  'mudr',
-  'mr',
-  'mrs',
-  'ms',
-  'miss',
-  'herr',
-  'frau',
-  'pan',
-  'pani',
-]);
-
-const KVNR_RE = /^[A-Z]\d{9}$/;
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-const PL_POSTAL_RE = /^\d{2}-\d{3}$/;
-const PHONE_RE =
-  /(?:\+\d{2,3}[\s-]?)?(?:\(?\d{2,3}\)?[\s-]?)?\d{3}[\s-]?\d{3}[\s-]?\d{3}|(?:\+\d{2,3}[\s-]?)?\d{2}[\s-]\d{3}[\s-]\d{2}[\s-]\d{2}|\(0?\d{1,2}\)\s?\d{4}[\s-]?\d{4}/g;
 
 /**
  * Deterministic detectors. Recall-first: anything personal-looking outside a
  * result row is hidden; result rows (value, unit, range) are protected.
  */
-export function detectWithRules(words: WorkingWord[], options: RuleOptions): Map<number, Hit> {
+export function detectWithRules(words: WorkingWord[]): Map<number, Hit> {
   const hits = new Map<number, Hit>();
   const add = (w: WorkingWord, kind: PiiKind) => {
     if (!hits.has(w.id)) hits.set(w.id, { kind, source: 'rule' });
@@ -474,7 +235,6 @@ export function detectWithRules(words: WorkingWord[], options: RuleOptions): Map
     });
   });
 
-  if (options.strict) expandAroundPeople(words, hits);
   // Column/title/street heuristics cannot turn a clinical field into a person
   // or address. Explicit identifiers/contact formats still apply.
   for (const line of lines)
@@ -483,49 +243,6 @@ export function detectWithRules(words: WorkingWord[], options: RuleOptions): Map
     }
   return hits;
 }
-
-/** Words that start a table, never a name: stops a label from taking the header below it. */
-const NOT_NAMES = new Set([
-  'badanie',
-  'badania',
-  'wynik',
-  'jedn',
-  'jednostka',
-  'zakres',
-  'norma',
-  'material',
-  'uwagi',
-  'test',
-  'tests',
-  'result',
-  'results',
-  'value',
-  'units',
-  'unit',
-  'range',
-  'observation',
-  'comment',
-  'untersuchung',
-  'ergebnis',
-  'einheit',
-  'referenz',
-  'referenzbereich',
-  'befund',
-  'bemerkung',
-  'material',
-  'daty',
-  'laboratorium',
-  'diagnostyka',
-  'medyczne',
-  'laboratory',
-  'pathology',
-  'labor',
-  'szpital',
-  'hospital',
-  'klinikum',
-  'krew',
-  'surowica',
-]);
 
 /**
  * A person label at the end of its line ("Nazwisko i imię:", or "Wykonał: … Autoryzował:")
@@ -629,18 +346,6 @@ export function isResultLine(line: { text: string | null }[]): boolean {
   return hasRange && hasValue && !hasCue;
 }
 
-/** Tokens that must not be hidden by the model: values, units, flags and ranges in result rows. */
-export function isProtectedResultToken(text: string, lineIsResult: boolean): boolean {
-  if (!lineIsResult) return false;
-  return (
-    isNumericValue(text) ||
-    isUnitToken(text) ||
-    isRangeToken(text) ||
-    isResultFlag(text) ||
-    /^[-–—<>=]$/.test(text)
-  );
-}
-
 export function groupLines(words: WorkingWord[]): LineWord[][] {
   const byLine = new Map<number, LineWord[]>();
   for (const w of words) {
@@ -651,11 +356,6 @@ export function groupLines(words: WorkingWord[]): LineWord[][] {
   }
   return [...byLine.entries()].sort((a, b) => a[0] - b[0]).map(([, l]) => l);
 }
-
-// These describe the content of a report, not the person. This is field
-// interpretation, independent of which tests or diseases happen to be named.
-const CLINICAL_FIELD =
-  /\b(?:test\s+name|name\s+of\s+(?:the\s+)?test|tests?\s+(?:completed|pending)|investigation|nazwa\s+badania|badanie|untersuchung)\b\s*:?\s*/i;
 
 export function clinicalFieldWordIds(line: WorkingWord[]): Set<number> {
   const norm = line.map((w) => normalizeToken(w.text ?? ''));
@@ -727,71 +427,6 @@ function matchAcrossLine(line: LineWord[], re: RegExp): LineWord[] {
   }
   return out;
 }
-
-/** Strict mode: capitalised words right next to a hidden name are probably part of it. */
-function expandAroundPeople(words: WorkingWord[], hits: Map<number, Hit>): void {
-  for (const line of groupLines(words)) {
-    line.forEach((w, i) => {
-      if (hits.get(w.id)?.kind !== 'person') return;
-      for (const n of [line[i - 1], line[i + 1]]) {
-        if (n && !hits.has(n.id) && /^\p{Lu}[\p{Ll}'-]{2,}[,.]?$/u.test(n.text)) {
-          hits.set(n.id, { kind: 'person', source: 'rule' });
-        }
-      }
-    });
-  }
-}
-
-/** File-name words that say what the file is, not whose it is. */
-const GENERIC_FILE_WORDS = new Set([
-  'wyniki',
-  'wynik',
-  'badanie',
-  'badania',
-  'morfologia',
-  'krew',
-  'skan',
-  'scan',
-  'scans',
-  'zdjecie',
-  'kopia',
-  'strona',
-  'results',
-  'result',
-  'report',
-  'lab',
-  'labs',
-  'blood',
-  'test',
-  'tests',
-  'medical',
-  'photo',
-  'image',
-  'img',
-  'page',
-  'copy',
-  'final',
-  'new',
-  'document',
-  'dokument',
-  'fixture',
-  'fixtures',
-  'pdf',
-  'jpg',
-  'jpeg',
-  'png',
-  'heic',
-  'docx',
-  'befund',
-  'labor',
-  'bericht',
-  'kumulativbericht',
-  'blutbild',
-  'pathology',
-  'whatsapp',
-  'screenshot',
-  'download',
-]);
 
 /**
  * People name files after the patient ("Jane_Doe_2012.png", "kowalska morfologia.pdf").

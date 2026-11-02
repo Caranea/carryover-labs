@@ -155,7 +155,6 @@ describe('queue recovery after refresh', () => {
 
   it('restores files and edits while keeping large images out of localStorage', async () => {
     const state = snapshot();
-    state.batchId = crypto.randomUUID();
     state.documents[0].pages[0].image = new Blob([new Uint8Array(6 * 1024 * 1024)], {
       type: 'image/png',
     });
@@ -168,7 +167,6 @@ describe('queue recovery after refresh', () => {
     expect(marker).not.toContain('Fictional');
     expect(marker).not.toContain(state.documents[0].fileName);
     const restored = (await new QueueRecovery().load())!;
-    expect(restored.batchId).toBe(state.batchId);
     expect(restored.documents[0].localId).toBe(state.documents[0].localId);
     expect(restored.reviewId).toBe('one');
     expect(restored.reviewOpened).toBe(true);

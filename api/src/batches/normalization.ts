@@ -9,13 +9,9 @@ import {
   type ModelTask,
 } from '../records/meta-model.js';
 import { parseUnit } from '../records/units.js';
-import {
-  DATE_KINDS,
-  type DateKind,
-  type PageDate,
-  type PrintedDate,
-} from '../shared/processing.js';
-import { toIsoDate } from '../shared/tokens.js';
+import type { PageDate } from '../shared/processing.js';
+import { dated, dayMonthOrder, withIso } from './dates.js';
+import { fluidOf, namedForm } from './specimens.js';
 
 /**
  * One question to Wonder: which test is this printed name? Rows share a question when their
@@ -268,68 +264,6 @@ export async function normalizeBatch(
   };
 }
 
-/**
- * Place a row in time when its collection date is not printed on the row: first a date printed
- * on the row itself, then a date on any page of the document that names the row's footnote
- * marker, then one that applies to the whole report. The best kind wins (collected, received,
- * performed, registered, reported); two different dates of that kind leave the row undated.
- */
-function dated(o: Row, dates: PageDate[], order: DayMonth | null): Row {
-  if (o.date) return o;
-  const own = o.transcription?.date && withIso(o.transcription.date, order);
-  const marker = o.transcription?.marker;
-  const found =
-    (own?.iso ? { iso: own.iso, kind: own.kind } : null) ??
-    best(dates.filter((d) => marker && d.marker && fold(d.marker) === fold(marker))) ??
-    best(dates.filter((d) => !d.marker));
-  if (!found) return o;
-  return {
-    ...o,
-    date: found.iso,
-    dateSource: 'document',
-    ...(found.kind !== 'collected' ? { dateKind: found.kind } : {}),
-  };
-}
-
-type DayMonth = 'DMY' | 'MDY';
-const NUMERIC_DATE = /^\s*(\d{1,2})[./-](\d{1,2})[./-](\d{4})\b/;
-
-/**
- * Whether "01/06/2012" means 1 June or 6 January, as other dates settle it: "21/05/2012" read
- * as 21 May means day first. Null unless every date that settles it agrees.
- */
-function dayMonthOrder(dates: PrintedDate[]): DayMonth | null {
-  let dayFirst = 0;
-  let monthFirst = 0;
-  for (const d of dates) {
-    const m = NUMERIC_DATE.exec(d.printed);
-    if (!m || !d.iso) continue;
-    const [a, b, y] = [m[1].padStart(2, '0'), m[2].padStart(2, '0'), m[3]];
-    if (a === b) continue;
-    if (d.iso === `${y}-${b}-${a}`) dayFirst++;
-    else if (d.iso === `${y}-${a}-${b}`) monthFirst++;
-  }
-  return dayFirst && !monthFirst ? 'DMY' : monthFirst && !dayFirst ? 'MDY' : null;
-}
-
-/** An ambiguous numeric date, read in the order the other dates settled. */
-function withIso<T extends PrintedDate>(date: T, order: DayMonth | null): T {
-  const m = NUMERIC_DATE.exec(date.printed);
-  if (date.iso || !order || !m) return date;
-  const [day, month] = order === 'DMY' ? [m[1], m[2]] : [m[2], m[1]];
-  const iso = `${m[3]}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-  return toIsoDate(iso, 'YMD') === iso ? { ...date, iso } : date;
-}
-
-function best(dates: PageDate[]): { iso: string; kind: DateKind } | null {
-  for (const kind of DATE_KINDS) {
-    const isos = new Set(dates.filter((d) => d.kind === kind && d.iso).map((d) => d.iso!));
-    if (isos.size === 1) return { iso: [...isos][0], kind };
-    if (isos.size > 1) return null;
-  }
-  return null;
-}
-
 /** One question per printed name, ignoring case and spacing, split by percentage units. */
 function ask(rows: Row[]) {
   const byName = new Map<string, Question>();
@@ -421,30 +355,6 @@ function unusable(reason: string): never {
   throw new Error(reason);
 }
 
-type Form = 'free' | 'total' | 'ionized' | 'direct' | 'indirect';
-
-/**
- * The printed form of a test that must not share a line with another form: ionized and total
- * calcium differ by about half, direct and total bilirubin by much more.
- */
-export function namedForm(name: string): Form | null {
-  const t = name
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/ł/g, 'l');
-  if (/\b(free|frei|freies|woln[ay])\b/.test(t)) return 'free';
-  if (/(ioni[sz]\w*|zjonizowan\w*)/.test(t)) return 'ionized';
-  if (
-    /(^|[^a-z])(indirect|indirekt\w*|posredni\w*|nieskoniugowan\w*|unconjugated)([^a-z]|$)/.test(t)
-  )
-    return 'indirect';
-  if (/(^|[^a-z])(direct|direkt\w*|bezposredni\w*|skoniugowan\w*|conjugated)([^a-z]|$)/.test(t))
-    return 'direct';
-  if (/\b(total|gesamt|calkowit[ay])\b/.test(t)) return 'total';
-  return null;
-}
-
 const fold = (text: string) => text.trim().replace(/\s+/g, ' ').toLowerCase();
 
 function addOnce(list: string[], value: string | null | undefined) {
@@ -455,37 +365,6 @@ function chunk<T>(items: T[], size: number): T[][] {
   const parts: T[][] = [];
   for (let i = 0; i < items.length; i += size) parts.push(items.slice(i, i + size));
   return parts;
-}
-
-/** The body fluid of a row: from its printed specimen (or its English), else its section. */
-function fluidOf(o: Row, english?: Map<string, string>): string | null {
-  const specimen = o.transcription?.specimen;
-  const section = o.transcription?.section;
-  return (
-    (specimen ? specimenClass(english?.get(fold(specimen)) || specimen) : null) ??
-    (section ? specimenClass(section) : null)
-  );
-}
-
-/**
- * Blood, serum, plasma and an anticoagulant tube are the default and share a line; another
- * body fluid is named ("urine"). Reads the English translation, or the printed text.
- */
-export function specimenClass(text: string): string | null {
-  const t = text
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/ł/g, 'l');
-  // Whole words only: "Harnstoff", "Mocznik" (urea) and "Kalium" (potassium) are blood tests,
-  // not urine or stool. "Harn", "Spontanharn", "mocz", "moczu", "kał" and "kału" are fluids.
-  if (/(^|[^a-z])(urin\w*|mocz|moczu|harn|\w+harn)([^a-z]|$)/.test(t)) return 'urine';
-  if (/(^|[^a-z])(csf|cerebrospinal|liquor|mozgowo\w*)/.test(t)) return 'CSF';
-  if (/(^|[^a-z])(stool|faec\w*|fec\w*|kal|kalu|stuhl)([^a-z]|$)/.test(t)) return 'stool';
-  if (/\b(saliva|slina|speichel)/.test(t)) return 'saliva';
-  if (/\b(synovial|pleural|ascit|peritoneal|maziowy|oplucnow|otrzewnow)/.test(t))
-    return 'body fluid';
-  return null;
 }
 
 /** What normalization returns to the browser. */

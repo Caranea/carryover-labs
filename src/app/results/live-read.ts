@@ -1,5 +1,14 @@
 import { DecimalPipe } from '@angular/common';
-import { Component, computed, OnDestroy, OnInit, signal } from '@angular/core';
+import {
+  afterRenderEffect,
+  Component,
+  computed,
+  ElementRef,
+  OnDestroy,
+  OnInit,
+  signal,
+  viewChild,
+} from '@angular/core';
 import type { PageJobView } from '@shared/jobs';
 import { MAX_WAIT_SECONDS } from '@shared/jobs';
 import { PROCESSING_VERSION, type PrintedRow } from '@shared/processing';
@@ -23,8 +32,8 @@ const SAMPLES: LiveSample[] = [
     src: 'samples/live/polish-thyroid.jpg',
     width: 1100,
     height: 1559,
-    title: 'Polish PDF, 3 thyroid tests',
-    detail: 'Quick: a short page',
+    title: 'Polish PDF',
+    detail: '3 thyroid tests · quick',
     language: 'pl',
   },
   {
@@ -32,8 +41,8 @@ const SAMPLES: LiveSample[] = [
     src: 'samples/live/german-cumulative.jpg',
     width: 1200,
     height: 1594,
-    title: 'German phone photo, 28 tests',
-    detail: 'Slower: a dense page',
+    title: 'German phone photo',
+    detail: '28 tests · dense',
     language: 'de',
   },
 ];
@@ -45,6 +54,15 @@ interface Identity {
   value: number | null;
   unit: string | null;
   note: string | null;
+}
+/** A connector from a highlighted line on the page to its card, in body-relative pixels. */
+interface Wire {
+  index: number;
+  d: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
 }
 interface Models {
   transcription: string;
@@ -59,206 +77,524 @@ interface Models {
 @Component({
   selector: 'app-live-read',
   imports: [Icon, DecimalPipe],
+  host: { '(window:resize)': 'measure()' },
   template: `
-    <section class="live rounded-box border border-base-300 p-5 sm:p-6" aria-labelledby="live-h">
-      <div class="flex flex-col gap-1">
-        <h2 id="live-h" class="font-display text-2xl font-semibold">Watch Meta's AI read a page</h2>
-        <p class="text-base-content/80 max-w-3xl">
-          The results above were prepared earlier. Here, one of Jane Doe's pages goes through the
-          real pipeline now: <strong>{{ spark() }}</strong> transcribes it exactly as printed, then
-          <strong>{{ wonder() }}</strong> works out which test each printed name is. Personal
-          details are already blacked out, as they would be after your own review.
-        </p>
+    <section
+      class="live rounded-box border border-base-300 bg-base-100 p-5 sm:p-8"
+      aria-labelledby="live-h"
+    >
+      <div class="live-head">
+        <div class="min-w-0">
+          <h2 id="live-h" class="text-2xl sm:text-3xl tracking-tight">
+            <span class="font-bold">Watch Meta's AI read a page</span>{{ ' '
+            }}<span class="font-light">right now</span>
+          </h2>
+          <p class="mt-2 max-w-2xl text-base-content/80 leading-relaxed">
+            Everything above was prepared earlier. Pick one of Jane's pages and it goes through the
+            real pipeline live, with personal details already blacked out.
+          </p>
+        </div>
+        @if (models()) {
+          <ol class="models" aria-label="The two models, in order">
+            <li>
+              <span class="step">1</span>
+              <span class="flex flex-col">
+                <strong>{{ spark() }}</strong>
+                <small>copies each line as printed</small>
+              </span>
+            </li>
+            <li>
+              <span class="step">2</span>
+              <span class="flex flex-col">
+                <strong>{{ wonder() }}</strong>
+                <small>names the test, in any language</small>
+              </span>
+            </li>
+          </ol>
+        }
       </div>
 
       @if (models() === null) {
         <p class="mt-4 text-sm">Live reading isn't switched on for this server.</p>
       } @else {
-        <fieldset class="mt-4 flex flex-wrap gap-3" [disabled]="running()">
-          <legend class="sr-only">Choose a page</legend>
-          @for (s of samples; track s.key) {
-            <label class="choice" [class.chosen]="chosen().key === s.key">
-              <input
-                type="radio"
-                name="live-sample"
-                class="radio radio-primary radio-sm"
-                [checked]="chosen().key === s.key"
-                (change)="choose(s)"
-              />
-              <img [src]="s.src" alt="" width="44" height="62" />
-              <span class="flex flex-col">
-                <span class="font-medium">{{ s.title }}</span>
-                <span class="text-sm text-base-content/80">{{ s.detail }}</span>
-              </span>
-            </label>
-          }
-        </fieldset>
-        <div class="mt-4 flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            class="btn btn-primary rounded-full"
-            [disabled]="running()"
-            (click)="run()"
-          >
-            <app-icon name="scan" size="1.1rem" />
-            {{ phase() === 'done' || phase() === 'error' ? 'Read it again' : 'Read it live' }}
-          </button>
-          @if (running()) {
-            <button type="button" class="btn btn-ghost rounded-full" (click)="cancel()">
-              Stop
-            </button>
-          }
-        </div>
-      }
-
-      <ol class="steps-live mt-5" aria-live="polite">
-        @if (phase() !== 'idle') {
-          <li [class.active]="phase() === 'reading'" [class.finished]="sparkSeconds() !== null">
-            <strong>{{ spark() }}</strong> reads the page
-            <span class="tabular-nums text-base-content/80">
-              {{ sparkSeconds() ?? elapsed('reading') | number: '1.0-0' }} s
-            </span>
-            @if (rows().length) {
-              <span class="text-base-content/80">· {{ rows().length }} rows</span>
-            }
-          </li>
-        }
-        @if (sparkSeconds() !== null) {
-          <li [class.active]="phase() === 'identifying'" [class.finished]="phase() === 'done'">
-            <strong>{{ wonder() }}</strong> identifies each test
-            <span class="tabular-nums text-base-content/80">
-              {{ wonderSeconds() ?? elapsed('identifying') | number: '1.0-0' }} s
-            </span>
-          </li>
-        }
-      </ol>
-      @if (error(); as e) {
-        <p role="alert" class="alert alert-error alert-soft mt-3">{{ e }}</p>
-      }
-
-      @if (rows().length) {
-        <div class="live-result mt-5">
-          <figure class="page">
-            <div class="relative">
-              <img
-                [src]="readSample()!.src"
-                class="block w-full rounded-box border border-base-300"
-                [alt]="readSample()!.title + ', with the rows the model found outlined'"
-              />
-              <svg
-                class="absolute inset-0 w-full h-full"
-                viewBox="0 0 1 1"
-                preserveAspectRatio="none"
-                aria-hidden="true"
+        <div #body class="live-body">
+          <div class="side flex flex-col min-w-0">
+            <fieldset class="chooser" [disabled]="running()">
+              <legend class="sr-only">Choose a page</legend>
+              @for (s of samples; track s.key) {
+                <label class="choice" [class.chosen]="chosen().key === s.key">
+                  <input
+                    type="radio"
+                    name="live-sample"
+                    class="sr-only"
+                    [checked]="chosen().key === s.key"
+                    (change)="choose(s)"
+                  />
+                  <img [src]="s.src" alt="" width="30" height="42" />
+                  <span class="flex flex-col min-w-0">
+                    <span class="font-semibold">{{ s.title }}</span>
+                    <span class="text-sm text-base-content/70">{{ s.detail }}</span>
+                  </span>
+                </label>
+              }
+            </fieldset>
+            <div class="mt-3 flex gap-2">
+              <button
+                type="button"
+                class="btn btn-primary rounded-full flex-1"
+                [disabled]="running()"
+                (click)="run()"
               >
+                <app-icon name="scan" size="1.1rem" />
+                {{
+                  running()
+                    ? 'Reading…'
+                    : phase() === 'done' || phase() === 'error'
+                      ? 'Read it again'
+                      : 'Read it live'
+                }}
+              </button>
+              @if (running()) {
+                <button type="button" class="btn btn-ghost rounded-full" (click)="cancel()">
+                  Stop
+                </button>
+              }
+            </div>
+
+            <figure class="sheet-wrap">
+              <div class="sheet">
+                <img
+                  [src]="shown().src"
+                  [width]="shown().width"
+                  [height]="shown().height"
+                  class="block w-full h-auto"
+                  [alt]="
+                    shown().title +
+                    (rows().length ? ', with the rows the model found highlighted' : '')
+                  "
+                  (load)="measure()"
+                />
+                @if (phase() === 'reading') {
+                  <span class="sweep" aria-hidden="true"></span>
+                }
                 @for (r of rows(); track $index) {
                   @if (r.region; as b) {
-                    <rect
-                      [attr.x]="b[0]"
-                      [attr.y]="b[1]"
-                      [attr.width]="b[2]"
-                      [attr.height]="b[3]"
+                    <span
+                      class="mark"
                       [class.on]="focused() === $index"
-                      vector-effect="non-scaling-stroke"
-                    />
+                      [attr.data-row]="$index"
+                      [style.left.%]="b[0] * 100"
+                      [style.top.%]="b[1] * 100"
+                      [style.width.%]="b[2] * 100"
+                      [style.height.%]="b[3] * 100"
+                      aria-hidden="true"
+                    ></span>
+                    @if (few()) {
+                      <span
+                        class="pin on-page"
+                        [attr.data-pin]="$index"
+                        [style.left]="'min(' + (b[0] + b[2]) * 100 + '%, calc(100% - 1.6rem))'"
+                        [style.top.%]="(b[1] + b[3] / 2) * 100"
+                        aria-hidden="true"
+                        >{{ $index + 1 }}</span
+                      >
+                    }
                   }
                 }
-              </svg>
-            </div>
-            <figcaption class="text-sm text-base-content/80 mt-2">
-              Outlines are the regions {{ spark() }} returned for each row; every value in the app
-              links back to one.
-            </figcaption>
-          </figure>
-          <div class="overflow-x-auto">
-            <table class="table table-sm">
-              <caption class="sr-only">
-                What the models read and identified
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">As printed</th>
-                  <th scope="col">Value</th>
-                  <th scope="col">Identified as</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (r of rows(); track $index) {
-                  <tr
-                    tabindex="0"
-                    [class.on]="focused() === $index"
-                    (mouseenter)="focused.set($index)"
-                    (focus)="focused.set($index)"
-                    (mouseleave)="focused.set(null)"
-                    (blur)="focused.set(null)"
+              </div>
+              <figcaption class="mt-2 flex items-center gap-1.5 text-sm text-base-content/70">
+                <app-icon name="lock" size="0.9rem" /> Personal details are already blacked out, as
+                they would be after your own review.
+              </figcaption>
+            </figure>
+          </div>
+
+          <div class="out min-w-0" aria-live="polite">
+            @if (phase() === 'idle' && !rows().length) {
+              <div class="empty">
+                <p class="font-display text-2xl leading-tight tracking-tight">
+                  <span class="font-bold">A printed line goes in,</span><br />
+                  <span class="font-light">a test you can chart comes out</span>
+                </p>
+                <div class="example">
+                  <span class="text-base-content/80" lang="pl">TSH (ICD-9: L69)</span>
+                  <app-icon name="arrow-right" size="1rem" />
+                  <span class="font-semibold">Thyroid-stimulating hormone</span>
+                </div>
+                <div class="example">
+                  <span class="text-base-content/80" lang="de">Thrombozyten</span>
+                  <app-icon name="arrow-right" size="1rem" />
+                  <span class="font-semibold">Platelets</span>
+                </div>
+                <p class="text-base-content/80 leading-relaxed">
+                  Press <strong>Read it live</strong>. Each line {{ spark() }} finds is highlighted
+                  on the page and lands here, then {{ wonder() }} gives it its standard name.
+                </p>
+              </div>
+            } @else {
+              <ol class="steps-live">
+                @if (phase() !== 'idle') {
+                  <li
+                    [class.active]="phase() === 'reading'"
+                    [class.finished]="sparkSeconds() !== null"
                   >
-                    <th scope="row" class="font-normal" [attr.lang]="readSample()!.language">
-                      {{ r.name ?? 'Unreadable' }}
-                      @if (r.doubt) {
-                        <span class="block text-xs text-warning-content"
-                          >Hard to read: {{ r.doubt }}</span
-                        >
+                    <strong>{{ spark() }}</strong>
+                    {{ sparkSeconds() === null ? 'is reading the page' : 'read the page' }}
+                    <span class="tabular-nums text-base-content/70">
+                      · {{ sparkSeconds() ?? elapsed('reading') | number: '1.0-0' }} s
+                      @if (rows().length) {
+                        · {{ rows().length }} rows
                       }
-                    </th>
-                    <td class="whitespace-nowrap">
-                      {{ r.value ?? '–' }} <span class="text-base-content/80">{{ r.unit }}</span>
-                    </td>
-                    <td>
-                      @if (identity($index); as id) {
-                        @if (id.status === 'held') {
-                          <span class="text-base-content/80">Held for review: {{ id.note }}</span>
-                        } @else {
-                          <span class="font-medium">{{ id.label }}</span>
+                    </span>
+                  </li>
+                }
+                @if (sparkSeconds() !== null) {
+                  <li
+                    [class.active]="phase() === 'identifying'"
+                    [class.finished]="phase() === 'done'"
+                  >
+                    <strong>{{ wonder() }}</strong>
+                    {{ phase() === 'done' ? 'named each test' : 'is naming each test' }}
+                    <span class="tabular-nums text-base-content/70">
+                      · {{ wonderSeconds() ?? elapsed('identifying') | number: '1.0-0' }} s
+                    </span>
+                  </li>
+                }
+              </ol>
+              @if (error(); as e) {
+                <p role="alert" class="alert alert-error alert-soft mt-3">{{ e }}</p>
+              }
+
+              @if (rows().length) {
+                <ol class="rows" aria-label="What the models read and identified">
+                  @for (r of rows(); track $index) {
+                    <li
+                      tabindex="0"
+                      class="row"
+                      [attr.data-card]="$index"
+                      [class.on]="focused() === $index"
+                      [class.pending]="phase() === 'identifying' && !identity($index)"
+                      (mouseenter)="focused.set($index)"
+                      (focus)="focused.set($index)"
+                      (mouseleave)="focused.set(null)"
+                      (blur)="focused.set(null)"
+                    >
+                      <span class="pin" aria-hidden="true">{{ $index + 1 }}</span>
+                      <div class="min-w-0">
+                        <p class="text-sm text-base-content/80">
+                          Printed:
+                          <span
+                            class="highlight text-base-content"
+                            [attr.lang]="shown().language"
+                            >{{ r.name ?? 'Unreadable' }}</span
+                          >
+                          @if (r.value) {
+                            · {{ r.value }} {{ r.unit }}
+                          }
+                        </p>
+                        @if (r.doubt) {
+                          <p class="mt-1 text-xs text-warning-content">
+                            Hard to read: {{ r.doubt }}
+                          </p>
+                        }
+                        @if (identity($index); as id) {
+                          @if (id.status === 'held') {
+                            <p class="mt-1 text-base-content/80">Held for review: {{ id.note }}</p>
+                          } @else {
+                            <p class="name">{{ id.label }}</p>
+                            @if (id.status === 'text' && id.note) {
+                              <p class="text-sm text-base-content/80">{{ id.note }}</p>
+                            }
+                          }
+                        } @else if (phase() === 'identifying') {
+                          <p class="mt-1.5 flex items-center gap-2 text-base-content/70">
+                            <span class="loading loading-dots loading-xs" aria-hidden="true"></span>
+                            {{ wonder() }} is naming this test…
+                          </p>
+                        } @else if (phase() === 'done') {
+                          <p class="mt-1 text-base-content/70">Not identified</p>
+                        }
+                      </div>
+                      <div class="value">
+                        @if (identity($index); as id) {
                           @if (id.value !== null) {
-                            <span class="block text-xs text-base-content/80"
-                              >{{ id.value | number: '1.0-3' }} {{ id.unit }}</span
-                            >
+                            <span class="v">{{ id.value | number: '1.0-3' }}</span>
+                            <span class="u">{{ id.unit }}</span>
                           }
                         }
-                      } @else if (phase() === 'identifying') {
-                        <span
-                          class="loading loading-dots loading-xs"
-                          aria-label="Identifying"
-                        ></span>
-                      } @else {
-                        <span class="text-base-content/80">–</span>
-                      }
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
+                        @if (flagText(r.flag); as f) {
+                          <span class="flag">{{ f }}</span>
+                        }
+                      </div>
+                    </li>
+                  }
+                </ol>
+                <p class="mt-4 flex items-center gap-1.5 text-sm text-base-content/70">
+                  <app-icon name="check" size="0.95rem" /> Every value in the app links back to the
+                  exact line it was read from.
+                </p>
+              }
+            }
           </div>
+
+          @if (wires().length) {
+            <svg class="wires" aria-hidden="true">
+              @for (w of wires(); track w.index) {
+                <g [class.on]="focused() === w.index">
+                  <path [attr.d]="w.d" />
+                  <circle [attr.cx]="w.x1" [attr.cy]="w.y1" r="3" />
+                  <circle [attr.cx]="w.x2" [attr.cy]="w.y2" r="3" />
+                </g>
+              }
+            </svg>
+          }
         </div>
       }
     </section>
   `,
   styles: `
-    .live {
-      background: var(--color-base-100);
+    .live-head {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 1.25rem 2.5rem;
+    }
+    .models {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .models li {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.55rem 0.9rem 0.55rem 0.6rem;
+      border: 1px solid var(--color-base-300);
+      border-radius: var(--radius-field);
+      line-height: 1.25;
+    }
+    .models li + li::before {
+      content: '→';
+      margin: 0 0.35rem 0 -1.6rem;
+      color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
+    }
+    .models li + li {
+      margin-left: 1.4rem;
+    }
+    .models small {
+      font-size: 0.82rem;
+      color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
+    }
+    .step,
+    .pin {
+      display: grid;
+      place-items: center;
+      flex: none;
+      border-radius: 50%;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    .step {
+      width: 1.75rem;
+      height: 1.75rem;
+      font-size: 0.85rem;
+      background: color-mix(in oklab, var(--color-primary) 10%, #fff);
+      color: var(--color-primary);
+    }
+    .pin {
+      width: 1.6rem;
+      height: 1.6rem;
+      font-size: 0.75rem;
+      background: var(--color-primary);
+      color: var(--color-primary-content);
+    }
+
+    .live-body {
+      position: relative;
+      display: grid;
+      gap: 1.75rem;
+      margin-top: 1.75rem;
+    }
+    /* On a phone: choose and run, then the results, then the tall page. */
+    @media (max-width: 63.999rem) {
+      .live-body {
+        gap: 1rem;
+      }
+      .side {
+        display: contents;
+      }
+      .out {
+        order: 1;
+      }
+      .sheet-wrap {
+        order: 2;
+        margin-top: 0.75rem;
+      }
+    }
+    @media (max-width: 39.999rem) {
+      .models {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .models li + li {
+        margin-left: 0;
+      }
+      .models li + li::before {
+        content: none;
+      }
+      .rows .row {
+        grid-template-columns: auto minmax(0, 1fr);
+      }
+      .row .value {
+        grid-column: 2;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 0.4rem;
+        text-align: left;
+      }
+    }
+    @media (min-width: 64rem) {
+      .live-body {
+        grid-template-columns: minmax(0, 31rem) minmax(0, 1fr);
+        gap: 3rem;
+      }
+    }
+
+    .chooser {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+      gap: 0.6rem;
     }
     .choice {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
+      gap: 0.7rem;
       min-height: 44px;
-      padding: 0.6rem 0.9rem;
+      padding: 0.5rem 0.9rem 0.5rem 0.5rem;
       border: 1px solid var(--color-base-300);
-      border-radius: var(--radius-box);
+      border-radius: var(--radius-field);
       cursor: pointer;
     }
     .choice.chosen {
       border-color: var(--color-primary);
+      box-shadow: inset 0 0 0 1px var(--color-primary);
       background: color-mix(in oklab, var(--color-primary) 6%, #fff);
     }
+    .choice:has(input:focus-visible) {
+      outline: 3px solid var(--color-primary);
+      outline-offset: 3px;
+    }
+    fieldset:disabled .choice {
+      cursor: default;
+      opacity: 0.7;
+    }
     .choice img {
-      width: 44px;
-      height: 62px;
+      width: 30px;
+      height: 42px;
+      flex: none;
       object-fit: cover;
       object-position: top;
       border: 1px solid var(--color-base-300);
-      border-radius: 4px;
+      border-radius: 3px;
     }
+
+    .sheet-wrap {
+      margin-top: 1.1rem;
+    }
+    .sheet {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--color-base-300);
+      border-radius: 0.6rem;
+      background: #fff;
+      box-shadow: 0 18px 40px -26px rgb(22 48 44 / 0.45);
+    }
+    /* The highlighter: what the model kept, drawn over the page like the landing page's stroke. */
+    .mark {
+      position: absolute;
+      border-radius: 3px;
+      background: var(--color-accent);
+      mix-blend-mode: multiply;
+      opacity: 0.55;
+      transition: opacity 0.15s;
+      animation: mark-in 0.45s ease-out both;
+    }
+    .mark.on {
+      opacity: 1;
+      outline: 2px solid var(--color-primary);
+      outline-offset: 1px;
+    }
+    .pin.on-page {
+      position: absolute;
+      transform: translate(0.3rem, -50%);
+      box-shadow: 0 0 0 2px #fff;
+      width: 1.25rem;
+      height: 1.25rem;
+      font-size: 0.65rem;
+    }
+    @keyframes mark-in {
+      from {
+        clip-path: inset(0 100% 0 0);
+      }
+      to {
+        clip-path: inset(0 0 0 0);
+      }
+    }
+    .sweep {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 14%;
+      background: linear-gradient(
+        transparent,
+        color-mix(in oklab, var(--color-accent) 45%, transparent) 80%,
+        var(--color-accent)
+      );
+      mix-blend-mode: multiply;
+      animation: sweep 2.4s ease-in-out infinite alternate;
+    }
+    @keyframes sweep {
+      from {
+        top: -14%;
+      }
+      to {
+        top: 100%;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .sweep {
+        display: none;
+      }
+    }
+
+    .empty {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 1rem;
+      height: 100%;
+      padding: 1.75rem;
+      border: 1px dashed var(--color-base-300);
+      border-radius: var(--radius-box);
+      background: var(--color-base-200);
+    }
+    .example {
+      display: grid;
+      grid-template-columns: auto auto 1fr;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.7rem 0.9rem;
+      border: 1px solid var(--color-base-300);
+      border-radius: var(--radius-field);
+      background: var(--color-base-100);
+    }
+    .example app-icon {
+      color: var(--color-primary);
+    }
+
     .steps-live {
       display: flex;
       flex-direction: column;
@@ -292,44 +628,114 @@ interface Models {
         opacity: 0.3;
       }
     }
-    @media (prefers-reduced-motion: reduce) {
-      .steps-live li.active::before {
-        animation: none;
-      }
+
+    .rows {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-top: 1.25rem;
     }
-    .live-result {
+    .row {
       display: grid;
-      gap: 1.25rem;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: start;
+      gap: 0.9rem;
+      padding: 0.9rem 1.1rem;
+      border: 1px solid var(--color-base-300);
+      border-radius: var(--radius-box);
+      background: var(--color-base-100);
+      transition:
+        border-color 0.15s,
+        box-shadow 0.15s;
+      animation: row-in 0.35s ease-out both;
     }
-    /* On a phone the rows come first; the tall page image follows them. */
-    .page {
-      order: 2;
+    .row.pending {
+      border-style: dashed;
     }
-    @media (min-width: 56rem) {
-      .live-result {
-        grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
-        align-items: start;
+    .row.on {
+      border-color: var(--color-primary);
+      box-shadow:
+        0 0 0 1px var(--color-primary),
+        0 10px 24px -18px var(--color-primary);
+    }
+    .row:focus-visible {
+      outline-offset: 2px;
+    }
+    @keyframes row-in {
+      from {
+        opacity: 0;
+        transform: translateY(4px);
       }
-      .page {
-        order: 0;
-        position: sticky;
-        top: calc(var(--app-header-height) + 1rem);
-      }
     }
-    rect {
-      fill: color-mix(in oklab, var(--color-accent) 22%, transparent);
+    .name {
+      margin-top: 0.3rem;
+      font-family: var(--font-display);
+      font-size: 1.2rem;
+      font-weight: 600;
+      line-height: 1.25;
+    }
+    .value {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.15rem;
+      text-align: right;
+    }
+    .value .v {
+      font-family: var(--font-display);
+      font-size: 1.45rem;
+      font-weight: 600;
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+    }
+    .value .u {
+      font-size: 0.85rem;
+      color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
+    }
+    .flag {
+      margin-top: 0.25rem;
+      padding: 0.15rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      white-space: nowrap;
+      background: color-mix(in oklab, var(--color-warning) 22%, #fff);
+      color: var(--color-warning-content);
+    }
+
+    /* Connectors from each highlighted line to its card, only when the two sit side by side. */
+    .wires {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+      pointer-events: none;
+    }
+    .wires path {
+      fill: none;
       stroke: var(--color-primary);
       stroke-width: 1.5;
+      stroke-dasharray: 3 4;
+      opacity: 0.5;
     }
-    rect.on {
-      fill: color-mix(in oklab, var(--color-accent) 60%, transparent);
-      stroke-width: 3;
+    .wires circle {
+      fill: var(--color-primary);
+      opacity: 0.6;
     }
-    tr.on {
-      background: color-mix(in oklab, var(--color-accent) 25%, #fff);
+    .wires g.on path {
+      stroke-dasharray: none;
+      opacity: 1;
     }
-    tr:focus-visible {
-      outline-offset: -3px;
+    .wires g.on circle {
+      opacity: 1;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .steps-live li.active::before,
+      .mark,
+      .row {
+        animation: none;
+      }
     }
   `,
 })
@@ -360,10 +766,30 @@ export class LiveRead implements OnInit, OnDestroy {
     modelLabel(this.models()?.identification, 'Muse Wonder'),
   );
   private readonly identities = computed(() => identitiesOf(this.records()));
+  /** The page on screen: the one being read, or the one chosen before reading. */
+  protected readonly shown = computed(() => this.readSample() ?? this.chosen());
+  /** Number every line and connect every card while there are few; on a dense page, only the focused one. */
+  protected readonly few = computed(() => this.rows().length <= 8);
+  protected readonly wires = signal<Wire[]>([], {
+    equal: (a, b) => a.length === b.length && a.every((w, i) => w.d === b[i].d),
+  });
+  private readonly body = viewChild<ElementRef<HTMLElement>>('body');
+
+  constructor() {
+    // Re-draw the connectors after every render that can move a line or a card.
+    afterRenderEffect(() => {
+      this.rows();
+      this.records();
+      this.phase();
+      this.focused();
+      this.measure();
+    });
+  }
 
   async ngOnInit() {
+    void document.fonts?.ready.then(() => this.measure());
     try {
-      const response = await fetch('/api/demo/config');
+      const response = await fetch('/api/config');
       const body = (await response.json()) as { models?: Models | null };
       this.models.set(response.ok ? (body.models ?? null) : null);
     } catch {
@@ -377,6 +803,56 @@ export class LiveRead implements OnInit, OnDestroy {
 
   protected choose(sample: LiveSample) {
     this.chosen.set(sample);
+    if (this.running() || this.readSample()?.key === sample.key) return;
+    this.readSample.set(null);
+    this.rows.set([]);
+    this.records.set(null);
+    this.error.set(null);
+    this.phase.set('idle');
+  }
+
+  protected flagText(flag: string | null): string | null {
+    if (!flag) return null;
+    const f = flag.trim().toUpperCase();
+    if (f.startsWith('H')) return 'Lab flagged high';
+    if (f.startsWith('L')) return 'Lab flagged low';
+    return 'Lab flagged';
+  }
+
+  /** Lay out the connectors; only when the page and the cards sit side by side. */
+  protected measure() {
+    const body = this.body()?.nativeElement;
+    if (!body || !this.rows().length || !matchMedia('(min-width: 64rem)').matches) {
+      this.wires.set([]);
+      return;
+    }
+    const box = body.getBoundingClientRect();
+    const focused = this.focused();
+    const wires: Wire[] = [];
+    for (const card of body.querySelectorAll<HTMLElement>('[data-card]')) {
+      const index = Number(card.dataset['card']);
+      if (!this.few() && index !== focused) continue;
+      const start =
+        body.querySelector<HTMLElement>(`[data-pin="${index}"]`) ??
+        body.querySelector<HTMLElement>(`.mark[data-row="${index}"]`);
+      if (!start) continue;
+      const a = start.getBoundingClientRect();
+      const c = card.getBoundingClientRect();
+      const x1 = Math.round(a.right - box.left + 4);
+      const y1 = Math.round(a.top + a.height / 2 - box.top);
+      const x2 = Math.round(c.left - box.left);
+      const y2 = Math.round(c.top + Math.min(26, c.height / 2) - box.top);
+      const mid = Math.round((x1 + x2) / 2);
+      wires.push({
+        index,
+        x1,
+        y1,
+        x2,
+        y2,
+        d: `M${x1} ${y1} C${mid} ${y1} ${mid} ${y2} ${x2} ${y2}`,
+      });
+    }
+    this.wires.set(wires);
   }
 
   protected elapsed(phase: Phase): number {

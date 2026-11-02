@@ -6,7 +6,6 @@ import { medicalWords } from './medical-terms';
 import { applyRememberedDetails, learnDetails } from './remembered-details';
 
 export interface DetectionSettings {
-  strict: boolean;
   /** Minimum model probability to hide a word. */
   threshold: number;
   reviewThreshold: number;
@@ -15,8 +14,8 @@ export interface DetectionSettings {
 export const PRIVACY_VERSION = 4;
 // Scores are evidence, not calibrated guarantees. Lower-confidence candidates
 // remain readable; a more thorough pass highlights more, rather than erasing more.
-export const NORMAL: DetectionSettings = { strict: false, threshold: 0.9, reviewThreshold: 0.25 };
-export const STRICT: DetectionSettings = { strict: true, threshold: 0.9, reviewThreshold: 0.15 };
+export const NORMAL: DetectionSettings = { threshold: 0.9, reviewThreshold: 0.25 };
+export const STRICT: DetectionSettings = { threshold: 0.9, reviewThreshold: 0.15 };
 
 /** Model output for one page, keyed by word id. Null when the model is unavailable. */
 export type PagePredictions = Map<number, WordPrediction> | null;
@@ -42,7 +41,7 @@ export function applyDetections(
     hints = new Set([...hints].filter((h) => !inResults.has(h)));
   }
   const updated = pages.map((page, p) => {
-    const hits = detectWithRules(page.words, { strict: false });
+    const hits = detectWithRules(page.words);
     const resultLines = new Set<number>();
     const medical = medicalWords(page.words);
     const lines = groupLines(page.words);

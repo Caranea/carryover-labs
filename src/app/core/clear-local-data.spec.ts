@@ -19,7 +19,7 @@ describe('clearing all local data', () => {
     await clearLocalData();
 
     expect(fetch).toHaveBeenCalledWith(
-      '/api/demo/batches/batch-1',
+      '/api/batches/batch-1',
       expect.objectContaining({ method: 'DELETE' }),
     );
     expect(Object.keys(localStorage).filter((k) => k.startsWith('carryover.'))).toEqual([]);

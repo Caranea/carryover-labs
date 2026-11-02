@@ -1,6 +1,6 @@
 import type { Observation } from '../shared/results.js';
 import { CATALOGUE, DOMAINS, type CatalogueTest } from '../shared/catalogue.js';
-import type { Word } from '../demo/normalization.js';
+import type { Word } from '../batches/normalization.js';
 import type {
   RecordDomain,
   RecordPoint,

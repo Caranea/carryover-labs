@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { namedForm, specimenClass } from './normalization.js';
+import { namedForm, specimenClass } from './specimens.js';
 
 describe('specimenClass', () => {
   it('names other body fluids in Polish, German and English', () => {

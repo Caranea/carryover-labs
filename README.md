@@ -16,7 +16,7 @@ Originals, filenames, OCR text and hidden words never leave the browser. Results
 
 ## Run locally
 
-Use Node 24 (npm 11).
+Use Node 24 (npm 11; `.nvmrc` pins it, and older npm stops with a clear message).
 
 ```sh
 npm ci
@@ -46,23 +46,26 @@ npm test -- --watch=false
 npm --prefix api test
 npm run build
 npm --prefix api run build
+npx playwright install chromium   # once
+npm run e2e             # upload → review → approve, and the demo, against the built app
 ```
 
 CI runs the same steps. Tests use synthetic data and stubbed model calls; they never make paid requests.
 
 ## Project layout
 
-| Path                                  | What it does                                                                        |
-| ------------------------------------- | ----------------------------------------------------------------------------------- |
-| `src/app/extraction`                  | Reads files and runs local OCR                                                      |
-| `src/app/pii`                         | Finds personal details (local model worker + rules)                                 |
-| `src/app/redaction`, `src/app/review` | Burns masks into page images; the review screen                                     |
-| `src/app/core/local-history.ts`       | Browser storage for approved documents and results                                  |
-| `src/app/core/results.service.ts`     | Sends approved pages to the API and saves the answers                               |
-| `src/app/results`                     | Charts, source viewer, corrections, print layout                                    |
-| `api/src/demo`, `api/src/jobs`        | Batch job endpoints and the in-memory job queue (Spark pages, Wonder normalization) |
-| `api/src/records`                     | Meta model client, unit arithmetic and chart building                               |
-| `api/src/shared`                      | Types and pure helpers used by both the app and the API (`@shared/*` in the app)    |
+| Path                                  | What it does                                                                              |
+| ------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `src/app/extraction`                  | Reads files and runs local OCR                                                            |
+| `src/app/pii`                         | Finds personal details (local model worker + rules)                                       |
+| `src/app/redaction`, `src/app/review` | Burns masks into page images; the review screen                                           |
+| `src/app/core/local-history.ts`       | Browser storage for approved documents and results                                        |
+| `src/app/core/results.service.ts`     | Sends approved pages to the API and saves the answers                                     |
+| `src/app/results`                     | Charts, source viewer, corrections, print layout                                          |
+| `api/src/batches`, `api/src/jobs`     | Batch job endpoints, Spark pages, Wonder normalization, the in-memory queue, daily budget |
+| `api/src/records`                     | Meta model client, unit arithmetic and chart building                                     |
+| `api/src/shared`                      | Types and pure helpers used by both the app and the API (`@shared/*` in the app)          |
+| `e2e`                                 | Browser smoke tests on the built app (Playwright)                                         |
 
 ## Deploying
 

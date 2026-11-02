@@ -53,3 +53,7 @@ private-test-data/
 /.test-temp/
 /public/models/pii-fp16/
 /public/models/pii-fp16-*/
+
+# Playwright
+/test-results/
+/playwright-report/

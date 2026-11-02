@@ -6,7 +6,6 @@ import type { RememberedDetails } from '../pii/remembered-details';
 export const QUEUE_PROGRESS_KEY = 'carryover.queue.progress.v1';
 const QUEUE_LOCK = 'carryover.queue';
 export interface QueueSnapshot {
-  batchId?: string;
   documents: LocalDocument[];
   batchIds: string[];
   reviewId: string | null;

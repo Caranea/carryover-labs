@@ -32,7 +32,7 @@ import {
   formatReference,
   HeadCell,
   layoutColumns,
-  parseRange,
+  bandOf,
   printChunks,
   rangeNote,
   Spark,
@@ -255,7 +255,7 @@ export class ResultsPage implements OnInit, OnDestroy {
     const latest = series.points.at(-1);
     // A converted value's printed range is in another unit, so it cannot be drawn.
     const band =
-      latest?.printedReference && !latest.conversion ? parseRange(latest.printedReference) : null;
+      latest?.printedReference && !latest.conversion ? bandOf(latest.printedReference) : null;
     const flagged = Object.values(cells).flatMap((list) => list!.filter((c) => c.flag));
     const lastFlagged = series.points.filter((p) => flagOf(p.flag)).at(-1)?.date ?? null;
     return {
@@ -561,9 +561,27 @@ function flagOf(flag: RecordPoint['flag']): Cell['flag'] {
 }
 
 const NUMBER_WORDS = [
-  'Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
-  'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen',
-  'Nineteen', 'Twenty',
+  'Zero',
+  'One',
+  'Two',
+  'Three',
+  'Four',
+  'Five',
+  'Six',
+  'Seven',
+  'Eight',
+  'Nine',
+  'Ten',
+  'Eleven',
+  'Twelve',
+  'Thirteen',
+  'Fourteen',
+  'Fifteen',
+  'Sixteen',
+  'Seventeen',
+  'Eighteen',
+  'Nineteen',
+  'Twenty',
 ];
 
 function sampleSummary() {
@@ -571,7 +589,11 @@ function sampleSummary() {
   const span = Math.max(...years) - Math.min(...years);
   return {
     documents: DEMO_DOCUMENTS.length,
-    languages: new Set(DEMO_DOCUMENTS.map((d) => d.language)).size,
-    years: NUMBER_WORDS[span] ?? String(span),
+    languages: numberWord(new Set(DEMO_DOCUMENTS.map((d) => d.language)).size).toLowerCase(),
+    years: numberWord(span),
   };
+}
+
+function numberWord(n: number): string {
+  return NUMBER_WORDS[n] ?? String(n);
 }

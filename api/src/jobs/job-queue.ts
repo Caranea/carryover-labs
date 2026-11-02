@@ -2,7 +2,7 @@ import type { PageRequest, PageTranscription } from '../shared/processing.js';
 import type { BatchView, JobState, NormalizationView, PageJobView } from '../shared/jobs.js';
 
 export type { BatchView, JobState, NormalizationView, PageJobView };
-import type { SourceDocument } from '../demo/normalization.js';
+import type { SourceDocument } from '../batches/normalization.js';
 
 /** The work the queue runs. Both must stop early when the signal aborts. */
 export interface JobRunner<R> {

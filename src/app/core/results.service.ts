@@ -60,7 +60,7 @@ export class ResultsService {
   protected retryDelay = (attempt: number) => Math.min(1000 * 2 ** attempt, 15_000);
 
   /** `ready` is false while documents still wait for privacy review: transcribe, but do not normalize. */
-  prepareBatch(_queueBatchId: string, ready: boolean) {
+  prepareBatch(ready: boolean) {
     this.batchReady = ready;
     if (ready) void this.records().catch(() => {});
     else void this.transcribe().catch(() => {});

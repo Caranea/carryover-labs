@@ -244,7 +244,11 @@ function rangeAnywhere(s: string): { low: number | null; high: number | null } |
 
 function rangeAt(s: string): { low: number | null; high: number | null } | null {
   const num = '(\\d{1,6}(?:[.,]\\d{1,4})?)';
-  let m = new RegExp(`^${num}\\s*(?:-|–|—|\\.\\.\\.|…|to|bis|do)\\s*${num}`, 'i').exec(s);
+  // A two-sided range may start below zero ("-2.0 - 2.0", base excess).
+  let m = new RegExp(
+    `^(-?\\d{1,6}(?:[.,]\\d{1,4})?)\\s*(?:-|–|—|\\.\\.\\.|…|to|bis|do)\\s*(-?\\d{1,6}(?:[.,]\\d{1,4})?)`,
+    'i',
+  ).exec(s);
   if (m) return { low: toNum(m[1]), high: toNum(m[2]) };
   m = new RegExp(`^(?:<|≤|<=|do|bis|up to|below|ponizej|poniżej|unter)\\s*${num}`, 'i').exec(s);
   if (m) return { low: null, high: toNum(m[1]) };

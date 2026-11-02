@@ -25,3 +25,5 @@ jobs:
       - run: npm --prefix api test
       - run: npm run build
       - run: npm --prefix api run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e

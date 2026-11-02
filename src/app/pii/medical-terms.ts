@@ -97,7 +97,7 @@ export function protectMedicalTerms(pages: WorkingPage[]): WorkingPage[] {
   let changed = false;
   const updated = pages.map((page) => {
     const medical = medicalWords(page.words);
-    const identity = detectWithRules(page.words, { strict: false });
+    const identity = detectWithRules(page.words);
     let pageChanged = false;
     const words = page.words.map((word) => {
       if (

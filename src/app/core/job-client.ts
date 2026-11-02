@@ -32,7 +32,7 @@ export class JobClient {
   constructor(readonly batchId = storedBatchId()) {}
 
   private get base(): string {
-    return `/api/demo/batches/${this.batchId}`;
+    return `/api/batches/${this.batchId}`;
   }
 
   async submitPage(page: PageSubmission): Promise<void> {
@@ -101,7 +101,7 @@ export async function forgetServerBatch(): Promise<void> {
   try {
     const id = localStorage.getItem(BATCH_KEY);
     if (id && /^[a-zA-Z0-9-]{1,80}$/.test(id))
-      await fetch(`/api/demo/batches/${id}`, {
+      await fetch(`/api/batches/${id}`, {
         method: 'DELETE',
         signal: AbortSignal.timeout(5000),
       });

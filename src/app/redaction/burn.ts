@@ -27,11 +27,6 @@ export function boxesToBurn(page: WorkingPage): Box[] {
   return redactionPlan(page).boxes;
 }
 
-/** Final geometry is authoritative, even when a word's toggle was changed afterwards. */
-export function isCovered(page: WorkingPage, word: WorkingPage['words'][number]): boolean {
-  return redactionPlan(page).hidden.has(page.words.indexOf(word));
-}
-
 /**
  * Paint solid black over every hidden word and drawn region, then re-encode.
  * The result is a new JPEG made only from pixels: no text layer, no metadata,

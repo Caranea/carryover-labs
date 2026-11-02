@@ -33,7 +33,7 @@ class FakeJobServer {
 
   readonly fetch = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET';
-    const path = url.replace(/^\/api\/demo\/batches\/[^/?]+/, '');
+    const path = url.replace(/^\/api\/batches\/[^/?]+/, '');
     this.log.push(`${method} ${decodeURIComponent(path.split('?')[0]) || '/'}`);
     const body = init?.body ? JSON.parse(init.body as string) : null;
     if (method === 'POST' && path === '/pages') return this.submitPage(body);
@@ -164,7 +164,6 @@ const create = (pages = 1, localId = 'local-id') =>
     Array.from({ length: pages }, () => new Blob(['approved-pixels'], { type: 'image/png' })),
     'PRIVATE-FILENAME.pdf',
     localId,
-    'saved-batch',
   );
 
 describe('page transcription as jobs', () => {
@@ -239,7 +238,7 @@ describe('page transcription as jobs', () => {
     const saved = await create();
     server.pageOutcome = () => 'hold';
     const first = newService();
-    first.prepareBatch('queue-batch', false);
+    first.prepareBatch(false);
     await settled(() => expect(server.submitted).toHaveLength(1));
     // A refresh: a new service instance finds the same batch and only waits for it.
     const second = newService();
@@ -325,7 +324,7 @@ describe('page transcription as jobs', () => {
 
   it('does not ask the server anything while no page is approved', async () => {
     const api = newService();
-    for (let i = 0; i < 5; i++) api.prepareBatch('queue-batch', false);
+    for (let i = 0; i < 5; i++) api.prepareBatch(false);
     await settled(() => expect(api.processing().stage).toBe('waiting'));
     expect(server.fetch).not.toHaveBeenCalled();
   });
@@ -335,10 +334,10 @@ describe('page transcription as jobs', () => {
     server.pageOutcome = () => 'hold';
     server.pollMs = 60_000;
     const api = newService();
-    api.prepareBatch('queue-batch', false);
+    api.prepareBatch(false);
     await settled(() => expect(server.submitted).toHaveLength(1));
     await create(1, 'second-local-id');
-    api.prepareBatch('queue-batch', false);
+    api.prepareBatch(false);
     await settled(() => expect(server.submitted).toHaveLength(2));
     server.pollMs = 30;
     server.release();
@@ -348,10 +347,10 @@ describe('page transcription as jobs', () => {
   it('transcribes during privacy review but normalizes only once the batch is ready', async () => {
     await create();
     const api = newService();
-    api.prepareBatch('queue-batch', false);
+    api.prepareBatch(false);
     await settled(() => expect(api.processing().stage).toBe('waiting'));
     expect(server.normalizations).toHaveLength(0);
-    api.prepareBatch('queue-batch', true);
+    api.prepareBatch(true);
     await settled(() => expect(api.processing().stage).toBe('ready'));
     expect(server.normalizations).toHaveLength(1);
   });

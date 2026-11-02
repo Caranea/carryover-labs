@@ -10,20 +10,11 @@ import { OcrService } from './ocr.service';
 import { PdfPageLimitError, type RenderedPdfPage } from './pdf-extractor';
 
 const canvas = () => Object.assign(document.createElement('canvas'), { width: 120, height: 240 });
-const pdfPage = (index: number, readable = true): RenderedPdfPage & { pageCount: number } => ({
+const pdfPage = (index: number): RenderedPdfPage & { pageCount: number } => ({
   index,
   pageCount: 2,
   canvas: canvas(),
   image: new Blob(['synthetic']),
-  textLength: readable ? 80 : 0,
-  runs: readable
-    ? [
-        {
-          text: 'Collected 2024-01-01 Glucose Result Units Reference Range Sample 92',
-          box: { x: 0, y: 0, w: 100, h: 12 },
-        },
-      ]
-    : [],
 });
 
 describe('failed import resource cleanup', () => {
@@ -63,7 +54,7 @@ describe('failed import resource cleanup', () => {
 
   it('revokes earlier PDF previews and closes the iterator when a later OCR page fails', async () => {
     const first = pdfPage(0),
-      second = pdfPage(1, false),
+      second = pdfPage(1),
       closed = vi.fn();
     vi.mocked(readPdf).mockImplementation(async function* () {
       try {

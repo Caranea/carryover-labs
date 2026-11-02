@@ -13,8 +13,9 @@ module.exports = tseslint.config(
       'api/.test-build/',
       '.angular/',
       'artifacts/',
-      'public/vendor/',
       'coverage/',
+      'test-results/',
+      'playwright-report/',
     ],
   },
   {
@@ -50,6 +51,11 @@ module.exports = tseslint.config(
     files: ['scripts/**/*.{js,mjs}', 'eslint.config.js'],
     extends: [eslint.configs.recommended, prettier],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
+  },
+  {
+    files: ['e2e/**/*.ts', 'playwright.config.ts'],
+    extends: [eslint.configs.recommended, ...tseslint.configs.recommended, prettier],
+    languageOptions: { globals: globals.node },
   },
   {
     files: ['scripts/**/*.ts'],

@@ -4,7 +4,7 @@ import { after, before, describe, it } from 'node:test';
 import { NestFactory } from '@nestjs/core';
 import type { INestApplication } from '@nestjs/common';
 import sharp from 'sharp';
-import { DemoModule } from './demo.module.js';
+import { BatchesModule } from './batches.module.js';
 import { securityHeaders } from '../security/http-security.js';
 import type { JsonModel, ModelTask } from '../records/meta-model.js';
 import { PROCESSING_VERSION } from '../shared/processing.js';
@@ -32,13 +32,13 @@ function stubModel(delayMs = 0): JsonModel & { calls: ModelTask[] } {
 
 async function start(model: JsonModel | null, limits = {}) {
   const app: INestApplication = await NestFactory.create(
-    DemoModule.forRoot({ model: null, modelConcurrency: 2 }, model, limits),
+    BatchesModule.forRoot({ model: null, modelConcurrency: 2 }, model, limits),
     { logger: false },
   );
   app.setGlobalPrefix('api');
   app.use(securityHeaders);
   await app.listen(0, '127.0.0.1');
-  return { app, base: `${await app.getUrl()}/api/demo` };
+  return { app, base: `${await app.getUrl()}/api` };
 }
 
 let image = '';
@@ -162,7 +162,7 @@ describe('batch job API', () => {
   it('has no synchronous or legacy routes', async () => {
     for (const path of ['extract', 'records'])
       assert.equal((await post(`${base}/${path}`, {})).status, 404);
-    assert.equal((await fetch(`${base.replace('/demo', '')}/documents`)).status, 404);
+    assert.equal((await fetch(`${base}/documents`)).status, 404);
   });
 });
 

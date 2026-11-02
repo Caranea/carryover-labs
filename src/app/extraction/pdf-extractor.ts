@@ -1,15 +1,11 @@
 import type { PDFPageProxy } from 'pdfjs-dist/types/src/display/api';
 import { ASSETS, assetUrl } from '../core/assets';
-import { TextRun } from './layout';
 import { canvasToBlob, createCanvas, MAX_SIDE } from './render';
 
 export interface RenderedPdfPage {
   index: number;
   canvas: HTMLCanvasElement;
   image: Blob;
-  runs: TextRun[];
-  /** Characters in the text layer; scans have none and need OCR. */
-  textLength: number;
 }
 
 const TARGET_WIDTH = 2000;
@@ -77,7 +73,7 @@ async function renderPage(page: PDFPageProxy): Promise<Omit<RenderedPdfPage, 'in
     await page.render({ canvas, canvasContext: ctx, viewport }).promise;
 
     // Ignore PDF text layers, including invisible text. Privacy detection uses the rendered pixels.
-    return { canvas, image: await canvasToBlob(canvas), runs: [], textLength: 0 };
+    return { canvas, image: await canvasToBlob(canvas) };
   } catch (error) {
     canvas.width = canvas.height = 0;
     throw error;

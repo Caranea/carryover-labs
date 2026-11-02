@@ -6,6 +6,7 @@ api/dist
 api/.test-build
 artifacts
 output
-public/vendor
+test-results
+playwright-report
 package-lock.json
 api/package-lock.json

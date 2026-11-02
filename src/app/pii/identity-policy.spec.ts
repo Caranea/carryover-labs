@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { textToWords } from '../extraction/layout';
+import { textToWords } from '../../testing/words';
 import type { WorkingPage } from '../core/models';
 import { applyDetections, clearAutomaticDetections, NORMAL, STRICT } from './detect';
 import { applyRememberedDetails, learnDetails } from './remembered-details';

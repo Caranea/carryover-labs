@@ -1,7 +1,7 @@
 import {
   formatReference,
   layoutColumns,
-  parseRange,
+  bandOf,
   printChunks,
   rangeNote,
   sparkline,
@@ -57,9 +57,12 @@ describe('results table layout', () => {
     expect(formatReference('125-396')).toBe('125–396');
     expect(formatReference('-2 - 2')).toBe('-2–2');
     expect(formatReference('< 5,0')).toBe('< 5.0');
-    expect(parseRange('11,2 - 15,7')).toEqual({ lo: 11.2, hi: 15.7 });
-    expect(parseRange('< 5')).toBeNull();
-    expect(parseRange('5 - 1')).toBeNull();
+    expect(bandOf('11,2 - 15,7')).toEqual({ lo: 11.2, hi: 15.7 });
+    expect(bandOf('[3,9 - 6,0] [mmol/l]')).toEqual({ lo: 3.9, hi: 6 });
+    expect(bandOf('-2.0 - 2.0')).toEqual({ lo: -2, hi: 2 });
+    expect(bandOf('2,04 do 4,40')).toEqual({ lo: 2.04, hi: 4.4 });
+    expect(bandOf('< 5')).toBeNull();
+    expect(bandOf('5 - 1')).toBeNull();
   });
 
   it('spaces the trend by date and marks flagged values', () => {

@@ -24,9 +24,9 @@ function wordsFrom(lines: string[]): WorkingWord[] {
   return words;
 }
 
-function hiddenTexts(lines: string[], strict = false): string[] {
+function hiddenTexts(lines: string[]): string[] {
   const words = wordsFrom(lines);
-  const hits = detectWithRules(words, { strict });
+  const hits = detectWithRules(words);
   return words.filter((w) => hits.has(w.id)).map((w) => w.text as string);
 }
 
@@ -160,13 +160,6 @@ describe('detectWithRules', () => {
     expect(isResultLine(wordsFrom(['PLT 245 tys/µl 150-400']))).toBe(true);
     expect(isResultLine(wordsFrom(['Glukoza 92 70 - 99']))).toBe(true);
     expect(isResultLine(wordsFrom(['ul. Długa 12 31-123 Kraków']))).toBe(false);
-  });
-
-  it('expands around names in strict mode only', () => {
-    // OCR put a wide gap inside the name, so the label value stops after "Jan".
-    const lines = ['Lekarz: Jan          Kowalski'];
-    expect(hiddenTexts(lines, false)).toEqual(['Jan']);
-    expect(hiddenTexts(lines, true)).toEqual(['Jan', 'Kowalski']);
   });
 });
 

@@ -130,7 +130,7 @@ describe('clinical test names are not personal details', () => {
 
   it('leaves these names visible with rules alone and even with erroneous high-confidence model labels', () => {
     const p = page(rows);
-    expect([...detectWithRules(p.words, { strict: false })]).toEqual([]);
+    expect([...detectWithRules(p.words)]).toEqual([]);
     const mistaken = new Map(p.words.map((w) => [w.id, { label: 'B-PERSON', score: 0.99 }]));
     for (const settings of [NORMAL, STRICT])
       expect(texts(applyDetections([p], [mistaken], settings)[0])).toEqual([]);
