@@ -28,6 +28,7 @@ test('a photo is read on the device, checked by hand and sent only as an approve
   const sent = await stubBatches(page);
   await page.goto('/documents');
   // Manual review: the large privacy model isn't downloaded in a smoke test.
+  await page.getByText('Change how we check').click();
   await page.getByRole('radio', { name: /Manual review/ }).check();
   await page.locator('input[type=file]').first().setInputFiles(PHOTO);
 

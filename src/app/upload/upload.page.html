@@ -5,9 +5,8 @@
       <span class="font-bold">Add lab results</span>
     </h1>
     <p class="text-lg text-base-content/80 max-w-2xl leading-relaxed">
-      Add a clear photo or document. Choose help finding personal details, or hide them yourself.
-      Check each page and approve the copy. The approved copy is then sent to Meta's AI to read and
-      organize your results.
+      Add a clear photo or document. Personal details are found on your device; you check each page
+      and approve a blacked-out copy. Only that copy is sent to Meta's AI to read your results.
     </p>
   </header>
 
@@ -41,80 +40,81 @@
     }
   }
 
-  <fieldset class="rounded-box border border-base-300 bg-base-100 p-5 flex flex-col gap-3">
-    <legend class="px-2 font-display text-xl font-semibold">
-      Choose how to check personal details
-    </legend>
-    <label class="flex items-start gap-3 cursor-pointer rounded-xl p-3 hover:bg-base-200">
-      <input
-        type="radio"
-        name="privacy-mode"
-        class="radio radio-primary mt-1"
-        [checked]="privacyMode() === 'automatic'"
-        (change)="chooseMode('automatic')"
-        [disabled]="!device.capabilities.supported"
-      />
-      <span
-        ><span class="flex flex-wrap items-center gap-x-3 gap-y-1"
-          ><strong>Automatic privacy check</strong>
-          @if (device.assessment().recommendation === 'automatic') {
-            <span
-              class="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary"
-              aria-live="polite"
-              >Recommended for this device</span
+  <section class="rounded-box border border-base-300 bg-base-100 p-5" aria-labelledby="mode-h">
+    <h2 id="mode-h" class="font-display text-xl font-semibold">Finding personal details</h2>
+    <p class="mt-1 text-base-content/80">{{ modeSummary() }}</p>
+    <details class="mt-2 mode-choice">
+      <summary class="cursor-pointer font-semibold text-primary w-fit">Change how we check</summary>
+      <fieldset class="mt-3 flex flex-col gap-3">
+        <legend class="sr-only">How to check personal details</legend>
+        <label class="flex items-start gap-3 cursor-pointer rounded-xl p-3 hover:bg-base-200">
+          <input
+            type="radio"
+            name="privacy-mode"
+            class="radio radio-primary mt-1"
+            [checked]="privacyMode() === 'automatic'"
+            (change)="chooseMode('automatic')"
+            [disabled]="!device.capabilities.supported"
+          />
+          <span
+            ><span class="flex flex-wrap items-center gap-x-3 gap-y-1"
+              ><strong>Automatic privacy check</strong>
+              @if (device.assessment().recommendation === 'automatic') {
+                <span
+                  class="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary"
+                  >Recommended for this device</span
+                >
+              }</span
+            ><span class="block text-sm text-base-content/80 mt-1"
+              >Finds names, addresses and common personal details on your device. We automatically
+              choose and download a compatible checker, then reuse it in this browser. Takes longer,
+              but requires less work.</span
             >
-          }</span
-        ><span class="block text-sm text-base-content/80 mt-1"
-          >Finds names, addresses and common personal details on your device. We automatically
-          choose and download a compatible checker, then reuse it in this browser. Takes longer, but
-          requires less work.</span
-        >
-        <span
-          class="block text-xs text-base-content/70 mt-2"
-          aria-live="polite"
-          title="Rough processing estimate for a page of about 500 words, including photo reading. Updates after your first pages; excludes your review time. Download is a separate first-use cost."
-        >
-          {{ device.pageEstimate() }} · {{ device.downloadEstimate() }}
-        </span>
-      </span>
-    </label>
-    <label class="flex items-start gap-3 cursor-pointer rounded-xl p-3 hover:bg-base-200">
-      <input
-        type="radio"
-        name="privacy-mode"
-        class="radio radio-primary mt-1"
-        [checked]="privacyMode() === 'lightweight'"
-        (change)="chooseMode('lightweight')"
-      />
-      <span
-        ><span class="flex flex-wrap items-center gap-x-3 gap-y-1"
-          ><strong>Manual review</strong>
-          @if (device.assessment().recommendation === 'manual') {
+            @if (!device.capabilities.supported) {
+              <span class="block text-sm mt-1"
+                >This browser can't run the automatic check. Use manual review instead.</span
+              >
+            }
             <span
-              class="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary"
-              aria-live="polite"
-              >Recommended for this device</span
+              class="block text-sm text-base-content/80 mt-2"
+              title="Rough processing estimate for a page of about 500 words, including photo reading. Updates after your first pages; excludes your review time. Download is a separate first-use cost."
             >
-          }</span
-        ><span class="block text-sm text-base-content/80 mt-1"
-          >No large detector download. Details hidden in earlier documents are reused on this
-          device. After the file is read, you’ll click or tap any other personal details to hide
-          them. Reading photos can still take time.</span
-        >
-        <span
-          class="block text-xs text-base-content/70 mt-2"
-          title="Text documents skip photo reading. The time you spend hiding details is additional."
-          >{{ device.photoEstimate() }} · No privacy-checker download</span
-        >
-      </span>
-    </label>
-    @if (privacyMode() === 'lightweight') {
-      <p role="status" class="rounded-lg bg-primary/5 p-3 text-sm">
-        Manual review selected. You’ll be asked to hide personal details yourself and confirm that
-        you checked every page before approving.
-      </p>
-    }
-  </fieldset>
+              {{ device.pageEstimate() }} · {{ device.downloadEstimate() }}
+            </span>
+          </span>
+        </label>
+        <label class="flex items-start gap-3 cursor-pointer rounded-xl p-3 hover:bg-base-200">
+          <input
+            type="radio"
+            name="privacy-mode"
+            class="radio radio-primary mt-1"
+            [checked]="privacyMode() === 'lightweight'"
+            (change)="chooseMode('lightweight')"
+          />
+          <span
+            ><span class="flex flex-wrap items-center gap-x-3 gap-y-1"
+              ><strong>Manual review</strong>
+              @if (device.assessment().recommendation === 'manual') {
+                <span
+                  class="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary"
+                  >Recommended for this device</span
+                >
+              }</span
+            ><span class="block text-sm text-base-content/80 mt-1"
+              >No large detector download. Details hidden in earlier documents are reused on this
+              device. After the file is read, you tap any other personal details to hide them.
+              Reading photos can still take time.</span
+            >
+            <span
+              class="block text-sm text-base-content/80 mt-2"
+              title="Text documents skip photo reading. The time you spend hiding details is additional."
+              >{{ device.photoEstimate() }} · No privacy-checker download</span
+            >
+          </span>
+        </label>
+      </fieldset>
+    </details>
+  </section>
   @if (!queue.recoveryReady()) {
     <div class="alert alert-info alert-soft" role="status">
       @if (queue.recovery.otherTab()) {
@@ -225,7 +225,7 @@
             </span>
             <div class="flex flex-col gap-1.5 min-w-0">
               <p class="font-semibold truncate" [attr.title]="doc.fileName">{{ doc.fileName }}</p>
-              <p class="flex flex-wrap items-center gap-2 text-sm" aria-live="polite">
+              <p class="flex flex-wrap items-center gap-2 text-sm">
                 <span class="badge badge-sm" [class]="statusBadge(doc).cls">{{
                   statusBadge(doc).text
                 }}</span>

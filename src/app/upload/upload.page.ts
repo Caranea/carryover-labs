@@ -57,6 +57,15 @@ export class UploadPage implements OnInit {
   protected readonly local = computed(() =>
     this.queue.documents().filter((d) => d.status !== 'saved'),
   );
+  /** The current way of finding personal details, and what it costs, in one plain sentence. */
+  protected readonly modeSummary = computed(() => {
+    if (this.privacyMode() === 'lightweight')
+      return 'You hide personal details yourself by tapping them. Nothing extra is downloaded.';
+    if (this.device.ner.modelCached() || this.device.ner.state() === 'ready')
+      return 'Carryover finds them on your device and you check its work. The checker is already saved in this browser.';
+    const mb = this.device.variant() === 'gpu-fp16' ? 560 : 280;
+    return `Carryover finds them on your device and you check its work. The first time, it downloads about ${mb} MB, so use Wi-Fi.`;
+  });
   protected readonly readyCount = computed(
     () => this.local().filter((d) => d.status === 'review').length,
   );

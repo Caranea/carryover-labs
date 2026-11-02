@@ -48,6 +48,21 @@ import { DocumentQueueService } from '../core/document-queue.service';
       backdrop-filter: blur(12px);
     }
 
+    /*
+     * On a short screen (a phone on its side, or zoomed in) a fixed bar would cover too much of
+     * the page and the field being typed in: it stays where it is in the page instead.
+     */
+    @media (max-height: 34rem) {
+      :host {
+        position: static;
+        padding-inline: 0;
+        border: 0;
+        background: none;
+        box-shadow: none;
+        backdrop-filter: none;
+      }
+    }
+
     :host(.inline) {
       position: static;
       padding: 0;

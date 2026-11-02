@@ -116,6 +116,8 @@
 }
 html {
   scroll-padding-top: calc(var(--app-header-height) + 1rem);
+  /* Keeps a focused or scrolled-to item clear of the fixed step bar at the bottom. */
+  scroll-padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
 }
 @media (max-width: 55.999rem) {
   :root {

@@ -29,7 +29,7 @@
   (close)="queue.closeReview()"
 >
   <div class="modal-box privacy-box">
-    <header class="privacy-heading">
+    <div class="privacy-heading">
       <div class="heading-row">
         <h2 id="privacy-title" tabindex="-1" class="font-display text-xl sm:text-2xl font-semibold">
           {{ title() }}
@@ -93,13 +93,15 @@
           "
         ></progress>
         @if (active(); as active) {
-          <p class="text-xs text-base-content/80 truncate" [attr.title]="active.fileName">
-            {{ stageTitle() }} · {{ active.fileName }}
+          <p class="text-sm text-base-content/80" aria-hidden="true">
+            <span class="font-medium text-base-content">{{ stageTitle() }}</span>
             @if (estimate()) {
               · {{ estimate() }}
             }
+            <span class="block truncate" [attr.title]="active.fileName">{{ active.fileName }}</span>
           </p>
         }
+        <p class="sr-only" role="status">{{ announcement() }}</p>
         @if (queue.recovery.status() === 'error' || queue.recovery.status() === 'unavailable') {
           <div role="alert" class="mt-2 text-sm text-error">
             {{
@@ -123,7 +125,7 @@
           </p>
         }
       </section>
-    </header>
+    </div>
 
     <div class="privacy-body">
       @if (queue.reviewOpened()) {
@@ -204,7 +206,7 @@
       }
     </div>
 
-    <footer class="privacy-actions">
+    <div class="privacy-actions">
       <button type="button" class="btn btn-ghost rounded-full" (click)="dismiss()">
         {{ queue.batchProgress().remaining ? 'Continue in background' : 'Close for now' }}
       </button>
@@ -223,6 +225,6 @@
           Continue to Results <app-icon name="arrow-right" size="1rem" />
         </button>
       </div>
-    </footer>
+    </div>
   </div>
 </dialog>

@@ -107,12 +107,12 @@ export class ResultsService {
     await this.transcribe(retry);
     if (!this.batchReady) {
       throw new Error(
-        'Finish preparing and approving or removing the remaining documents before normalization.',
+        'Approve or remove the documents that are still waiting, then your results will be ready.',
       );
     }
     const processed = this.history.recordSnapshot();
     if (processed.sources.length)
-      throw new Error('Some pages still need transcription. Please retry.');
+      throw new Error("Some pages haven't been read yet. Tap Try again.");
     const started = performance.now();
     this.processing.update((p) => ({ ...p, stage: 'normalizing', error: null }));
     const current = () =>
@@ -120,9 +120,9 @@ export class ResultsService {
 
     const result = await this.normalize(processed.documents, current);
     if (result.model?.state !== 'ready')
-      throw new Error('Results normalization did not finish. Please try again.');
+      throw new Error("We couldn't finish matching your tests. Tap Try again.");
     if (!current() || !this.history.saveModelRecords(processed.fingerprint, result)) {
-      throw new Error('The batch changed. Finish reviewing it and try again.');
+      throw new Error('You changed your documents while we were working. Tap Try again.');
     }
     console.info('[Carryover timing]', {
       stage: 'normalization',
@@ -201,7 +201,7 @@ export class ResultsService {
     if (remaining) {
       const reason =
         [...this.failed.values()][0] ??
-        'Some pages still need transcription. Retry or remove the document.';
+        "Some pages haven't been read yet. Tap Try again, or remove the document.";
       throw new Error(reason);
     }
     this.processing.update((p) => ({
@@ -295,7 +295,8 @@ export class ResultsService {
     let version = 0;
     connectionFailures = 0;
     for (;;) {
-      if (!current()) throw new Error('The batch changed. Finish reviewing it and try again.');
+      if (!current())
+        throw new Error('You changed your documents while we were working. Tap Try again.');
       let view: RecordsView;
       try {
         view = await this.jobs.view(version, MAX_WAIT_SECONDS);
@@ -317,7 +318,7 @@ export class ResultsService {
         return job.result;
       }
       if (job.state === 'failed' || job.state === 'idle') {
-        throw new Error(job.error ?? 'Results normalization did not finish. Please try again.');
+        throw new Error(job.error ?? "We couldn't finish matching your tests. Tap Try again.");
       }
     }
   }

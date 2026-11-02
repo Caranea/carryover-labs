@@ -2,7 +2,7 @@
   <div class="grid items-center gap-14 lg:grid-cols-[1fr_1.05fr]">
     <div class="flex flex-col items-start gap-7">
       <span class="badge badge-soft badge-primary gap-1.5 py-3 px-3">
-        <app-icon name="lock" size="0.9rem" /> Personal information never leave your device
+        <app-icon name="lock" size="0.9rem" /> Your original files stay on your device
       </span>
       <h1 class="text-4xl sm:text-5xl lg:text-6xl leading-[1.05] tracking-tight">
         <span class="font-bold">Seeing a doctor soon?</span><br />
@@ -63,11 +63,13 @@
   </h2>
   <div class="join join-vertical w-full">
     @for (item of faq; track item.question; let first = $first) {
-      <div class="collapse collapse-arrow join-item border border-base-300 bg-base-100">
-        <input type="radio" name="faq" [checked]="first" [attr.aria-label]="item.question" />
-        <div class="collapse-title font-semibold text-lg">{{ item.question }}</div>
+      <details
+        class="collapse collapse-arrow join-item border border-base-300 bg-base-100"
+        [open]="first"
+      >
+        <summary class="collapse-title font-semibold text-lg">{{ item.question }}</summary>
         <div class="collapse-content text-base-content/80 leading-relaxed">{{ item.answer }}</div>
-      </div>
+      </details>
     }
   </div>
   <div class="text-center mt-12">

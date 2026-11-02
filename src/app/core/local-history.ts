@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { parseNumber, toIsoDate } from '@shared/tokens';
+import { detectLocale } from '@shared/locale';
 import { PROCESSING_VERSION, type PageTranscription } from '@shared/processing';
 import type { DocumentManifest, SavedDocument, SavedDocumentSummary } from './models';
 import type { RecordsResponse } from '@shared/records';
@@ -271,7 +272,8 @@ export class LocalHistory {
         sourceKind: document.sourceKind,
         pageCount: document.pageCount,
         locale: {
-          language: 'unknown',
+          // Worked out on this device from the visible words; it labels printed names only.
+          language: detectLocale(document.pages).language,
           decimal: '.',
           dateOrder: 'DMY',
           collectionDate: null,

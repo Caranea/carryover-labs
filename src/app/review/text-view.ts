@@ -96,6 +96,7 @@ type PreviewWord = WorkingWord & { derived?: boolean };
       background: rgba(0, 0, 0, 0.05);
     }
     .bar {
+      forced-color-adjust: none;
       display: inline-block;
       height: 1.05em;
       background: #000;

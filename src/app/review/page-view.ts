@@ -35,7 +35,7 @@ export type EditMode = 'words' | 'draw';
         @if (page().imageUrl) {
           <img
             [src]="page().imageUrl"
-            alt="Document page with hidden details covered in black."
+            alt="Document page with hidden details covered in black. To hide words with a keyboard or screen reader, turn on Pages as text."
             draggable="false"
           />
         }
@@ -228,6 +228,8 @@ export type EditMode = 'words' | 'draw';
     .redacted,
     .region {
       fill: #000;
+      /* High-contrast modes must not repaint the black bars. */
+      forced-color-adjust: none;
       cursor: pointer;
     }
     svg:not(.drawing) .redacted:not(.locked):hover,
@@ -321,7 +323,7 @@ export class PageView {
   protected hiddenTip(w: WorkingWord): string {
     return w.hidden
       ? describeWord(w, true)
-      : 'Covered by a nearby hidden detail. Click to undo the original removal.';
+      : 'Hidden together with a nearby detail. Click to show it again.';
   }
 
   protected regionTip(index: number): string {

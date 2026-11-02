@@ -37,19 +37,29 @@ import {
       display: inline-block;
       vertical-align: 0.1em;
     }
+    /* A 24 px target (WCAG 2.5.8) around a small drawn circle. */
     .i {
+      position: relative;
       display: inline-grid;
       place-items: center;
-      width: 1.05rem;
-      height: 1.05rem;
-      border: 1px solid currentColor;
-      border-radius: 999px;
+      width: 1.5rem;
+      height: 1.5rem;
+      margin: -0.2rem 0;
+      border: 0;
+      background: none;
       color: var(--ink-soft, #4a5866);
       font:
-        italic 600 0.68rem/1 Georgia,
+        italic 600 0.75rem/1 Georgia,
         'Times New Roman',
         serif;
       cursor: help;
+    }
+    .i::before {
+      content: '';
+      position: absolute;
+      inset: 0.22rem;
+      border: 1px solid currentColor;
+      border-radius: 999px;
     }
     .i:hover,
     .i:focus-visible {

@@ -22,7 +22,7 @@
   padding: 0.6rem 0.75rem 0.7rem 0;
 }
 .report-head dt {
-  font-size: 0.8rem;
+  font-size: 0.8125rem;
   color: var(--ink-soft);
 }
 .report-head dd {
@@ -41,7 +41,8 @@
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.3rem 0.8rem;
+  min-height: 2.5rem;
+  padding: 0.3rem 0.9rem;
   border: 1px solid var(--color-base-300);
   border-radius: 999px;
   color: var(--ink);
@@ -59,7 +60,7 @@
   border-radius: 999px;
   background: var(--out);
   color: #fff;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -100,14 +101,14 @@
   border-radius: 999px;
   background: var(--out);
   color: #fff;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 700;
 }
 .legend {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem 1.5rem;
-  font-size: 0.8rem;
+  font-size: 0.875rem;
   color: var(--ink-soft);
 }
 .legend .key {
@@ -198,7 +199,8 @@
   align-self: center;
 }
 .pager button {
-  padding: 0.2rem 0.75rem;
+  min-height: 2.5rem;
+  padding: 0.2rem 0.9rem;
   border: 1px solid var(--color-base-300);
   border-radius: 999px;
   font-size: 0.85rem;
@@ -210,7 +212,7 @@
   color: var(--color-primary);
 }
 .pager button:disabled {
-  opacity: 0.4;
+  opacity: 0.55;
   cursor: default;
 }
 .panel .note {
@@ -248,7 +250,7 @@
   background: var(--band);
   color: var(--ink-soft);
   font-weight: 500;
-  font-size: 0.8rem;
+  font-size: 0.8125rem;
   text-align: left;
   padding: 0.35rem 0.6rem;
   line-height: 1.25;
@@ -257,7 +259,7 @@
 }
 .sheet thead th small {
   display: block;
-  font-size: 0.72rem;
+  font-size: 0.8125rem;
   font-weight: 400;
 }
 /* Year headings over their dates; a heavier rule where each year begins. */
@@ -288,7 +290,7 @@
   margin: 0 auto;
   writing-mode: vertical-rl;
   transform: rotate(180deg);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   letter-spacing: 0.03em;
   white-space: nowrap;
   padding: 0.4rem 0;
@@ -347,20 +349,40 @@
 }
 .sheet .test small {
   display: block;
-  max-width: 12.5rem;
+  max-width: 100%;
   font-weight: 400;
-  font-size: 0.78rem;
+  font-size: 0.8125rem;
   color: var(--ink-soft);
+  white-space: normal;
+}
+/* Every name a test was printed under, each with the language of its report. */
+.printed-as {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.5rem;
+}
+.printed-as > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.printed-as abbr {
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  margin-left: 0.25rem;
+  padding: 0 0.3rem;
+  border-radius: 0.25rem;
+  background: var(--color-base-200);
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-decoration: none;
 }
 .sheet tbody tr:not(.detail):hover > :not(.gap) {
   background: var(--hover);
 }
 .sheet td.ref small {
   display: block;
-  font-size: 0.78rem;
+  font-size: 0.8125rem;
 }
 .sheet .unit,
 .sheet .ref,
@@ -434,7 +456,7 @@
   text-underline-offset: 4px;
 }
 .value .flag {
-  font-size: 0.72rem;
+  font-size: 0.8125rem;
   padding-left: 0.25rem;
   text-align: left;
 }
@@ -505,7 +527,7 @@
 }
 .card-head .who small {
   display: block;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--ink-soft);
   overflow-wrap: anywhere;
 }
@@ -523,7 +545,7 @@
   color: var(--out);
 }
 .latest small {
-  font-size: 0.78rem;
+  font-size: 0.8125rem;
   color: var(--ink-soft);
 }
 .latest .when {
@@ -537,7 +559,7 @@ app-spark.wide {
 .cards .axis {
   display: flex;
   justify-content: space-between;
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   color: var(--ink-soft);
 }
 .cards .foot {
@@ -548,7 +570,7 @@ app-spark.wide {
   margin-top: 0.45rem;
   padding-top: 0.45rem;
   border-top: 1px dashed var(--color-base-300);
-  font-size: 0.8rem;
+  font-size: 0.8125rem;
   color: var(--ink-soft);
 }
 .cards .foot:has(> span:empty:only-child) {
@@ -576,7 +598,7 @@ app-spark.wide {
   font-weight: 500;
 }
 .history small {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--ink-soft);
 }
 .history .v {

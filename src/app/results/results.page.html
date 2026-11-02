@@ -199,6 +199,10 @@
           >
           <span class="key"><i class="k-gap" aria-hidden="true"></i>Years with no tests</span>
         </p>
+        <p class="legend">
+          Flags and ranges are copied from your reports. Carryover doesn’t interpret them; ask your
+          doctor what they mean for you.
+        </p>
       }
     </div>
 
@@ -303,8 +307,23 @@
               >
                 <span class="who">
                   <strong>{{ row.label }}</strong>
-                  @if (row.printedAs && row.printedAs !== row.label) {
-                    <small>{{ row.printedAs }}</small>
+                  @if (row.printedAs.length) {
+                    <small class="printed-as"
+                      ><span class="sr-only">Printed as:</span>
+                      @for (n of row.printedAs; track n.name; let last = $last) {
+                        <span [attr.lang]="n.lang"
+                          >{{ n.name }}
+                          @if (n.lang) {
+                            <abbr lang="en" [title]="languageName[n.lang]">{{
+                              n.lang.toUpperCase()
+                            }}</abbr>
+                          }
+                          @if (!last) {
+                            <span class="sr-only">,</span>
+                          }
+                        </span>
+                      }
+                    </small>
                   }
                 </span>
                 @if (row.latestDate !== null) {
@@ -631,8 +650,21 @@
     } @else {
       <span>{{ row.label }}</span>
     }
-    @if (row.printedAs && row.printedAs !== row.label) {
-      <small [attr.title]="row.printedAs">{{ row.printedAs }}</small>
+    @if (row.printedAs.length) {
+      <small class="printed-as"
+        ><span class="sr-only">Printed as:</span>
+        @for (n of row.printedAs; track n.name; let last = $last) {
+          <span [attr.lang]="n.lang"
+            >{{ n.name }}
+            @if (n.lang) {
+              <abbr lang="en" [title]="languageName[n.lang]">{{ n.lang.toUpperCase() }}</abbr>
+            }
+            @if (!last) {
+              <span class="sr-only">,</span>
+            }
+          </span>
+        }
+      </small>
     }
   </th>
   @if (trend) {

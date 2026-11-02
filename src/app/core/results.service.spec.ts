@@ -59,7 +59,7 @@ class FakeJobServer {
       this.normalization =
         outcome === 'done'
           ? { state: 'done', result: recordsFixture() }
-          : { state: 'failed', error: 'Results normalization did not finish. Please try again.' };
+          : { state: 'failed', error: "We couldn't finish matching your tests. Tap Try again." };
     }
     this.changed();
   }
@@ -97,7 +97,7 @@ class FakeJobServer {
         ? { state: 'running' }
         : this.normalizeOutcome === 'done'
           ? { state: 'done', result: recordsFixture((body['documents'] as unknown[]).length) }
-          : { state: 'failed', error: 'Results normalization did not finish. Please try again.' };
+          : { state: 'failed', error: "We couldn't finish matching your tests. Tap Try again." };
     this.changed();
     return json({ state: this.normalization.state }, 202);
   }
@@ -124,7 +124,7 @@ class FakeJobServer {
     page.state = outcome;
     const { image: _image, ...source } = page.body;
     if (outcome === 'done') page.result = processedFixture(source as never);
-    else page.error = 'This page could not finish transcription. Please try again.';
+    else page.error = "Meta's AI couldn't read this page. Tap Try again.";
   }
 
   private changed() {
@@ -224,7 +224,7 @@ describe('page transcription as jobs', () => {
   it('keeps failed pages for an explicit retry, which sends only those pages', async () => {
     await create(3);
     server.pageOutcome = (body) => (body['page'] === 1 ? 'failed' : 'done');
-    await expect(newService().records()).rejects.toThrow('could not finish transcription');
+    await expect(newService().records()).rejects.toThrow("couldn't read this page");
     expect(history.recordSnapshot().sources.map((s) => s.page)).toEqual([1]);
     expect(server.normalizations).toHaveLength(0);
     server.pageOutcome = () => 'done';
@@ -383,7 +383,7 @@ describe('page transcription as jobs', () => {
     await create();
     server.normalizeOutcome = 'failed';
     const api = newService();
-    await expect(api.records()).rejects.toThrow('normalization did not finish');
+    await expect(api.records()).rejects.toThrow("couldn't finish matching");
     server.normalizeOutcome = 'done';
     server.submitted = [];
     await api.retryRecords();
@@ -395,7 +395,7 @@ describe('page transcription as jobs', () => {
     const saved = await create();
     server.normalizeOutcome = 'hold';
     const pending = newService().records();
-    const rejected = expect(pending).rejects.toThrow('batch changed');
+    const rejected = expect(pending).rejects.toThrow('You changed your documents');
     await settled(() => expect(server.normalizations).toHaveLength(1));
     await history.delete(saved.id);
     server.release();

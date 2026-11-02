@@ -43,6 +43,8 @@ export class ReviewPage {
   protected readonly mode = signal<EditMode>('words');
   protected readonly reveal = signal(false);
   protected readonly turning = signal(false);
+  /** Every page as lines of word buttons: hiding by keyboard or screen reader, or at large zoom. */
+  protected readonly asText = signal(false);
 
   protected readonly doc = computed(() => this.queue.byId(this.localId()));
   protected readonly busy = computed(() => {

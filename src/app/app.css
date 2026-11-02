@@ -225,6 +225,11 @@
 :host:has(main app-step-rail) .app-footer {
   padding-bottom: calc(4rem + env(safe-area-inset-bottom));
 }
+@media (max-height: 34rem) {
+  :host:has(main app-step-rail) .app-footer {
+    padding-bottom: 0;
+  }
+}
 
 .footer-inner {
   width: 100%;

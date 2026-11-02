@@ -67,6 +67,17 @@ export class DetectorStatus {
         return doc.message || 'Preparing document';
     }
   });
+  /**
+   * What a screen reader hears about the current step: it changes with the step, and during the
+   * download every tenth, so it is never read out several times a second.
+   */
+  protected readonly announcement = computed(() => {
+    const doc = this.active();
+    if (!doc) return '';
+    if (doc.status === 'detecting' && this.ner.phase() === 'downloading')
+      return `Downloading the privacy checker, ${Math.floor(this.ner.progress() * 10) * 10}% done.`;
+    return this.stageTitle();
+  });
   protected readonly estimate = computed(() => {
     if (this.active()?.status !== 'detecting') return '';
     const phase = this.ner.phase();

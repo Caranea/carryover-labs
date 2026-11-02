@@ -6,9 +6,9 @@ import { Icon } from '../ui/icon';
   selector: 'app-toasts',
   imports: [Icon],
   template: `
-    <div class="toast toast-start toast-bottom z-50" aria-live="polite">
+    <div class="toast toast-start toast-bottom z-50" role="status">
       @for (t of toasts.toasts(); track t.id) {
-        <div role="alert" class="alert alert-success shadow-lg max-w-sm items-start">
+        <div class="alert alert-success shadow-lg max-w-sm items-start">
           <app-icon name="check-circle" size="1.4rem" />
           <div>
             <p class="font-semibold">{{ t.title }}</p>

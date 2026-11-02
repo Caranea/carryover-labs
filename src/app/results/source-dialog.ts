@@ -15,6 +15,8 @@ export interface SourceTarget {
   title: string;
   detail: string;
   observation?: Observation;
+  /** The report's language, so its text is read with the right pronunciation. */
+  lang?: string | null;
   /** Present only for the explicitly labelled, fabricated guest sample. */
   demoText?: string;
   /** The fabricated guest sample's page image. */
@@ -160,6 +162,7 @@ export function sourceText(words: StoredWord[]): string {
                 <pre
                   class="whitespace-pre-wrap break-words text-sm max-h-80 overflow-auto"
                   tabindex="0"
+                  [attr.lang]="s.target.lang ?? null"
                   >{{ s.text }}</pre>
               </details>
             } @else if (!s.loading && !s.error && !s.url) {

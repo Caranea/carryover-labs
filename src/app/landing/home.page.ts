@@ -39,9 +39,14 @@ export class HomePage {
         'No. Carryover organizes your records so you can review them with your doctor. It does not interpret results or give medical advice.',
     },
     {
+      question: 'Which languages does it read?',
+      answer:
+        'Lab reports in Polish, German and English, from any lab, and it lines up the same test across languages. The app itself is in English for now.',
+    },
+    {
       question: 'What if a personal detail is missed?',
       answer:
-        'Check every page before saving. You can hide words or draw a box over a stamp or signature, and reopen a saved document to hide more.',
+        'Check every page before approving it. You can hide words, draw a box over a stamp or signature, turn a sideways page upright, and reopen a saved document to hide more.',
     },
   ];
 }

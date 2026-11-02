@@ -41,6 +41,8 @@ import {
   TrendPoint,
 } from './table-layout';
 
+const LANGUAGE_NAME: Record<string, string> = { pl: 'Polish', de: 'German', en: 'English' };
+
 const REASON: Record<WarningReason, string> = {
   unrecognised: 'Not recognised',
   'not-a-test': 'Not a test',
@@ -63,6 +65,11 @@ interface Cell {
   source: string;
   open: () => void;
 }
+/** A name as printed on a report: "Płytki krwi" (pl). */
+export interface PrintedName {
+  name: string;
+  lang: 'pl' | 'de' | 'en' | null;
+}
 /** One test: a row of the panel's table, newest date first. */
 export interface PanelRow {
   key: string;
@@ -70,7 +77,8 @@ export interface PanelRow {
   unit: string;
   /** The latest report's printed range, with one decimal point and a range dash. */
   reference: string;
-  printedAs: string;
+  /** Every name the test was printed under, with its report's language when known. */
+  printedAs: PrintedName[];
   /** Values by date (YYYY-MM-DD; '' for a written result with no date). */
   cells: Partial<Record<string, Cell[]>>;
   /** Dated values (or amounts, for results in words), for the trend line. */
@@ -182,7 +190,9 @@ export class ResultsPage implements OnInit, OnDestroy {
     return DOMAINS.flatMap(({ key, label }) => {
       const list = (rows.get(key) ?? []).filter(
         (r) =>
-          (!q || r.label.toLowerCase().includes(q) || r.printedAs.toLowerCase().includes(q)) &&
+          (!q ||
+            r.label.toLowerCase().includes(q) ||
+            r.printedAs.some((n) => n.name.toLowerCase().includes(q))) &&
           (!flaggedOnly || r.flagged > 0),
       );
       if (!list.length) return [];
@@ -263,7 +273,10 @@ export class ResultsPage implements OnInit, OnDestroy {
       label: series.label,
       unit: formatUnit(series.unit),
       reference: formatReference(latest?.printedReference ?? ''),
-      printedAs: printedNames(series.printedNames),
+      printedAs: this.printedAs(
+        series.label,
+        series.points.map((p) => [p.printedName, p.documentId]),
+      ),
       cells,
       trend: series.points.map((p) => ({
         t: calendarTimestamp(p.date),
@@ -290,6 +303,35 @@ export class ResultsPage implements OnInit, OnDestroy {
     };
   }
 
+  /** Each document's language, as its words show it (the sample's are known). */
+  private readonly languages = computed(
+    () =>
+      new Map(
+        (this.raw()?.documents ?? []).map((d) => [
+          d.id,
+          d.locale.language === 'unknown' ? null : d.locale.language,
+        ]),
+      ),
+  );
+
+  /**
+   * The names a test was printed under, without repeats or lab codes, each with the language of
+   * the report it came from. Nothing when the only name is the label itself.
+   */
+  protected readonly languageName = LANGUAGE_NAME;
+
+  private printedAs(label: string, printed: [name: string, documentId: string][]): PrintedName[] {
+    const seen = new Map<string, PrintedName>();
+    for (const [raw, documentId] of printed) {
+      const name = cleanPrinted(raw);
+      const key = name.toLowerCase();
+      if (name && !seen.has(key))
+        seen.set(key, { name, lang: this.languages().get(documentId) ?? null });
+    }
+    const names = [...seen.values()];
+    return names.length === 1 && names[0].name.toLowerCase() === label.toLowerCase() ? [] : names;
+  }
+
   private wordsRow(list: TextResult[]): PanelRow {
     const cells: PanelRow['cells'] = {};
     for (const t of list)
@@ -308,7 +350,10 @@ export class ResultsPage implements OnInit, OnDestroy {
       label: list[0].label,
       unit: '',
       reference: '',
-      printedAs: printedNames(list.map((t) => t.printedName)),
+      printedAs: this.printedAs(
+        list[0].label,
+        list.map((t) => [t.printedName, t.documentId]),
+      ),
       cells,
       trend: dated.every((t) => t.level !== null)
         ? dated.map((t) => ({ t: calendarTimestamp(t.date!), v: t.level!, flagged: false }))
@@ -489,6 +534,7 @@ export class ResultsPage implements OnInit, OnDestroy {
       bbox: ref.bbox,
       title,
       detail,
+      lang: this.languages().get(ref.documentId) ?? null,
       observation: this.raw()?.observations.find(
         (o) => o.id === ref.observationId && o.documentId === ref.documentId,
       ),
@@ -511,18 +557,6 @@ export class ResultsPage implements OnInit, OnDestroy {
 /** "TSH (ICD-9: L69)" → "TSH": lab codes add nothing to "printed as". */
 function cleanPrinted(name: string): string {
   return name.replace(/\s*\(ICD[^)]*\)?/gi, '').trim();
-}
-
-/** The printed names merged into a test, without repeats or lab codes; the first few. */
-function printedNames(names: string[]): string {
-  const seen = new Map<string, string>();
-  for (const name of names.map(cleanPrinted)) {
-    const key = name.toLowerCase();
-    if (name && !seen.has(key)) seen.set(key, name);
-  }
-  const all = [...seen.values()];
-  const shown = all.slice(0, 4).join(', ');
-  return all.length > 4 ? `${shown} and ${all.length - 4} more` : shown;
 }
 
 /**

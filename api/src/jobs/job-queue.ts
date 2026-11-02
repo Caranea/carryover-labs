@@ -32,8 +32,8 @@ export const DEFAULT_LIMITS: QueueLimits = {
 /** Rejected at submit time, so the client can wait and retry instead of failing mid-run. */
 export class QueueFullError extends Error {}
 
-const FAILED_PAGE = 'This page could not finish transcription. Please try again.';
-const FAILED_BATCH = 'Results normalization did not finish. Please try again.';
+const FAILED_PAGE = "Meta's AI couldn't read this page. Tap Try again.";
+const FAILED_BATCH = "We couldn't finish matching your tests. Tap Try again.";
 
 interface Job<R> {
   batch: Batch<R>;

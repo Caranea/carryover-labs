@@ -12,7 +12,8 @@ export class ToastService {
   readonly toasts = signal<Toast[]>([]);
   private nextId = 0;
 
-  show(title: string, detail?: string, ms = 6000) {
+  /** Shown for 12 s: long enough to read twice at a slow pace. It can also be closed. */
+  show(title: string, detail?: string, ms = 12_000) {
     const id = this.nextId++;
     this.toasts.update((t) => [...t, { id, title, detail }]);
     setTimeout(() => this.dismiss(id), ms);
