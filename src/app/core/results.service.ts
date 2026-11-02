@@ -255,6 +255,7 @@ export class ResultsService {
           page: source.page,
           revision: source.revision,
           image,
+          ...(source.sample ? { sample: source.sample } : {}),
         });
         this.onServer.add(key(source));
       } catch (error) {

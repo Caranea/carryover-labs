@@ -83,6 +83,56 @@ export class ExtractionService {
     }
   }
 
+  /**
+   * A sample patient document: its page images, read and privacy checked like a photo. They
+   * come from this site, so the browser starts from the same pixels the sample was recorded from.
+   */
+  async extractSample(
+    pages: { src: string }[],
+    progress: ExtractionProgress,
+  ): Promise<WorkingPage[]> {
+    const out: WorkingPage[] = [];
+    let nextId = 0;
+    try {
+      for (const [index, { src }] of pages.entries()) {
+        const label = `Privacy checking page ${index + 1} of ${pages.length}`;
+        progress(index / pages.length, label);
+        const response = await fetch(new URL(src, document.baseURI));
+        if (!response.ok) throw new Error('The sample patient could not be loaded. Try again.');
+        const blob = await response.blob();
+        const loaded = await this.io.loadImage(
+          new File([blob], src.split('/').pop()!, { type: blob.type }),
+        );
+        let canvas = loaded;
+        try {
+          const result = await this.ocr.recognizePage(loaded, nextId, (p, msg) =>
+            progress((index + p) / pages.length, msg ?? label),
+          );
+          canvas = result.canvas;
+          nextId += result.words.length;
+          const image = await this.io.canvasToBlob(canvas);
+          out.push({
+            index,
+            width: canvas.width,
+            height: canvas.height,
+            image,
+            imageUrl: URL.createObjectURL(image),
+            words: result.words,
+            regions: [],
+            ocr: true,
+          });
+        } finally {
+          loaded.width = loaded.height = 0;
+          if (canvas !== loaded) canvas.width = canvas.height = 0;
+        }
+      }
+      return out;
+    } catch (error) {
+      for (const page of out) if (page.imageUrl) URL.revokeObjectURL(page.imageUrl);
+      throw error;
+    }
+  }
+
   private async fromPdf(file: File, progress: ExtractionProgress): Promise<WorkingPage[]> {
     const pages: WorkingPage[] = [];
     let nextId = 0;

@@ -1,8 +1,7 @@
 # Template only. Install inside nginx's http {} context after replacing example.invalid
 # and certificate paths. Do not expose port 3000 outside loopback.
 # App environment: HOST=127.0.0.1, TRUST_LOOPBACK_PROXY=true, NODE_ENV=production.
-limit_req_zone $binary_remote_addr zone=carryover_api:10m rate=4r/s;
-limit_conn_zone $binary_remote_addr zone=carryover_connections:10m;
+# No per-visitor rate limits: MODEL_DAILY_BUDGET_USD caps spending for everyone together.
 
 server {
     listen 80;
@@ -27,9 +26,6 @@ server {
     proxy_hide_header Strict-Transport-Security;
 
     location /api/ {
-        limit_req zone=carryover_api burst=30 nodelay;
-        limit_req_status 429;
-        limit_conn carryover_connections 12;
         proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;

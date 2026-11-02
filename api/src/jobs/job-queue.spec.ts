@@ -8,6 +8,7 @@ import {
   type JobRunner,
   type QueueLimits,
 } from './job-queue.js';
+import { PublicError } from './daily-spend.js';
 
 /** A runner whose calls stay pending until the test settles them. */
 function controlledRunner() {
@@ -165,6 +166,44 @@ describe('job queue', () => {
     assert.throws(
       () => queue.submitPage('b2', page(0, 'r1', `data:image/png;base64,${'A'.repeat(200)}`)),
       QueueFullError,
+    );
+  });
+
+  it('answers sample pages at once, past every limit and without taking a model slot', () => {
+    const { runner, calls } = controlledRunner();
+    const queue = queueWith(runner, {
+      concurrency: 1,
+      pagesPerBatch: 1,
+      totalJobs: 1,
+      queuedBytes: 100,
+    });
+    queue.submitPage('b1', page(0));
+    assert.throws(() => queue.submitPage('b1', page(1)), QueueFullError);
+    for (const n of [1, 2])
+      assert.equal(
+        queue.submitPage('b1', { ...page(n), sample: `jane-doe-039:${n}` }).state,
+        'running',
+      );
+    assert.deepEqual(
+      calls.map((c) => c.id),
+      ['doc:0', 'doc:1', 'doc:2'],
+    );
+  });
+
+  it('shows our own failure messages, never provider text', async () => {
+    const { runner, calls } = controlledRunner();
+    const queue = queueWith(runner);
+    queue.submitPage('b1', page(0));
+    queue.submitPage('b1', page(1));
+    calls[0].reject(new PublicError("Reading new documents has reached today's limit."));
+    calls[1].reject(new Error('provider echoed PRIVATE-NAME'));
+    await settle();
+    assert.deepEqual(
+      queue.view('b1').pages.map((p) => p.error),
+      [
+        "Reading new documents has reached today's limit.",
+        "Meta's AI couldn't read this page. Tap Try again.",
+      ],
     );
   });
 

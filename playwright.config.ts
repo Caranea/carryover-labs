@@ -2,8 +2,9 @@ import { defineConfig, devices } from '@playwright/test';
 
 /**
  * End-to-end smoke tests against the production build, served by the API exactly as deployed.
- * Build first: npm run build && npm --prefix api run build. The batch API is stubbed in each
- * test, so no model key is needed and nothing is sent anywhere.
+ * Build first: npm run build && npm --prefix api run build. There is no model key: tests stub
+ * the batch API, or use the sample patient, answered from a test recording (made-up answers in
+ * the recorded format), so nothing is sent anywhere.
  */
 const port = 4300;
 
@@ -32,6 +33,11 @@ export default defineConfig({
     command: 'node api/dist/main.js',
     url: `http://127.0.0.1:${port}/api/health`,
     reuseExistingServer: false,
-    env: { PORT: String(port), HOST: '127.0.0.1', META_MODEL_API_KEY: '' },
+    env: {
+      PORT: String(port),
+      HOST: '127.0.0.1',
+      META_MODEL_API_KEY: '',
+      SAMPLES_FILE: '../e2e/fixtures/recorded-samples.json',
+    },
   },
 });

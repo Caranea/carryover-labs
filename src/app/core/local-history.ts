@@ -19,6 +19,8 @@ interface Entry {
   originalFileName?: string;
   /** Local idempotency key: reconnect an approval if refresh interrupted queue saving. */
   sourceLocalId?: string;
+  /** A sample patient document (DEMO_DOCUMENTS id): its pages are read from recorded answers. */
+  sample?: string;
   observations: Observation[];
   transcriptions?: Record<string, PageTranscription>;
   images: Record<string, string>;
@@ -57,6 +59,7 @@ export class LocalHistory {
             page: page.index,
             pageId: `${entry.document.id}:${page.index}`,
             revision: entry.revision,
+            ...(entry.sample ? { sample: `${entry.sample}:${page.index}` } : {}),
           })),
       ),
       documents: all.map(({ document, observations, transcriptions }) => ({
@@ -199,6 +202,7 @@ export class LocalHistory {
     images: (Blob | null)[],
     originalFileName?: string,
     sourceLocalId?: string,
+    sample?: string,
   ): Promise<SavedDocumentSummary> {
     const existing = sourceLocalId
       ? read().find((entry) => entry.sourceLocalId === sourceLocalId)
@@ -215,6 +219,7 @@ export class LocalHistory {
     const entry = await prepare(document, images);
     if (originalFileName) entry.originalFileName = originalFileName;
     if (sourceLocalId) entry.sourceLocalId = sourceLocalId;
+    if (sample) entry.sample = sample;
     try {
       // Read after binary saving finishes so concurrent saves retain each other's work.
       const current = read();
@@ -250,6 +255,7 @@ export class LocalHistory {
     const replacement = await prepare(document, images);
     replacement.originalFileName = previous.originalFileName;
     replacement.sourceLocalId = previous.sourceLocalId;
+    replacement.sample = previous.sample;
     try {
       const all = read();
       if (find(all, id).revision !== previous.revision)
@@ -436,7 +442,8 @@ function validEntry(value: unknown): value is Entry {
     pagesValid &&
     observationsValid &&
     isStringMap(value['images']) &&
-    (value['imageRefs'] === undefined || isStringMap(value['imageRefs']))
+    (value['imageRefs'] === undefined || isStringMap(value['imageRefs'])) &&
+    (value['sample'] === undefined || typeof value['sample'] === 'string')
   );
 }
 

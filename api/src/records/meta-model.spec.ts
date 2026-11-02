@@ -98,6 +98,40 @@ describe('model answer boundary', () => {
     assert.equal(request?.reasoning_effort, 'low');
   });
 
+  it('reports the token usage of every billed answer, cut-off ones included', async (context) => {
+    const reports: unknown[] = [];
+    const metered = new MetaModelClient(
+      { baseUrl: 'https://example.invalid/v1', apiKey: 'test-only' },
+      1,
+      (_task, usage) => reports.push(usage),
+    );
+    const answers = [
+      { finish_reason: 'stop', content: '{"factor":1}', usage: [100, 20] },
+      { finish_reason: 'length', content: '{"fac', usage: [100, 4096] },
+    ];
+    context.mock.method(globalThis, 'fetch', async () => {
+      const a = answers.shift()!;
+      return Response.json({
+        choices: [{ finish_reason: a.finish_reason, message: { content: a.content } }],
+        usage: { prompt_tokens: a.usage[0], completion_tokens: a.usage[1] },
+      });
+    });
+    await metered.ask(task);
+    await assert.rejects(metered.ask(task), AnswerCutOff);
+    assert.deepEqual(reports, [
+      { input: 100, output: 20 },
+      { input: 100, output: 4096 },
+    ]);
+    // An HTTP error is not billed; a dropped connection may be, so it reports no usage (worst case).
+    context.mock.method(globalThis, 'fetch', async () => new Response('{}', { status: 401 }));
+    await assert.rejects(metered.ask(task));
+    context.mock.method(globalThis, 'fetch', async () => {
+      throw new TypeError('fetch failed');
+    });
+    await assert.rejects(metered.ask(task));
+    assert.deepEqual(reports.slice(2), [undefined]);
+  });
+
   it('writes the request, page image and raw answer only when tracing is on', async (context) => {
     const traceDir = await mkdtemp(join(tmpdir(), 'trace-'));
     context.mock.method(globalThis, 'fetch', async () =>

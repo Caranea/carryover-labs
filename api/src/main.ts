@@ -7,7 +7,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { NextFunction, Request, Response } from 'express';
 import { BatchesModule } from './batches/batches.module.js';
 import { loadConfig } from './config.js';
-import { requestLimits, securityHeaders } from './security/http-security.js';
+import { securityHeaders } from './security/http-security.js';
 
 async function bootstrap() {
   const config = loadConfig();
@@ -22,7 +22,6 @@ async function bootstrap() {
   if (config.trustLoopbackProxy) app.set('trust proxy', 'loopback');
   app.setGlobalPrefix('api');
   app.use(securityHeaders);
-  app.use(requestLimits());
 
   // In production, serve the built Angular app from the same origin.
   if (existsSync(join(config.webRoot, 'index.html'))) {

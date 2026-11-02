@@ -2,7 +2,8 @@
 
 # Builds the Angular app and the API, then runs both from one origin on port 3000:
 #   docker compose up --build          (reads META_MODEL_API_KEY from your shell or .env)
-# Without a key the app still works for /demo and on-device redaction; live reading is off.
+# Without a key, everything but reading your own documents works: on-device redaction, /demo
+# and the sample patient, whose recorded Meta answers (api/samples) are replayed at no cost.
 
 FROM node:24-bookworm-slim AS build
 WORKDIR /app
@@ -28,6 +29,7 @@ COPY --from=build /app/dist/carryover-labs/browser ./dist/carryover-labs/browser
 COPY --from=build /app/api/package.json ./api/package.json
 COPY --from=build /app/api/node_modules ./api/node_modules
 COPY --from=build /app/api/dist ./api/dist
+COPY --from=build /app/api/samples ./api/samples
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \

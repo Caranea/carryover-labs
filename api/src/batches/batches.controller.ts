@@ -14,15 +14,22 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { QueueFullError, type JobQueue } from '../jobs/job-queue.js';
-import type { DailyBudget } from '../jobs/daily-budget.js';
+import type { DailySpend } from '../jobs/daily-spend.js';
 import { MAX_WAIT_SECONDS } from '../shared/jobs.js';
-import type { RecordsResult } from './normalization.js';
+import { unanswered, WONDER_MODEL, type RecordsResult } from './normalization.js';
 import { InvalidRequest, parseRecordsRequest } from './records-request.js';
+import type { SampleAnswers } from './samples.js';
 import { ID, parsePageRequest, SPARK_MODEL } from './source-processing.js';
-import { WONDER_MODEL } from './normalization.js';
 
 export const JOB_QUEUE = Symbol('JOB_QUEUE');
-export const MODEL_BUDGET = Symbol('MODEL_BUDGET');
+export const READING = Symbol('READING');
+
+/** What can be read: new documents (live, paid, capped per day) and the recorded sample patient. */
+export interface Reading {
+  live: boolean;
+  spend: DailySpend;
+  samples: SampleAnswers;
+}
 
 @Controller()
 export class HealthController {
@@ -39,24 +46,27 @@ export class HealthController {
 @Controller()
 export class BatchesController {
   constructor(
-    @Inject(JOB_QUEUE) private readonly queue: JobQueue<RecordsResult> | null,
-    @Inject(MODEL_BUDGET) private readonly budget: DailyBudget | null,
+    @Inject(JOB_QUEUE) private readonly queue: JobQueue<RecordsResult>,
+    @Inject(READING) private readonly reading: Reading,
   ) {}
 
-  /** Whether live reading is switched on, and with which Meta models. */
+  /**
+   * The Meta models, whether new documents can be read (`live`: a key is set), and whether the
+   * sample patient can (its answers are recorded).
+   */
   @Get('config')
   config() {
     return {
-      modelName: this.queue ? 'Meta Model API' : null,
-      models: this.queue ? { transcription: SPARK_MODEL, identification: WONDER_MODEL } : null,
+      models: { transcription: SPARK_MODEL, identification: WONDER_MODEL },
+      live: this.reading.live,
+      samplePatient: this.reading.samples.available,
     };
   }
 
-  /** Queue one approved, redacted page for Muse Spark. */
+  /** Queue one approved, redacted page for Muse Spark, or answer a sample page from its recording. */
   @Post('batches/:batchId/pages')
   @HttpCode(202)
   submitPage(@Param('batchId') batchId: string, @Body() body: unknown) {
-    const queue = this.requireBudget();
     const id = validBatch(batchId);
     let request;
     try {
@@ -66,14 +76,19 @@ export class BatchesController {
         'This page could not be sent. Reopen the document and try again.',
       );
     }
-    return limited(() => queue.submitPage(id, request));
+    // A sample page is never sent to Meta: without a recording it is refused, not read live.
+    if (request.sample) {
+      if (!this.reading.samples.has(request.sample))
+        throw new BadRequestException('This sample page has no recorded answer.');
+    } else this.requireLive();
+    return limited(() => this.queue.submitPage(id, request));
   }
 
   /** Queue Muse Wonder normalization of the complete batch. */
   @Post('batches/:batchId/normalize')
   @HttpCode(202)
   submitNormalization(@Param('batchId') batchId: string, @Body() body: unknown) {
-    const queue = this.requireBudget();
+    const id = validBatch(batchId);
     let documents;
     try {
       documents = parseRecordsRequest(body);
@@ -81,7 +96,9 @@ export class BatchesController {
       if (error instanceof InvalidRequest) throw new BadRequestException(error.message);
       throw error;
     }
-    return limited(() => queue.submitNormalization(validBatch(batchId), documents));
+    // Test names the sample recording covers need no live call, so no key and no budget.
+    if (unanswered(documents, this.reading.samples) > 0) this.requireLive();
+    return limited(() => this.queue.submitNormalization(id, documents));
   }
 
   /** The batch's jobs. With `wait`, answers on the next change or after at most 25 s. */
@@ -92,11 +109,10 @@ export class BatchesController {
     @Query('wait') wait: string | undefined,
     @Req() req: Request,
   ) {
-    const queue = this.requireQueue();
     const seconds = Math.min(Math.max(Number(wait) || 0, 0), MAX_WAIT_SECONDS);
     const closed = new AbortController();
     req.once('close', () => closed.abort());
-    return queue.wait(validBatch(batchId), Number(since) || 0, seconds * 1000, closed.signal);
+    return this.queue.wait(validBatch(batchId), Number(since) || 0, seconds * 1000, closed.signal);
   }
 
   /** Confirm a saved page, or cancel it. */
@@ -107,30 +123,29 @@ export class BatchesController {
     @Param('pageId') pageId: string,
     @Query('revision') revision: string | undefined,
   ) {
-    this.requireQueue().removePage(validBatch(batchId), pageId, revision);
+    this.queue.removePage(validBatch(batchId), pageId, revision);
   }
 
   /** Cancel and forget the whole batch. */
   @Delete('batches/:batchId')
   @HttpCode(204)
   removeBatch(@Param('batchId') batchId: string) {
-    this.requireQueue().removeBatch(validBatch(batchId));
+    this.queue.removeBatch(validBatch(batchId));
   }
 
-  private requireQueue(): JobQueue<RecordsResult> {
-    if (!this.queue) throw new HttpException('Live reading is switched off on this server.', 503);
-    return this.queue;
-  }
-
-  /** New paid work is refused up front once today's model calls are used up. */
-  private requireBudget(): JobQueue<RecordsResult> {
-    const queue = this.requireQueue();
-    if (this.budget?.spent())
+  /** New paid work: refused up front without a key, or once today's spending limit is reached. */
+  private requireLive(): void {
+    if (!this.reading.live)
       throw new HttpException(
-        "Live reading has reached today's limit. Your documents are saved; try again tomorrow.",
+        'Reading new documents is switched off on this server. Try the sample patient.',
         503,
       );
-    return queue;
+    if (this.reading.spend.spent())
+      throw new HttpException(
+        "Reading new documents has reached today's limit. Your documents are saved: try again " +
+          'tomorrow. The sample patient still works.',
+        503,
+      );
   }
 }
 

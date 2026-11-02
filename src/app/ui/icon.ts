@@ -29,6 +29,7 @@ import {
   Redo2,
   Undo2,
   Upload,
+  UserRound,
   X,
 } from 'lucide-static';
 
@@ -62,6 +63,7 @@ const ICONS = {
   undo: Undo2,
   redo: Redo2,
   upload: Upload,
+  user: UserRound,
   x: X,
 } as const;
 

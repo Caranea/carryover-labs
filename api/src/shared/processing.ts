@@ -41,6 +41,8 @@ export interface PageRequest {
   page: number;
   revision: string;
   image: string;
+  /** A sample patient page ("jane-doe-039:0"): answered from its recording, never live. */
+  sample?: string;
 }
 export interface PageTranscription extends Omit<PageRequest, 'image'> {
   version: number;

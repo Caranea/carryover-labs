@@ -182,6 +182,16 @@
             class="sr-only"
           />
         </label>
+        @if (server.config()?.samplePatient) {
+          <button
+            type="button"
+            class="btn btn-outline rounded-full px-6 border-base-300"
+            [disabled]="!queue.recoveryReady()"
+            (click)="openSamples()"
+          >
+            <app-icon name="user" size="1.1rem" /> Try the sample patient
+          </button>
+        }
       </div>
       <ul class="flex flex-wrap justify-center gap-1.5" aria-label="Supported formats">
         @for (f of formats; track f) {
@@ -403,6 +413,66 @@
     }
   </section>
 </div>
+
+<dialog #sampleDialog class="modal" aria-labelledby="sample-h" aria-describedby="sample-d">
+  <div class="modal-box max-w-2xl">
+    <h3 id="sample-h" class="font-display text-xl font-semibold">Try the sample patient</h3>
+    <p id="sample-d" class="mt-2 text-base-content/80 leading-relaxed">
+      Jane Doe is fictional. These are her documents from the demo. They go through the same steps
+      as yours: the privacy check on this device, your approval, then reading. Meta's answers for
+      them are real, recorded once and replayed, so they cost nothing and work even when reading new
+      documents is paused.
+    </p>
+    <fieldset class="mt-4 min-w-0">
+      <legend class="font-semibold mb-2">Documents to add</legend>
+      <ul class="flex flex-col gap-1 max-h-[50vh] overflow-y-auto pr-1">
+        @for (doc of sampleDocuments; track doc.id) {
+          <li>
+            <label class="flex items-center gap-3 rounded-xl p-2 cursor-pointer hover:bg-base-200">
+              <input
+                type="checkbox"
+                class="checkbox checkbox-primary"
+                [attr.autofocus]="$first ? '' : null"
+                [checked]="samplePicks().has(doc.id)"
+                (change)="toggleSample(doc.id, $any($event.target).checked)"
+              />
+              <img
+                [src]="doc.thumb"
+                alt=""
+                width="36"
+                height="50"
+                class="w-9 h-[50px] object-cover rounded border border-base-300 bg-base-100"
+              />
+              <span class="flex flex-col min-w-0">
+                <span class="font-semibold" [attr.lang]="doc.language">{{ doc.title }}</span>
+                <span class="text-sm text-base-content/80">
+                  {{ kindTag[doc.kind] }} · {{ doc.pages.length }}
+                  {{ doc.pages.length === 1 ? 'page' : 'pages' }} ·
+                  {{ doc.date | date: 'd MMM y' }}
+                  @if (doc.note) {
+                    · {{ doc.note }}
+                  }
+                </span>
+              </span>
+            </label>
+          </li>
+        }
+      </ul>
+    </fieldset>
+    <div class="modal-action">
+      <form method="dialog"><button class="btn btn-ghost rounded-full">Cancel</button></form>
+      <button
+        type="button"
+        class="btn btn-primary rounded-full"
+        [disabled]="!samplePicks().size"
+        (click)="addSamples()"
+      >
+        Add {{ samplePicks().size }} {{ samplePicks().size === 1 ? 'document' : 'documents' }}
+      </button>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
 
 <dialog #deleteDialog class="modal" aria-labelledby="del-h">
   <div class="modal-box">

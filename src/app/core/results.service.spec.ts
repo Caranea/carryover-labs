@@ -221,6 +221,23 @@ describe('page transcription as jobs', () => {
     expect(server.fetch.mock.calls.length).toBe(calls);
   });
 
+  it('marks sample patient pages so the server replays their recorded answers', async () => {
+    await history.create(
+      report(2),
+      [0, 1].map(() => new Blob(['approved-pixels'], { type: 'image/png' })),
+      'Jane_Doe_lab_03.pdf',
+      'sample-local',
+      'jane-doe-lab-03',
+    );
+    await create(1);
+    await newService().records();
+    expect(server.submitted.map((p) => p['sample'])).toEqual([
+      undefined,
+      'jane-doe-lab-03:0',
+      'jane-doe-lab-03:1',
+    ]);
+  });
+
   it('keeps failed pages for an explicit retry, which sends only those pages', async () => {
     await create(3);
     server.pageOutcome = (body) => (body['page'] === 1 ? 'failed' : 'done');

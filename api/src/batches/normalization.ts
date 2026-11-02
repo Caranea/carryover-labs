@@ -9,6 +9,7 @@ import {
   type ModelTask,
 } from '../records/meta-model.js';
 import { parseUnit } from '../records/units.js';
+import { PublicError } from '../jobs/daily-spend.js';
 import type { PageDate } from '../shared/processing.js';
 import { dated, dayMonthOrder, withIso } from './dates.js';
 import { fluidOf, namedForm } from './specimens.js';
@@ -42,6 +43,23 @@ interface Identity {
   reason: string;
   words: Word[];
 }
+/** An identity without its per-call ref, as kept for the sample patient. */
+export type RecordedIdentity = Omit<Identity, 'ref'>;
+
+/** Identities known without asking Wonder: the recorded answers for the sample patient. */
+export interface IdentityCache {
+  /** By question key: folded printed name, percentage mark and fluid. */
+  identity(question: string): RecordedIdentity | undefined;
+  /** English for a printed specimen, by its folded text. */
+  specimen(printed: string): string | undefined;
+}
+
+/** Wonder's new answers, by question key and folded specimen (scripts/record-samples.mjs). */
+export interface Learned {
+  identities: Record<string, RecordedIdentity>;
+  specimens: Record<string, string>;
+}
+
 interface Answer {
   tests: Identity[];
   /** English for each printed specimen. */
@@ -157,10 +175,21 @@ export interface SourceDocument extends Omit<BuildDocument, 'mappings'> {
 }
 type Row = SourceDocument['observations'][number];
 
+/** Rows whose test names no recorded answer covers: these need a live, paid Wonder call. */
+export function unanswered(sources: SourceDocument[], cache?: IdentityCache): number {
+  const { questions, keys } = ask(sources.flatMap((doc) => doc.observations));
+  return questions.filter((q) => !cache?.identity(keys.get(q.ref)!)).length;
+}
+
+/**
+ * Identify every printed test name with Muse Wonder, then build the charts. Names the cache
+ * knows are not asked again; with no model, only a batch the cache fully covers can be built.
+ */
 export async function normalizeBatch(
   sources: SourceDocument[],
-  model: JsonModel,
+  model: JsonModel | null,
   signal?: AbortSignal,
+  { cache, learned }: { cache?: IdentityCache; learned?: Learned } = {},
 ) {
   const printed = (doc: SourceDocument) => [
     ...(doc.dates ?? []),
@@ -173,22 +202,45 @@ export async function normalizeBatch(
     return { ...doc, observations: doc.observations.map((o) => dated(o, known, order)) };
   });
   const rows = docs.flatMap((doc) => doc.observations);
-  const { questions, questionOf } = ask(rows);
+  const { questions, questionOf, keys } = ask(rows);
+  const recorded = new Map<string, Identity>();
+  for (const q of questions) {
+    const known = cache?.identity(keys.get(q.ref)!);
+    if (known) recorded.set(q.ref, { ...known, ref: q.ref, newTest: printedUnit(known, q) });
+  }
+  const missing = questions.filter((q) => !recorded.has(q.ref));
+  if (missing.length && !model)
+    throw new PublicError(
+      'Reading new documents is switched off on this server: only the sample patient works here.',
+    );
   const calls = { count: 0 };
   const answers: Answer[] = [];
-  const chunks = chunk(questions, MAX_QUESTIONS);
+  const chunks = chunk(missing, MAX_QUESTIONS);
   for (let i = 0; i < chunks.length; i += PARALLEL_CALLS)
     answers.push(
       ...(await Promise.all(
-        chunks.slice(i, i + PARALLEL_CALLS).map((part) => identify(part, model, calls, signal)),
+        chunks.slice(i, i + PARALLEL_CALLS).map((part) => identify(part, model!, calls, signal)),
       )),
     );
   const identities = new Map(answers.flatMap((a) => a.tests).map((id) => [id.ref, id]));
-  if (identities.size !== questions.length || questions.some((q) => !identities.has(q.ref)))
-    unusable(`${identities.size} answers for ${questions.length} questions`);
-  const english = new Map(
-    answers.flatMap((a) => a.specimens).map((t) => [fold(t.printed), t.english.trim()]),
-  );
+  if (identities.size !== missing.length || missing.some((q) => !identities.has(q.ref)))
+    unusable(`${identities.size} answers for ${missing.length} questions`);
+  for (const [ref, id] of recorded) identities.set(ref, id);
+  const english = new Map<string, string>();
+  for (const q of questions)
+    for (const printed of q.specimens) {
+      const known = cache?.specimen(fold(printed));
+      if (known) english.set(fold(printed), known);
+    }
+  for (const t of answers.flatMap((a) => a.specimens))
+    english.set(fold(t.printed), t.english.trim());
+  if (learned) {
+    for (const q of missing) {
+      const { ref: _ref, ...identity } = identities.get(q.ref)!;
+      learned.identities[keys.get(q.ref)!] = identity;
+    }
+    for (const [printed, text] of english) learned.specimens[printed] = text;
+  }
 
   // Resolve each question once: a catalogue test, a (shared) new test, or a reason.
   const tests = [...CATALOGUE];
@@ -255,8 +307,8 @@ export async function normalizeBatch(
   const unresolved = [...chosen.values()].filter((c) => typeof c === 'string').length;
   // Counts only: they show how the batch size drives the calls, without naming any test.
   log.log(
-    `normalize-batch: ${rows.length} rows, ${questions.length} questions, ${english.size} specimens, ` +
-      `${calls.count} calls, ${unresolved} unresolved`,
+    `normalize-batch: ${rows.length} rows, ${questions.length} questions (${recorded.size} recorded), ` +
+      `${english.size} specimens, ${calls.count} calls, ${unresolved} unresolved`,
   );
   return {
     ...records,
@@ -292,12 +344,14 @@ function ask(rows: Row[]) {
   // Sorted, so a name's percentage and count questions land in the same call.
   const questions = [...byName.entries()].sort(([a], [b]) => a.localeCompare(b));
   const refs = new Map<string, string>();
+  const keys = new Map<string, string>();
   questions.forEach(([id, question], index) => {
     question.ref = `q${index}`;
     refs.set(id, question.ref);
+    keys.set(question.ref, id);
   });
   for (const [row, id] of questionOf) questionOf.set(row, refs.get(id)!);
-  return { questions: questions.map(([, question]) => question), questionOf };
+  return { questions: questions.map(([, question]) => question), questionOf, keys };
 }
 
 /** Ask Wonder; if the answer is cut off, ask again in two halves. */
@@ -325,6 +379,15 @@ async function identify(
       specimens: parts.flatMap((p) => p.specimens),
     };
   }
+}
+
+/**
+ * A recorded new test was named with the units of every sample document; this batch may hold
+ * only some of them. Keep the unit only when this batch printed it (or its only unit instead).
+ */
+function printedUnit({ newTest }: RecordedIdentity, question: Question): Identity['newTest'] {
+  if (!newTest?.unit || question.units.includes(newTest.unit)) return newTest;
+  return { ...newTest, unit: question.units.length === 1 ? question.units[0] : '' };
 }
 
 /**

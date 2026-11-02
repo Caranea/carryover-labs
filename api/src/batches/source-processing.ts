@@ -2,6 +2,7 @@ import sharp from 'sharp';
 import { createHash } from 'node:crypto';
 import { validateAnswer, type JsonModel, type ModelTask } from '../records/meta-model.js';
 import { parseNumber, toIsoDate } from '../shared/tokens.js';
+import { SAMPLE_KEY } from './samples.js';
 import type { Observation } from '../shared/results.js';
 import {
   DATE_KINDS,
@@ -113,7 +114,7 @@ const IMAGE = /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/]+=*$/;
 /** Only the known request fields; anything else (filenames, OCR text) is dropped here. */
 export function parsePageRequest(body: unknown): PageRequest {
   const input = (body ?? {}) as Partial<PageRequest>;
-  const { batchId, documentId, pageId, page, revision, image } = input;
+  const { batchId, documentId, pageId, page, revision, image, sample } = input;
   if (
     typeof batchId !== 'string' ||
     !ID.test(batchId) ||
@@ -128,11 +129,12 @@ export function parsePageRequest(body: unknown): PageRequest {
     !/^[a-zA-Z0-9-]{1,100}$/.test(revision) ||
     typeof image !== 'string' ||
     image.length > 20_000_000 ||
-    !IMAGE.test(image)
+    !IMAGE.test(image) ||
+    (sample !== undefined && (typeof sample !== 'string' || !SAMPLE_KEY.test(sample)))
   ) {
     throw new Error('Invalid approved page');
   }
-  return { batchId, documentId, pageId, page, revision, image };
+  return { batchId, documentId, pageId, page, revision, image, ...(sample ? { sample } : {}) };
 }
 
 /** Only freshly encoded pixels enter inference; original PDFs and metadata cannot pass this boundary. */

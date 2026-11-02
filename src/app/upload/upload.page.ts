@@ -11,6 +11,8 @@ import {
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { DocumentQueueService } from '../core/document-queue.service';
+import { DEMO_DOCUMENTS } from '../core/demo-documents';
+import { ServerConfigService } from '../core/server-config';
 import { progressText } from '../core/results.service';
 import { LocalDocument, PrivacyMode, SavedDocumentSummary, SourceKind } from '../core/models';
 import { DeviceCheckService } from '../pii/device-check.service';
@@ -26,6 +28,9 @@ const KIND_TAG: Record<SourceKind, string> = {
   docx: 'Word',
   text: 'Text',
 };
+/** Three languages, a PDF, a phone photo and a fax: a quick but representative first run. */
+const SAMPLE_PICKS = ['jane-doe-039', 'jane-doe-002', 'jane-doe-lab-10'];
+
 const KIND_ICON: Record<SourceKind, IconName> = {
   pdf: 'file-text',
   image: 'file-image',
@@ -41,6 +46,10 @@ const KIND_ICON: Record<SourceKind, IconName> = {
 export class UploadPage implements OnInit {
   protected readonly queue = inject(DocumentQueueService);
   protected readonly device = inject(DeviceCheckService);
+  protected readonly server = inject(ServerConfigService);
+  protected readonly sampleDocuments = DEMO_DOCUMENTS;
+  protected readonly samplePicks = signal(new Set(SAMPLE_PICKS));
+  private readonly sampleDialog = viewChild<ElementRef<HTMLDialogElement>>('sampleDialog');
 
   protected readonly accept = ACCEPT;
   protected readonly progressText = progressText;
@@ -88,6 +97,25 @@ export class UploadPage implements OnInit {
 
   ngOnInit() {
     void this.queue.refreshSaved();
+    void this.server.load();
+  }
+
+  protected openSamples() {
+    this.sampleDialog()?.nativeElement.showModal();
+  }
+
+  protected toggleSample(id: string, on: boolean) {
+    this.samplePicks.update((picks) => {
+      const next = new Set(picks);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  protected addSamples() {
+    this.queue.addSamples([...this.samplePicks()], this.privacyMode());
+    this.sampleDialog()?.nativeElement.close();
   }
 
   protected onFiles(input: HTMLInputElement) {

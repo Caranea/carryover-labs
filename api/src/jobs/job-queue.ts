@@ -3,6 +3,7 @@ import type { BatchView, JobState, NormalizationView, PageJobView } from '../sha
 
 export type { BatchView, JobState, NormalizationView, PageJobView };
 import type { SourceDocument } from '../batches/normalization.js';
+import { PublicError } from './daily-spend.js';
 
 /** The work the queue runs. Both must stop early when the signal aborts. */
 export interface JobRunner<R> {
@@ -80,20 +81,29 @@ export class JobQueue<R> {
     private readonly now: () => number = Date.now,
   ) {}
 
-  /** Queue a page. Resubmitting the same page and revision returns the existing job. */
+  /**
+   * Queue a page. Resubmitting the same page and revision returns the existing job. A sample
+   * page is answered from its recording at once: it takes no model slot and no queue limit
+   * applies to it, so the sample patient works however busy the server is.
+   */
   submitPage(batchId: string, request: PageRequest): PageJobView {
     const batch = this.batch(batchId, true)!;
     const existing = batch.pages.get(request.pageId);
     if (existing && existing.request.revision === request.revision && existing.state !== 'failed') {
       return pageView(existing);
     }
+    const live = (j: PageJob<R>) => !j.request.sample;
     if (existing) this.cancel(existing);
-    else if (batch.pages.size >= this.limits.pagesPerBatch) {
+    else if (
+      !request.sample &&
+      [...batch.pages.values()].filter(live).length >= this.limits.pagesPerBatch
+    ) {
       throw new QueueFullError(`Send at most ${this.limits.pagesPerBatch} pages at once.`);
     }
     if (
-      this.activeJobs() >= this.limits.totalJobs ||
-      this.waitingBytes() + request.image.length > this.limits.queuedBytes
+      !request.sample &&
+      (this.activeJobs() >= this.limits.totalJobs ||
+        this.waitingBytes() + request.image.length > this.limits.queuedBytes)
     ) {
       throw new QueueFullError('Many pages are waiting. Try again shortly.');
     }
@@ -107,7 +117,8 @@ export class JobQueue<R> {
     };
     batch.pages.set(request.pageId, job);
     this.changed(batch);
-    this.pump();
+    if (request.sample) void this.execute(job, false);
+    else this.pump();
     return pageView(job);
   }
 
@@ -281,24 +292,30 @@ export class JobQueue<R> {
     return null;
   }
 
-  private async execute(job: Job<R>): Promise<void> {
+  /** Run a job. `slot`: it takes one of the model slots (a recorded answer does not). */
+  private async execute(job: Job<R>, slot = true): Promise<void> {
     job.state = 'running';
-    this.running++;
+    if (slot) this.running++;
     this.changed(job.batch);
     try {
       const value = await job.start(job.abort.signal);
       if (job.abort.signal.aborted) return;
       job.finish(value);
       job.state = 'done';
-    } catch {
+    } catch (error) {
       if (job.abort.signal.aborted) return;
       job.state = 'failed';
-      // Never keep provider text: it can echo submitted content.
-      job.error = job.batch.normalization === job ? FAILED_BATCH : FAILED_PAGE;
+      // Never keep provider text: it can echo submitted content. Our own messages are shown.
+      job.error =
+        error instanceof PublicError
+          ? error.message
+          : job.batch.normalization === job
+            ? FAILED_BATCH
+            : FAILED_PAGE;
     } finally {
       // Done, failed or cancelled: the page image is never needed again (a retry sends it anew).
       release(job);
-      this.running--;
+      if (slot) this.running--;
       if (!job.abort.signal.aborted) this.changed(job.batch);
       this.pump();
     }

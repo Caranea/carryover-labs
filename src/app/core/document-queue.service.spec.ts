@@ -40,7 +40,10 @@ function setup(incomplete = false) {
     get: vi.fn(),
     pageImage: vi.fn(),
   };
-  const extraction = { extract: vi.fn(async () => [page()]) };
+  const extraction = {
+    extract: vi.fn(async () => [page()]),
+    extractSample: vi.fn(async () => [page()]),
+  };
   const ner = {
     load: vi.fn(async () => true),
     predict: vi.fn(
@@ -329,6 +332,25 @@ describe('document privacy boundary', () => {
     expect(ner.predict).toHaveBeenCalledOnce();
     expect(queue.byId(id)?.privacyMode).toBe('automatic');
   });
+  it('reads a sample patient document from its pages and saves it marked as a sample', async () => {
+    const { queue, create, extraction } = setup();
+    const [id] = queue.addSamples(['jane-doe-lab-10']);
+    await settled(() => expect(queue.byId(id)?.status).toBe('review'));
+    expect(extraction.extract).not.toHaveBeenCalled();
+    expect(extraction.extractSample).toHaveBeenCalledOnce();
+    const [pages] = extraction.extractSample.mock.calls[0] as unknown as [{ src: string }[]];
+    expect(pages[0].src).toBe('samples/jane-doe/jane-doe-lab-10-p1.webp');
+    expect(queue.byId(id)?.fileName).toBe('Jane_Doe_lab_10.pdf');
+    expect(await queue.approve(id)).toBe(true);
+    expect(create.mock.calls[0]).toEqual([
+      expect.anything(),
+      expect.anything(),
+      'Jane_Doe_lab_10.pdf',
+      id,
+      'jane-doe-lab-10',
+    ]);
+  });
+
   it('keeps the original filename for the local list without putting it in the approved manifest', async () => {
     const { queue, create } = setup();
     const [id] = queue.add([new File(['TSH'], 'Jane_Doe_44051401359.txt', { type: 'text/plain' })]);

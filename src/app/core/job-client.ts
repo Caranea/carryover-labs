@@ -10,6 +10,8 @@ export interface PageSubmission {
   revision: string;
   /** The approved, redacted page image as a data URL. */
   image: string;
+  /** A sample patient page ("jane-doe-039:0"): the server answers it from its recording. */
+  sample?: string;
 }
 
 export type RecordsView = BatchView<RecordsResponse>;

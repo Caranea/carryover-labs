@@ -1,0 +1,6295 @@
+{
+ "recordedAt": "2026-11-02T18:12:55.297Z",
+ "models": {
+  "transcription": "muse-spark-1.3",
+  "identification": "muse-wonder-1.0"
+ },
+ "note": "Real answers from the Meta Model API for the fictional sample patient, recorded by scripts/record-samples.mjs and replayed by the API at no cost.",
+ "pages": {
+  "jane-doe-002:0": {
+   "dates": [
+    {
+     "iso": "2022-03-03",
+     "kind": "registered",
+     "marker": null,
+     "printed": "03.03.2022 07:45"
+    },
+    {
+     "iso": "2022-03-03",
+     "kind": "received",
+     "marker": null,
+     "printed": "03.03.2022 08:29"
+    }
+   ],
+   "rows": [
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Glucose i.P. (SI-Einheit)",
+     "reference": "3,9 - 6,0",
+     "region": null,
+     "section": "Basisdiagnostik / Klinische Chemie",
+     "specimen": null,
+     "unit": "mmol/l",
+     "value": "5.18"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Natrium i.P.",
+     "reference": "136 - 145",
+     "region": null,
+     "section": "Basisdiagnostik / Klinische Chemie",
+     "specimen": null,
+     "unit": "mmol/l",
+     "value": "136"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Chlorid i.P.",
+     "reference": "98 - 107",
+     "region": null,
+     "section": "Basisdiagnostik / Klinische Chemie",
+     "specimen": null,
+     "unit": "mmol/l",
+     "value": "99.7"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Kalium i.P.",
+     "reference": "3,4 - 4,5",
+     "region": null,
+     "section": "Basisdiagnostik / Klinische Chemie",
+     "specimen": null,
+     "unit": "mmol/l",
+     "value": "4.06"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Calcium i.P.",
+     "reference": "2,15 - 2,50",
+     "region": null,
+     "section": "Basisdiagnostik / Klinische Chemie",
+     "specimen": null,
+     "unit": "mmol/l",
+     "value": "2.31"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Phosphat i. P.",
+     "reference": "0,87 - 1,45",
+     "region": null,
+     "section": "Basisdiagnostik / Klinische Chemie",
+     "specimen": null,
+     "unit": "mmol/l",
+     "value": "1.12"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Creatinin i.P.",
+     "reference": "< 81",
+     "region": null,
+     "section": "Basisdiagnostik / Klinische Chemie",
+     "specimen": null,
+     "unit": "µmol/l",
+     "value": "60"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "GFR-Schätzung (CKD-EPI)",
+     "reference": "> 89",
+     "region": null,
+     "section": "Basisdiagnostik / Klinische Chemie",
+     "specimen": null,
+     "unit": "ml/Min.",
+     "value": "122"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "GFR CKD-Stadium",
+     "reference": null,
+     "region": null,
+     "section": "Basisdiagnostik / Klinische Chemie",
+     "specimen": null,
+     "unit": null,
+     "value": "I (1)"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Bilirubin gesamt i. P.",
+     "reference": "< 15",
+     "region": null,
+     "section": "Basisdiagnostik / Klinische Chemie",
+     "specimen": null,
+     "unit": "µmol/l",
+     "value": "6.2"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "ALAT(GPT) i.P.",
+     "reference": "< 36",
+     "region": null,
+     "section": "Basisdiagnostik / Klinische Chemie",
+     "specimen": null,
+     "unit": "U/l",
+     "value": "29.6"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "LDH IFCC i.P.",
+     "reference": "< 215",
+     "region": null,
+     "section": "Basisdiagnostik / Klinische Chemie",
+     "specimen": null,
+     "unit": "U/l",
+     "value": "161"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "AP IFCC i.P.",
+     "reference": "35-104",
+     "region": null,
+     "section": "Basisdiagnostik / Klinische Chemie",
+     "specimen": null,
+     "unit": "U/l",
+     "value": "62"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Gamma-GT i. P.",
+     "reference": "<40",
+     "region": null,
+     "section": "Basisdiagnostik / Klinische Chemie",
+     "specimen": null,
+     "unit": "U/l",
+     "value": "12"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "CRP i. P.",
+     "reference": "< 5,0",
+     "region": null,
+     "section": "Basisdiagnostik / Klinische Chemie",
+     "specimen": null,
+     "unit": "mg/l",
+     "value": "<0,6"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Albumin i.P.",
+     "reference": "35 - 52",
+     "region": null,
+     "section": "Basisdiagnostik / Klinische Chemie",
+     "specimen": null,
+     "unit": "g/l",
+     "value": "47.0"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Quick i.P.",
+     "reference": ">74",
+     "region": null,
+     "section": "Gerinnung",
+     "specimen": null,
+     "unit": "%",
+     "value": "86"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "INR i.P.",
+     "reference": null,
+     "region": null,
+     "section": "Gerinnung",
+     "specimen": null,
+     "unit": "-",
+     "value": "1.05"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "aPTT i.P.",
+     "reference": "24 - 33",
+     "region": null,
+     "section": "Gerinnung",
+     "specimen": null,
+     "unit": "sec",
+     "value": "30.8"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Hb i. VB.",
+     "reference": "12,0 - 15,4",
+     "region": null,
+     "section": "Maschinelles Blutbild",
+     "specimen": null,
+     "unit": "g/dl",
+     "value": "13.0"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Erythrozyten i. VB.",
+     "reference": "3,90 - 5,15",
+     "region": null,
+     "section": "Maschinelles Blutbild",
+     "specimen": null,
+     "unit": "Tpt/l",
+     "value": "4.35"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "PCV (Hämatokrit) i. VB.",
+     "reference": "35,5 - 45,0",
+     "region": null,
+     "section": "Maschinelles Blutbild",
+     "specimen": null,
+     "unit": "%",
+     "value": "37.5"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "MCV i. VB.",
+     "reference": "80 - 99",
+     "region": null,
+     "section": "Maschinelles Blutbild",
+     "specimen": null,
+     "unit": "fl",
+     "value": "86.2"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "MCH i. VB.",
+     "reference": "27,0 - 33,5",
+     "region": null,
+     "section": "Maschinelles Blutbild",
+     "specimen": null,
+     "unit": "pg",
+     "value": "29.9"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "MCHC i. VB.",
+     "reference": "31,5 - 36,0",
+     "region": null,
+     "section": "Maschinelles Blutbild",
+     "specimen": null,
+     "unit": "g/dl",
+     "value": "34.7"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Ery-Verteilungsbreite i.VB.",
+     "reference": "12,4 - 15,1",
+     "region": null,
+     "section": "Maschinelles Blutbild",
+     "specimen": null,
+     "unit": "%",
+     "value": "12.8"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "-",
+     "marker": null,
+     "name": "Thrombozyten i. VB.",
+     "reference": "150 - 370",
+     "region": null,
+     "section": "Maschinelles Blutbild",
+     "specimen": null,
+     "unit": "Gpt/l",
+     "value": "130"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "MPV i.VB.",
+     "reference": "9,6 - 12,0",
+     "region": null,
+     "section": "Maschinelles Blutbild",
+     "specimen": null,
+     "unit": "fl",
+     "value": "10.5"
+    }
+   ],
+   "suggestedName": "Klinische Chemie, Gerinnung und Blutbild"
+  },
+  "jane-doe-039:0": {
+   "dates": [
+    {
+     "iso": "2012-07-24",
+     "kind": "registered",
+     "marker": null,
+     "printed": "24/07/2012"
+    },
+    {
+     "iso": "2012-07-25",
+     "kind": "collected",
+     "marker": null,
+     "printed": "25/07/2012 10:15 hrs"
+    }
+   ],
+   "rows": [
+    {
+     "date": {
+      "iso": "2012-06-08",
+      "kind": "collected",
+      "printed": "08/06/12 15:30"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Haemoglobin",
+     "reference": "(115-165)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "g/L",
+     "value": "120"
+    },
+    {
+     "date": {
+      "iso": "2012-07-11",
+      "kind": "collected",
+      "printed": "11/07/12 10:00"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Haemoglobin",
+     "reference": "(115-165)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "g/L",
+     "value": "122"
+    },
+    {
+     "date": {
+      "iso": "2012-07-12",
+      "kind": "collected",
+      "printed": "12/07/12 11:25"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Haemoglobin",
+     "reference": "(115-165)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "g/L",
+     "value": "121"
+    },
+    {
+     "date": {
+      "iso": "2012-07-25",
+      "kind": "collected",
+      "printed": "25/07/12 10:15"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Haemoglobin",
+     "reference": "(115-165)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "g/L",
+     "value": "122"
+    },
+    {
+     "date": {
+      "iso": "2012-06-08",
+      "kind": "collected",
+      "printed": "08/06/12 15:30"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Haematocrit",
+     "reference": "(0.35-0.47)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": null,
+     "value": "0.37"
+    },
+    {
+     "date": {
+      "iso": "2012-07-11",
+      "kind": "collected",
+      "printed": "11/07/12 10:00"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Haematocrit",
+     "reference": "(0.35-0.47)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": null,
+     "value": "0.36"
+    },
+    {
+     "date": {
+      "iso": "2012-07-12",
+      "kind": "collected",
+      "printed": "12/07/12 11:25"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Haematocrit",
+     "reference": "(0.35-0.47)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": null,
+     "value": "0.35"
+    },
+    {
+     "date": {
+      "iso": "2012-07-25",
+      "kind": "collected",
+      "printed": "25/07/12 10:15"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Haematocrit",
+     "reference": "(0.35-0.47)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": null,
+     "value": "0.36"
+    },
+    {
+     "date": {
+      "iso": "2012-06-08",
+      "kind": "collected",
+      "printed": "08/06/12 15:30"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "RCC",
+     "reference": "(3.9-5.6)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^12/L",
+     "value": "4.7"
+    },
+    {
+     "date": {
+      "iso": "2012-07-11",
+      "kind": "collected",
+      "printed": "11/07/12 10:00"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "RCC",
+     "reference": "(3.9-5.6)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^12/L",
+     "value": "4.5"
+    },
+    {
+     "date": {
+      "iso": "2012-07-12",
+      "kind": "collected",
+      "printed": "12/07/12 11:25"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "RCC",
+     "reference": "(3.9-5.6)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^12/L",
+     "value": "4.2"
+    },
+    {
+     "date": {
+      "iso": "2012-07-25",
+      "kind": "collected",
+      "printed": "25/07/12 10:15"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "RCC",
+     "reference": "(3.9-5.6)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^12/L",
+     "value": "4.2"
+    },
+    {
+     "date": {
+      "iso": "2012-06-08",
+      "kind": "collected",
+      "printed": "08/06/12 15:30"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Reticulocytes",
+     "reference": "(10-100)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^9/L",
+     "value": "75"
+    },
+    {
+     "date": {
+      "iso": "2012-06-08",
+      "kind": "collected",
+      "printed": "08/06/12 15:30"
+     },
+     "doubt": null,
+     "flag": "L",
+     "marker": null,
+     "name": "MCV",
+     "reference": "(80-100)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "fL",
+     "value": "79"
+    },
+    {
+     "date": {
+      "iso": "2012-07-11",
+      "kind": "collected",
+      "printed": "11/07/12 10:00"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "MCV",
+     "reference": "(80-100)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "fL",
+     "value": "80"
+    },
+    {
+     "date": {
+      "iso": "2012-07-12",
+      "kind": "collected",
+      "printed": "12/07/12 11:25"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "MCV",
+     "reference": "(80-100)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "fL",
+     "value": "83"
+    },
+    {
+     "date": {
+      "iso": "2012-07-25",
+      "kind": "collected",
+      "printed": "25/07/12 10:15"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "MCV",
+     "reference": "(80-100)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "fL",
+     "value": "85"
+    },
+    {
+     "date": {
+      "iso": "2012-06-08",
+      "kind": "collected",
+      "printed": "08/06/12 15:30"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "WCC",
+     "reference": "(3.5-12.0)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^9/L",
+     "value": "6.2"
+    },
+    {
+     "date": {
+      "iso": "2012-07-11",
+      "kind": "collected",
+      "printed": "11/07/12 10:00"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "WCC",
+     "reference": "(3.5-12.0)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^9/L",
+     "value": "3.5"
+    },
+    {
+     "date": {
+      "iso": "2012-07-12",
+      "kind": "collected",
+      "printed": "12/07/12 11:25"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "WCC",
+     "reference": "(3.5-12.0)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^9/L",
+     "value": "5.8"
+    },
+    {
+     "date": {
+      "iso": "2012-07-25",
+      "kind": "collected",
+      "printed": "25/07/12 10:15"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "WCC",
+     "reference": "(3.5-12.0)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^9/L",
+     "value": "6.1"
+    },
+    {
+     "date": {
+      "iso": "2012-06-08",
+      "kind": "collected",
+      "printed": "08/06/12 15:30"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Neutrophils",
+     "reference": "(1.5-8.0)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^9/L",
+     "value": "3.62"
+    },
+    {
+     "date": {
+      "iso": "2012-07-11",
+      "kind": "collected",
+      "printed": "11/07/12 10:00"
+     },
+     "doubt": null,
+     "flag": "L",
+     "marker": null,
+     "name": "Neutrophils",
+     "reference": "(1.5-8.0)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^9/L",
+     "value": "1.44"
+    },
+    {
+     "date": {
+      "iso": "2012-07-12",
+      "kind": "collected",
+      "printed": "12/07/12 11:25"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Neutrophils",
+     "reference": "(1.5-8.0)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^9/L",
+     "value": "5.00"
+    },
+    {
+     "date": {
+      "iso": "2012-07-25",
+      "kind": "collected",
+      "printed": "25/07/12 10:15"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Neutrophils",
+     "reference": "(1.5-8.0)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^9/L",
+     "value": "2.20"
+    },
+    {
+     "date": {
+      "iso": "2012-06-08",
+      "kind": "collected",
+      "printed": "08/06/12 15:30"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Lymphocytes",
+     "reference": "(1.0-4.0)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^9/L",
+     "value": "2.05"
+    },
+    {
+     "date": {
+      "iso": "2012-07-11",
+      "kind": "collected",
+      "printed": "11/07/12 10:00"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Lymphocytes",
+     "reference": "(1.0-4.0)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^9/L",
+     "value": "1.56"
+    },
+    {
+     "date": {
+      "iso": "2012-07-12",
+      "kind": "collected",
+      "printed": "12/07/12 11:25"
+     },
+     "doubt": null,
+     "flag": "L",
+     "marker": null,
+     "name": "Lymphocytes",
+     "reference": "(1.0-4.0)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^9/L",
+     "value": "0.20"
+    },
+    {
+     "date": {
+      "iso": "2012-07-25",
+      "kind": "collected",
+      "printed": "25/07/12 10:15"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Lymphocytes",
+     "reference": "(1.0-4.0)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^9/L",
+     "value": "3.20"
+    },
+    {
+     "date": {
+      "iso": "2012-06-08",
+      "kind": "collected",
+      "printed": "08/06/12 15:30"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Monocytes",
+     "reference": "(0-0.9)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^9/L",
+     "value": "0.48"
+    },
+    {
+     "date": {
+      "iso": "2012-07-11",
+      "kind": "collected",
+      "printed": "11/07/12 10:00"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Monocytes",
+     "reference": "(0-0.9)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^9/L",
+     "value": "0.38"
+    },
+    {
+     "date": {
+      "iso": "2012-07-12",
+      "kind": "collected",
+      "printed": "12/07/12 11:25"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Monocytes",
+     "reference": "(0-0.9)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^9/L",
+     "value": "0.60"
+    },
+    {
+     "date": {
+      "iso": "2012-07-25",
+      "kind": "collected",
+      "printed": "25/07/12 10:15"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Monocytes",
+     "reference": "(0-0.9)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^9/L",
+     "value": "0.60"
+    },
+    {
+     "date": {
+      "iso": "2012-06-08",
+      "kind": "collected",
+      "printed": "08/06/12 15:30"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Eosinophils",
+     "reference": "(0-0.6)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^9/L",
+     "value": "0.03"
+    },
+    {
+     "date": {
+      "iso": "2012-07-11",
+      "kind": "collected",
+      "printed": "11/07/12 10:00"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Eosinophils",
+     "reference": "(0-0.6)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^9/L",
+     "value": "0.06"
+    },
+    {
+     "date": {
+      "iso": "2012-07-12",
+      "kind": "collected",
+      "printed": "12/07/12 11:25"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Eosinophils",
+     "reference": "(0-0.6)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^9/L",
+     "value": "0.00"
+    },
+    {
+     "date": {
+      "iso": "2012-07-25",
+      "kind": "collected",
+      "printed": "25/07/12 10:15"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Eosinophils",
+     "reference": "(0-0.6)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^9/L",
+     "value": "0.10"
+    },
+    {
+     "date": {
+      "iso": "2012-06-08",
+      "kind": "collected",
+      "printed": "08/06/12 15:30"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Basophils",
+     "reference": "(0-0.15)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^9/L",
+     "value": "0.03"
+    },
+    {
+     "date": {
+      "iso": "2012-07-11",
+      "kind": "collected",
+      "printed": "11/07/12 10:00"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Basophils",
+     "reference": "(0-0.15)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^9/L",
+     "value": "0.03"
+    },
+    {
+     "date": {
+      "iso": "2012-07-12",
+      "kind": "collected",
+      "printed": "12/07/12 11:25"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Basophils",
+     "reference": "(0-0.15)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^9/L",
+     "value": "0.00"
+    },
+    {
+     "date": {
+      "iso": "2012-07-25",
+      "kind": "collected",
+      "printed": "25/07/12 10:15"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Basophils",
+     "reference": "(0-0.15)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^9/L",
+     "value": "0.00"
+    },
+    {
+     "date": {
+      "iso": "2012-06-08",
+      "kind": "collected",
+      "printed": "08/06/12 15:30"
+     },
+     "doubt": null,
+     "flag": "L",
+     "marker": null,
+     "name": "Platelets",
+     "reference": "(150-400)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^9/L",
+     "value": "26"
+    },
+    {
+     "date": {
+      "iso": "2012-07-11",
+      "kind": "collected",
+      "printed": "11/07/12 10:00"
+     },
+     "doubt": null,
+     "flag": "L",
+     "marker": null,
+     "name": "Platelets",
+     "reference": "(150-400)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^9/L",
+     "value": "19"
+    },
+    {
+     "date": {
+      "iso": "2012-07-12",
+      "kind": "collected",
+      "printed": "12/07/12 11:25"
+     },
+     "doubt": null,
+     "flag": "L",
+     "marker": null,
+     "name": "Platelets",
+     "reference": "(150-400)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^9/L",
+     "value": "6"
+    },
+    {
+     "date": {
+      "iso": "2012-07-25",
+      "kind": "collected",
+      "printed": "25/07/12 10:15"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Platelets",
+     "reference": "(150-400)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "10^9/L",
+     "value": "262"
+    },
+    {
+     "date": {
+      "iso": "2012-06-08",
+      "kind": "collected",
+      "printed": "08/06/12 15:30"
+     },
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "ESR",
+     "reference": "(1-12)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "mm/h",
+     "value": "2"
+    },
+    {
+     "date": {
+      "iso": "2012-07-12",
+      "kind": "collected",
+      "printed": "12/07/12 11:25"
+     },
+     "doubt": null,
+     "flag": "H",
+     "marker": null,
+     "name": "ESR",
+     "reference": "(1-12)",
+     "region": null,
+     "section": "Haematology",
+     "specimen": null,
+     "unit": "mm/h",
+     "value": "16"
+    }
+   ],
+   "suggestedName": "Haematology"
+  },
+  "jane-doe-lab-03:0": {
+   "dates": [
+    {
+     "iso": "2014-02-09",
+     "kind": "registered",
+     "marker": null,
+     "printed": "2014-02-09 19:13:13"
+    },
+    {
+     "iso": "2014-02-09",
+     "kind": "performed",
+     "marker": "1",
+     "printed": "2014-02-09 20:12:49"
+    }
+   ],
+   "rows": [
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Leukocyty",
+     "reference": "4,0 - 10,0",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "5,3"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Erytrocyty",
+     "reference": "4,1 - 5,1",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "mln/µl*",
+     "value": "4,6"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Hemoglobina",
+     "reference": "12,1 - 15,1",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "g/dl*",
+     "value": "12,9"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Hematokryt",
+     "reference": "35 - 44",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "38"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "MCV",
+     "reference": "77 - 94",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "fl*",
+     "value": "83"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "MCH",
+     "reference": "27 - 33",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "pg*",
+     "value": "28"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "MCHC",
+     "reference": "32,4 - 36,8",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "g/dl*",
+     "value": "33,5"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "L",
+     "marker": null,
+     "name": "Płytki krwi",
+     "reference": "180 - 430",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "98"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "H",
+     "marker": null,
+     "name": "RDW-CV",
+     "reference": "11,6 - 14,8",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "%",
+     "value": "16,1"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "H",
+     "marker": null,
+     "name": "PDW",
+     "reference": "9,0 - 17,0",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "fl",
+     "value": "17,3"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "MPV",
+     "reference": "9,0 - 13,0",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "fl",
+     "value": "10,1"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Neutrofile",
+     "reference": "2,50 - 5,40",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "2,79"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Limfocyty",
+     "reference": "1,50 - 3,50",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "1,98"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Monocyty",
+     "reference": "0,20 - 1,30",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "0,36"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Eozynofile",
+     "reference": "0,04 - 0,40",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "0,08"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "L",
+     "marker": null,
+     "name": "Bazofile",
+     "reference": "0,0 - 0,1",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "0,0"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Neutrofile",
+     "reference": "46,0 - 75,0",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "53,1"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Limfocyty",
+     "reference": "20,0 - 45,0",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "37,6"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Monocyty",
+     "reference": "2,0 - 10,0",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "6,9"
+    }
+   ],
+   "suggestedName": "Morfologia krwi"
+  },
+  "jane-doe-lab-03:1": {
+   "dates": [
+    {
+     "iso": "2014-02-09",
+     "kind": "performed",
+     "marker": "1",
+     "printed": "2014-02-09 20:12:49"
+    },
+    {
+     "iso": "2014-02-09",
+     "kind": "performed",
+     "marker": "1",
+     "printed": "2014-02-09 22:11:43"
+    },
+    {
+     "iso": "2014-02-09",
+     "kind": "performed",
+     "marker": "1",
+     "printed": "2014-02-09 19:53:35"
+    },
+    {
+     "iso": "2014-02-09",
+     "kind": "performed",
+     "marker": "1",
+     "printed": "2014-02-09 19:53:36"
+    }
+   ],
+   "rows": [
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "L",
+     "marker": null,
+     "name": "Eozynofile",
+     "reference": "3,0 - 8,0",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55) - kontynuacja z poprzedniej strony",
+     "specimen": null,
+     "unit": "%*",
+     "value": "1,5"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Bazofile",
+     "reference": "0,0 - 1,0",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55) - kontynuacja z poprzedniej strony",
+     "specimen": null,
+     "unit": "%",
+     "value": "0,9"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Atypowe limfocyty#",
+     "reference": "0,00 - 0,20",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55) - kontynuacja z poprzedniej strony",
+     "specimen": null,
+     "unit": null,
+     "value": "0,06"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Atypowe limfocyty%",
+     "reference": "0,00 - 2,00",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55) - kontynuacja z poprzedniej strony",
+     "specimen": null,
+     "unit": "%",
+     "value": "1,20"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Niedojrzałe duże komórki (młode formy)#",
+     "reference": "0,00 - 0,25",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55) - kontynuacja z poprzedniej strony",
+     "specimen": null,
+     "unit": "tyś/ul",
+     "value": "0,03"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Niedojrzałe duże komórki (młode formy)%",
+     "reference": "0,00 - 2,50",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55) - kontynuacja z poprzedniej strony",
+     "specimen": null,
+     "unit": "%",
+     "value": "0,50"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Gran. segmentowane",
+     "reference": "40 - 60",
+     "region": null,
+     "section": "Rozmaz krwi met. Schilinga (ICD-9: C32)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "52"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Gran. kwasochłonne",
+     "reference": "3 - 8",
+     "region": null,
+     "section": "Rozmaz krwi met. Schilinga (ICD-9: C32)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "4"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Limfocyty",
+     "reference": "15 - 45",
+     "region": null,
+     "section": "Rozmaz krwi met. Schilinga (ICD-9: C32)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "38"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Monocyty",
+     "reference": "3 - 8",
+     "region": null,
+     "section": "Rozmaz krwi met. Schilinga (ICD-9: C32)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "6"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Mocznik (ICD-9: N13)",
+     "reference": "16,60 - 48,50",
+     "region": null,
+     "section": null,
+     "specimen": null,
+     "unit": "mg/dl",
+     "value": "20,74"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Kreatynina (ICD-9: M37)",
+     "reference": "0,50 - 0,90",
+     "region": null,
+     "section": null,
+     "specimen": null,
+     "unit": "mg/dl*",
+     "value": "0,68"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "eGFR (ICD-9: M37)",
+     "reference": null,
+     "region": null,
+     "section": null,
+     "specimen": null,
+     "unit": "ml/min/1,73m2",
+     "value": ">90"
+    }
+   ],
+   "suggestedName": "Morfologia krwi, rozmaz, mocznik i kreatynina"
+  },
+  "jane-doe-lab-03:2": {
+   "dates": [
+    {
+     "iso": "2014-02-09",
+     "kind": "performed",
+     "marker": "1",
+     "printed": "2014-02-09 19:53:39"
+    },
+    {
+     "iso": "2014-02-09",
+     "kind": "performed",
+     "marker": "1",
+     "printed": "2014-02-09 19:53:39"
+    },
+    {
+     "iso": "2014-02-09",
+     "kind": "performed",
+     "marker": "1",
+     "printed": "2014-02-09 19:53:36"
+    }
+   ],
+   "rows": [
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "L",
+     "marker": null,
+     "name": "Glukoza (ICD-9: L43)",
+     "reference": "70,00 - 99,00",
+     "region": [
+      0.045,
+      0.252,
+      0.87,
+      0.025
+     ],
+     "section": null,
+     "specimen": null,
+     "unit": "mg/dl",
+     "value": "65,99"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Sód",
+     "reference": "136,0 - 145,0",
+     "region": [
+      0.045,
+      0.31,
+      0.87,
+      0.02
+     ],
+     "section": "Elektrolity (Na, K, Cl) (ICD-9: --)",
+     "specimen": null,
+     "unit": "mmol/l",
+     "value": "137,0"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Potas",
+     "reference": "3,50 - 5,10",
+     "region": [
+      0.045,
+      0.33,
+      0.87,
+      0.02
+     ],
+     "section": "Elektrolity (Na, K, Cl) (ICD-9: --)",
+     "specimen": null,
+     "unit": "mmol/l",
+     "value": "3,53"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "L",
+     "marker": null,
+     "name": "Chlorki",
+     "reference": "98,0 - 107,0",
+     "region": [
+      0.045,
+      0.35,
+      0.87,
+      0.02
+     ],
+     "section": "Elektrolity (Na, K, Cl) (ICD-9: --)",
+     "specimen": null,
+     "unit": "mmol/l",
+     "value": "96,1"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "CRP (ICD-9: I81)",
+     "reference": "0,00 - 5,00",
+     "region": [
+      0.045,
+      0.41,
+      0.87,
+      0.02
+     ],
+     "section": null,
+     "specimen": null,
+     "unit": "mg/l",
+     "value": "0,59"
+    }
+   ],
+   "suggestedName": "Glucose, electrolytes, CRP"
+  },
+  "jane-doe-lab-10:0": {
+   "dates": [
+    {
+     "iso": "2021-01-21",
+     "kind": "registered",
+     "marker": null,
+     "printed": "2021-01-21"
+    },
+    {
+     "iso": "2021-01-21",
+     "kind": "collected",
+     "marker": null,
+     "printed": "2021-01-21 07:50"
+    },
+    {
+     "iso": "2021-01-21",
+     "kind": "received",
+     "marker": "1",
+     "printed": "2021-01-21 13:15"
+    },
+    {
+     "iso": "2021-01-21",
+     "kind": "performed",
+     "marker": "1",
+     "printed": "2021-01-21"
+    },
+    {
+     "iso": "2021-01-21",
+     "kind": "reported",
+     "marker": "1",
+     "printed": "2021-01-21 14:44:30"
+    },
+    {
+     "iso": "2021-01-21",
+     "kind": "received",
+     "marker": "2",
+     "printed": "2021-01-21 13:15"
+    },
+    {
+     "iso": "2021-01-21",
+     "kind": "performed",
+     "marker": "2",
+     "printed": "2021-01-21"
+    },
+    {
+     "iso": "2021-01-21",
+     "kind": "reported",
+     "marker": "2",
+     "printed": "2021-01-21 14:44:30"
+    },
+    {
+     "iso": "2021-01-21",
+     "kind": "received",
+     "marker": "3",
+     "printed": "2021-01-21 13:15"
+    },
+    {
+     "iso": "2021-01-21",
+     "kind": "performed",
+     "marker": "3",
+     "printed": "2021-01-21"
+    },
+    {
+     "iso": "2021-01-21",
+     "kind": "reported",
+     "marker": "3",
+     "printed": "2021-01-21 14:44:30"
+    }
+   ],
+   "rows": [
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "H",
+     "marker": "1",
+     "name": "TSH (ICD-9: L69)",
+     "reference": "0,270 - 4,200",
+     "region": [
+      0.03,
+      0.362,
+      0.9,
+      0.03
+     ],
+     "section": null,
+     "specimen": "SUROWICA",
+     "unit": "µIU/ml*",
+     "value": "4,880"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "2",
+     "name": "FT3 (ICD-9: O55)",
+     "reference": "2,04 - 4,40",
+     "region": [
+      0.03,
+      0.415,
+      0.9,
+      0.03
+     ],
+     "section": null,
+     "specimen": "SUROWICA",
+     "unit": "pg/ml*",
+     "value": "3,71"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "3",
+     "name": "FT4 (ICD-9: O69)",
+     "reference": "0,93 - 1,71",
+     "region": [
+      0.03,
+      0.465,
+      0.9,
+      0.03
+     ],
+     "section": null,
+     "specimen": "SUROWICA",
+     "unit": "ng/dl*",
+     "value": "1,39"
+    }
+   ],
+   "suggestedName": "Thyroid panel - TSH, FT3, FT4"
+  },
+  "jane-doe-lab-12:0": {
+   "dates": [
+    {
+     "iso": "2021-04-22",
+     "kind": "registered",
+     "marker": null,
+     "printed": "2021-04-22"
+    },
+    {
+     "iso": "2021-04-22",
+     "kind": "collected",
+     "marker": null,
+     "printed": "2021-04-22 16:14"
+    }
+   ],
+   "rows": [
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Leukocyty",
+     "reference": "3,98 - 10,04",
+     "region": [
+      0.065,
+      0.385,
+      0.78,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "4,90"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Erytrocyty",
+     "reference": "3,93 - 5,22",
+     "region": [
+      0.065,
+      0.405,
+      0.78,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "mln/µl*",
+     "value": "4,84"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Hemoglobina",
+     "reference": "11,2 - 15,7",
+     "region": [
+      0.065,
+      0.425,
+      0.78,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "g/dl*",
+     "value": "14,8"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Hematokryt",
+     "reference": "34 - 45",
+     "region": [
+      0.065,
+      0.445,
+      0.78,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "42"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "MCV",
+     "reference": "79 - 95",
+     "region": [
+      0.065,
+      0.465,
+      0.78,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "fl*",
+     "value": "88"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "MCH",
+     "reference": "26 - 32",
+     "region": [
+      0.065,
+      0.485,
+      0.78,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "pg*",
+     "value": "31"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "MCHC",
+     "reference": "32,2 - 35,5",
+     "region": [
+      0.065,
+      0.505,
+      0.78,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "g/dl*",
+     "value": "34,8"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Płytki krwi",
+     "reference": "150 - 400",
+     "region": [
+      0.065,
+      0.525,
+      0.78,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "230"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "PDW",
+     "reference": "9,8 - 16,2",
+     "region": [
+      0.065,
+      0.545,
+      0.78,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "fl*",
+     "value": "15,2"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "MPV",
+     "reference": "9,4 - 12,5",
+     "region": [
+      0.065,
+      0.565,
+      0.78,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "fl*",
+     "value": "9,4"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "PCT",
+     "reference": "0,2 - 0,4",
+     "region": [
+      0.065,
+      0.585,
+      0.78,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "%",
+     "value": "0,2"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Neutrofile",
+     "reference": "2,00 - 7,00",
+     "region": [
+      0.065,
+      0.605,
+      0.78,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "2,56"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Limfocyty",
+     "reference": "1,50 - 3,50",
+     "region": [
+      0.065,
+      0.625,
+      0.78,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "1,96"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Monocyty",
+     "reference": "0,20 - 1,00",
+     "region": [
+      0.065,
+      0.645,
+      0.78,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "0,30"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Eozynofile",
+     "reference": "0,02 - 0,50",
+     "region": [
+      0.065,
+      0.665,
+      0.78,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "0,04"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Bazofile",
+     "reference": "0,02 - 0,10",
+     "region": [
+      0.065,
+      0.685,
+      0.78,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "0,03"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Neutrofile",
+     "reference": "40,0 - 80,0",
+     "region": [
+      0.065,
+      0.705,
+      0.78,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "52,2"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "H",
+     "marker": null,
+     "name": "Limfocyty",
+     "reference": "20,0 - 40,0",
+     "region": [
+      0.065,
+      0.725,
+      0.78,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "40,1"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Monocyty",
+     "reference": "2,0 - 10,0",
+     "region": [
+      0.065,
+      0.745,
+      0.78,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "6,1"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "L",
+     "marker": null,
+     "name": "Eozynofile",
+     "reference": "1,0 - 6,0",
+     "region": [
+      0.065,
+      0.765,
+      0.78,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "0,8"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Bazofile",
+     "reference": "0,00 - 2,00",
+     "region": [
+      0.065,
+      0.785,
+      0.78,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "0,60"
+    }
+   ],
+   "suggestedName": "Morfologia krwi"
+  },
+  "jane-doe-lab-12:1": {
+   "dates": [
+    {
+     "iso": "2021-04-22",
+     "kind": "received",
+     "marker": "1",
+     "printed": "2021-04-22 16:20"
+    },
+    {
+     "iso": "2021-04-22",
+     "kind": "performed",
+     "marker": "1",
+     "printed": "2021-04-22"
+    },
+    {
+     "iso": "2021-04-22",
+     "kind": "reported",
+     "marker": "1",
+     "printed": "2021-04-22 16:28:34"
+    },
+    {
+     "iso": "2021-04-22",
+     "kind": "received",
+     "marker": "2",
+     "printed": "2021-04-22 16:34"
+    },
+    {
+     "iso": "2021-04-22",
+     "kind": "performed",
+     "marker": "2",
+     "printed": "2021-04-22"
+    },
+    {
+     "iso": "2021-04-22",
+     "kind": "reported",
+     "marker": "2",
+     "printed": "2021-04-22 16:54:35"
+    },
+    {
+     "iso": "2021-04-22",
+     "kind": "received",
+     "marker": "3",
+     "printed": "2021-04-22 16:34"
+    },
+    {
+     "iso": "2021-04-22",
+     "kind": "performed",
+     "marker": "3",
+     "printed": "2021-04-22"
+    },
+    {
+     "iso": "2021-04-22",
+     "kind": "reported",
+     "marker": "3",
+     "printed": "2021-04-22 18:57:58"
+    },
+    {
+     "iso": "2021-04-22",
+     "kind": "received",
+     "marker": "4",
+     "printed": "2021-04-22 16:34"
+    },
+    {
+     "iso": "2021-04-22",
+     "kind": "performed",
+     "marker": "4",
+     "printed": "2021-04-22"
+    },
+    {
+     "iso": "2021-04-22",
+     "kind": "reported",
+     "marker": "4",
+     "printed": "2021-04-22 18:57:58"
+    },
+    {
+     "iso": "2021-04-22",
+     "kind": "received",
+     "marker": "5",
+     "printed": "2021-04-22 16:34"
+    },
+    {
+     "iso": "2021-04-22",
+     "kind": "performed",
+     "marker": "5",
+     "printed": "2021-04-22"
+    },
+    {
+     "iso": "2021-04-22",
+     "kind": "reported",
+     "marker": "5",
+     "printed": "2021-04-22 18:57:58"
+    }
+   ],
+   "rows": [
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Atypowe limfocyty#",
+     "reference": "0,00 - 0,20",
+     "region": [
+      0.06,
+      0.242,
+      0.8,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55) - kontynuacja z poprzedniej strony",
+     "specimen": "KREW ŻYLNA (EDTA)",
+     "unit": "tyś/µl",
+     "value": "0,06"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Atypowe limfocyty%",
+     "reference": "0,00 - 2,00",
+     "region": [
+      0.06,
+      0.262,
+      0.8,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55) - kontynuacja z poprzedniej strony",
+     "specimen": "KREW ŻYLNA (EDTA)",
+     "unit": "%",
+     "value": "1,30"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Niedojrzałe duże komórki (młode formy)#",
+     "reference": "0,00 - 0,25",
+     "region": [
+      0.06,
+      0.281,
+      0.8,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55) - kontynuacja z poprzedniej strony",
+     "specimen": "KREW ŻYLNA (EDTA)",
+     "unit": "tyś/ul",
+     "value": "0,01"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Niedojrzałe duże komórki (młode formy)%",
+     "reference": "0,00 - 2,50",
+     "region": [
+      0.06,
+      0.3,
+      0.8,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55) - kontynuacja z poprzedniej strony",
+     "specimen": "KREW ŻYLNA (EDTA)",
+     "unit": "%",
+     "value": "0,20"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "2",
+     "name": "CRP (ICD-9: I81)",
+     "reference": "0,00 - 5,00",
+     "region": [
+      0.03,
+      0.324,
+      0.83,
+      0.02
+     ],
+     "section": null,
+     "specimen": "SUROWICA",
+     "unit": "mg/l",
+     "value": "0,30"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "3",
+     "name": "TSH (ICD-9: L69)",
+     "reference": "0,350 - 4,940",
+     "region": [
+      0.03,
+      0.35,
+      0.83,
+      0.02
+     ],
+     "section": null,
+     "specimen": "SUROWICA",
+     "unit": "µIU/ml",
+     "value": "0,574"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "4",
+     "name": "FT3 (ICD-9: O55)",
+     "reference": "1,88 - 3,18",
+     "region": [
+      0.03,
+      0.39,
+      0.83,
+      0.02
+     ],
+     "section": null,
+     "specimen": "SUROWICA",
+     "unit": "pg/ml*",
+     "value": "2,31"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "5",
+     "name": "FT4 (ICD-9: O69)",
+     "reference": "0,70 - 1,48",
+     "region": [
+      0.03,
+      0.43,
+      0.83,
+      0.02
+     ],
+     "section": null,
+     "specimen": "SUROWICA",
+     "unit": "ng/dl",
+     "value": "1,09"
+    }
+   ],
+   "suggestedName": "Morfologia, CRP, TSH, FT3, FT4"
+  },
+  "jane-doe-lab-12:2": {
+   "dates": [],
+   "rows": [],
+   "suggestedName": null
+  },
+  "jane-doe-lab-13:0": {
+   "dates": [
+    {
+     "iso": "2021-11-27",
+     "kind": "registered",
+     "marker": null,
+     "printed": "2021-11-27"
+    },
+    {
+     "iso": "2021-11-27",
+     "kind": "collected",
+     "marker": null,
+     "printed": "2021-11-27 09:54"
+    }
+   ],
+   "rows": [
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "L",
+     "marker": "1",
+     "name": "Leukocyty",
+     "reference": "3,98 - 10,04",
+     "region": [
+      0.06,
+      0.415,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "3,83"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Erytrocyty",
+     "reference": "3,93 - 5,22",
+     "region": [
+      0.06,
+      0.435,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "mln/µl*",
+     "value": "4,63"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Hemoglobina",
+     "reference": "11,2 - 15,7",
+     "region": [
+      0.06,
+      0.455,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "g/dl*",
+     "value": "14,1"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Hematokryt",
+     "reference": "34 - 45",
+     "region": [
+      0.06,
+      0.475,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "43"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "MCV",
+     "reference": "79 - 95",
+     "region": [
+      0.06,
+      0.495,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "fl*",
+     "value": "93"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "MCH",
+     "reference": "26 - 32",
+     "region": [
+      0.06,
+      0.515,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "pg*",
+     "value": "30"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "MCHC",
+     "reference": "32,2 - 35,5",
+     "region": [
+      0.06,
+      0.535,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "g/dl*",
+     "value": "32,7"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Płytki krwi",
+     "reference": "150 - 400",
+     "region": [
+      0.06,
+      0.555,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "155"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "PDW",
+     "reference": "9,8 - 16,2",
+     "region": [
+      0.06,
+      0.575,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "fl*",
+     "value": "14,7"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "L",
+     "marker": "1",
+     "name": "MPV",
+     "reference": "9,4 - 12,5",
+     "region": [
+      0.06,
+      0.595,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "fl*",
+     "value": "9,1"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "L",
+     "marker": "1",
+     "name": "PCT",
+     "reference": "0,2 - 0,4",
+     "region": [
+      0.06,
+      0.615,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "%",
+     "value": "0,1"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "L",
+     "marker": "1",
+     "name": "Neutrofile",
+     "reference": "2,00 - 7,00",
+     "region": [
+      0.06,
+      0.635,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "1,73"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Limfocyty",
+     "reference": "1,50 - 3,50",
+     "region": [
+      0.06,
+      0.655,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "1,69"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Monocyty",
+     "reference": "0,20 - 1,00",
+     "region": [
+      0.06,
+      0.675,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "0,31"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Eozynofile",
+     "reference": "0,02 - 0,50",
+     "region": [
+      0.06,
+      0.695,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "0,07"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Bazofile",
+     "reference": "0,02 - 0,10",
+     "region": [
+      0.06,
+      0.715,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "0,03"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Neutrofile",
+     "reference": "40,0 - 80,0",
+     "region": [
+      0.06,
+      0.735,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "44,9"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "H",
+     "marker": "1",
+     "name": "Limfocyty",
+     "reference": "20,0 - 40,0",
+     "region": [
+      0.06,
+      0.755,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "44,1"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Monocyty",
+     "reference": "2,0 - 10,0",
+     "region": [
+      0.06,
+      0.775,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "8,0"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Eozynofile",
+     "reference": "1,0 - 6,0",
+     "region": [
+      0.06,
+      0.795,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "1,9"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Bazofile",
+     "reference": "0.00 - 2.00",
+     "region": [
+      0.06,
+      0.815,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "0,90"
+    }
+   ],
+   "suggestedName": "Morfologia krwi"
+  },
+  "jane-doe-lab-13:1": {
+   "dates": [
+    {
+     "iso": "2021-11-27",
+     "kind": "received",
+     "marker": "1",
+     "printed": "2021-11-27 09:59"
+    },
+    {
+     "iso": "2021-11-27",
+     "kind": "performed",
+     "marker": "1",
+     "printed": "2021-11-27"
+    },
+    {
+     "iso": "2021-11-27",
+     "kind": "reported",
+     "marker": "1",
+     "printed": "2021-11-27 11:27:50"
+    }
+   ],
+   "rows": [
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Atypowe limfocyty#",
+     "reference": "0,00 - 0,20",
+     "region": [
+      0.03,
+      0.25,
+      0.85,
+      0.02
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": "KREW ŻYLNA (EDTA)",
+     "unit": "tyś/µl",
+     "value": "0,02"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Atypowe limfocyty%",
+     "reference": "0,00 - 2,00",
+     "region": [
+      0.03,
+      0.267,
+      0.85,
+      0.02
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": "KREW ŻYLNA (EDTA)",
+     "unit": "%",
+     "value": "0,60"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Niedojrzałe duże komórki (młode formy)#",
+     "reference": "0,00 - 0,25",
+     "region": [
+      0.03,
+      0.285,
+      0.85,
+      0.02
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": "KREW ŻYLNA (EDTA)",
+     "unit": "tyś/ul",
+     "value": "0,00"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Niedojrzałe duże komórki (młode formy)%",
+     "reference": "0,00 - 2,50",
+     "region": [
+      0.03,
+      0.303,
+      0.85,
+      0.02
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": "KREW ŻYLNA (EDTA)",
+     "unit": "%",
+     "value": "0,20"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "2",
+     "name": "Cholesterol całkowity",
+     "reference": "115,00 - 190,00",
+     "region": [
+      0.03,
+      0.355,
+      0.85,
+      0.02
+     ],
+     "section": "Lipidogram (CHOL, HDL, LDL, TG) (ICD-9: M71)",
+     "specimen": null,
+     "unit": "mg/dl",
+     "value": "186,00"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "L",
+     "marker": "2",
+     "name": "Cholesterol HDL",
+     "reference": "65,00 -",
+     "region": [
+      0.03,
+      0.39,
+      0.85,
+      0.02
+     ],
+     "section": "Lipidogram (CHOL, HDL, LDL, TG) (ICD-9: M71)",
+     "specimen": null,
+     "unit": "mg/dl",
+     "value": "53,00"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "2",
+     "name": "Cholesterol nie-HDL",
+     "reference": "-",
+     "region": [
+      0.03,
+      0.41,
+      0.85,
+      0.02
+     ],
+     "section": "Lipidogram (CHOL, HDL, LDL, TG) (ICD-9: M71)",
+     "specimen": null,
+     "unit": "mg/dl",
+     "value": "133,00"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "2",
+     "name": "Trójglicerydy",
+     "reference": "-",
+     "region": [
+      0.03,
+      0.47,
+      0.85,
+      0.02
+     ],
+     "section": "Lipidogram (CHOL, HDL, LDL, TG) (ICD-9: M71)",
+     "specimen": null,
+     "unit": "mg/dl",
+     "value": "76,00"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "2",
+     "name": "Cholesterol LDL",
+     "reference": "-",
+     "region": [
+      0.03,
+      0.505,
+      0.85,
+      0.02
+     ],
+     "section": "Lipidogram (CHOL, HDL, LDL, TG) (ICD-9: M71)",
+     "specimen": null,
+     "unit": "mg/dl",
+     "value": "127,30"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "3",
+     "name": "TSH (ICD-9: L69)",
+     "reference": "0,350 - 4,940",
+     "region": [
+      0.03,
+      0.58,
+      0.85,
+      0.02
+     ],
+     "section": null,
+     "specimen": null,
+     "unit": "µIU/ml",
+     "value": "1,763"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "H",
+     "marker": "4",
+     "name": "FT3 (ICD-9: O55)",
+     "reference": "1,88 - 3,18",
+     "region": [
+      0.03,
+      0.625,
+      0.85,
+      0.02
+     ],
+     "section": null,
+     "specimen": null,
+     "unit": "pg/ml*",
+     "value": "4,03"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "5",
+     "name": "FT4 (ICD-9: O69)",
+     "reference": "0,70 - 1,48",
+     "region": [
+      0.03,
+      0.67,
+      0.85,
+      0.02
+     ],
+     "section": null,
+     "specimen": null,
+     "unit": "ng/dl",
+     "value": "1,27"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "6",
+     "name": "anty-TPO (ICD-9: O09)",
+     "reference": "0,00 - 5,61",
+     "region": [
+      0.03,
+      0.715,
+      0.85,
+      0.02
+     ],
+     "section": null,
+     "specimen": null,
+     "unit": "IU/ml",
+     "value": "2,35"
+    }
+   ],
+   "suggestedName": "Morfologia, lipidogram i badania tarczycy"
+  },
+  "jane-doe-lab-13:2": {
+   "dates": [
+    {
+     "iso": "2021-11-27",
+     "kind": "received",
+     "marker": "2",
+     "printed": "2021-11-27 10:45"
+    },
+    {
+     "iso": "2021-11-27",
+     "kind": "performed",
+     "marker": "2",
+     "printed": "2021-11-27"
+    },
+    {
+     "iso": "2021-11-27",
+     "kind": "reported",
+     "marker": "2",
+     "printed": "2021-11-27 11:27:50"
+    },
+    {
+     "iso": "2021-11-27",
+     "kind": "received",
+     "marker": "3",
+     "printed": "2021-11-27 10:45"
+    },
+    {
+     "iso": "2021-11-27",
+     "kind": "performed",
+     "marker": "3",
+     "printed": "2021-11-27"
+    },
+    {
+     "iso": "2021-11-27",
+     "kind": "reported",
+     "marker": "3",
+     "printed": "2021-11-27 11:59:03"
+    },
+    {
+     "iso": "2021-11-27",
+     "kind": "received",
+     "marker": "4",
+     "printed": "2021-11-27 10:45"
+    },
+    {
+     "iso": "2021-11-27",
+     "kind": "performed",
+     "marker": "4",
+     "printed": "2021-11-27"
+    },
+    {
+     "iso": "2021-11-27",
+     "kind": "reported",
+     "marker": "4",
+     "printed": "2021-11-27 11:59:03"
+    },
+    {
+     "iso": "2021-11-27",
+     "kind": "received",
+     "marker": "5",
+     "printed": "2021-11-27 10:45"
+    },
+    {
+     "iso": "2021-11-27",
+     "kind": "performed",
+     "marker": "5",
+     "printed": "2021-11-27"
+    },
+    {
+     "iso": "2021-11-27",
+     "kind": "reported",
+     "marker": "5",
+     "printed": "2021-11-27 11:59:03"
+    },
+    {
+     "iso": "2021-11-27",
+     "kind": "received",
+     "marker": "6",
+     "printed": "2021-11-27 10:45"
+    },
+    {
+     "iso": "2021-11-27",
+     "kind": "performed",
+     "marker": "6",
+     "printed": "2021-11-27"
+    },
+    {
+     "iso": "2021-11-27",
+     "kind": "reported",
+     "marker": "6",
+     "printed": "2021-11-27 11:59:03"
+    }
+   ],
+   "rows": [],
+   "suggestedName": null
+  },
+  "jane-doe-lab-19:0": {
+   "dates": [
+    {
+     "iso": "2022-08-03",
+     "kind": "registered",
+     "marker": null,
+     "printed": "2022-08-03"
+    },
+    {
+     "iso": "2022-08-03",
+     "kind": "collected",
+     "marker": null,
+     "printed": "2022-08-03 10:08"
+    }
+   ],
+   "rows": [
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "L",
+     "marker": "1",
+     "name": "Leukocyty",
+     "reference": "4,0 - 10,0",
+     "region": [
+      0.06,
+      0.395,
+      0.82,
+      0.03
+     ],
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "2,8"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Erytrocyty",
+     "reference": "3,9 - 5,1",
+     "region": [
+      0.06,
+      0.42,
+      0.82,
+      0.02
+     ],
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "mln/µl*",
+     "value": "4,5"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Hemoglobina",
+     "reference": "11,2 - 15,7",
+     "region": [
+      0.06,
+      0.44,
+      0.82,
+      0.02
+     ],
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "g/dl*",
+     "value": "13,2"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Hematokryt",
+     "reference": "34 - 45",
+     "region": [
+      0.06,
+      0.46,
+      0.82,
+      0.02
+     ],
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "38"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "MCV",
+     "reference": "79 - 95",
+     "region": [
+      0.06,
+      0.48,
+      0.82,
+      0.02
+     ],
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "fl*",
+     "value": "84"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "MCH",
+     "reference": "26 - 32",
+     "region": [
+      0.06,
+      0.5,
+      0.82,
+      0.02
+     ],
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "pg*",
+     "value": "30"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "MCHC",
+     "reference": "32,2 - 35,5",
+     "region": [
+      0.06,
+      0.52,
+      0.82,
+      0.02
+     ],
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "g/dl*",
+     "value": "35,2"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "L",
+     "marker": "1",
+     "name": "Płytki krwi",
+     "reference": "125 - 396",
+     "region": [
+      0.06,
+      0.54,
+      0.82,
+      0.02
+     ],
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "78"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Limfocyty %",
+     "reference": "21 - 50",
+     "region": [
+      0.06,
+      0.56,
+      0.82,
+      0.02
+     ],
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "40"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Inne(Eo,Bazo,Mono) %",
+     "reference": "0,10 - 24,00",
+     "region": [
+      0.06,
+      0.58,
+      0.82,
+      0.02
+     ],
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "%",
+     "value": "6,80"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Neutrofile %",
+     "reference": "40 - 70",
+     "region": [
+      0.06,
+      0.6,
+      0.82,
+      0.02
+     ],
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "53"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "L",
+     "marker": "1",
+     "name": "Limfocyty #",
+     "reference": "1,3 - 3,4",
+     "region": [
+      0.06,
+      0.62,
+      0.82,
+      0.02
+     ],
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "1,1"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Inne(Eo,Bazo,Mono) #",
+     "reference": "0,00 - 1,80",
+     "region": [
+      0.06,
+      0.64,
+      0.82,
+      0.02
+     ],
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "tys/µl",
+     "value": "0,20"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "L",
+     "marker": "1",
+     "name": "Neutrofile #",
+     "reference": "1,78 - 6,04",
+     "region": [
+      0.06,
+      0.66,
+      0.82,
+      0.035
+     ],
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "1,50"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "RDW-CV",
+     "reference": "12 - 14",
+     "region": [
+      0.06,
+      0.7,
+      0.82,
+      0.02
+     ],
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "14"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "PDW",
+     "reference": "10 - 16",
+     "region": [
+      0.06,
+      0.72,
+      0.82,
+      0.02
+     ],
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "fl*",
+     "value": "12"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "MPV",
+     "reference": "9,40 - 12,50",
+     "region": [
+      0.06,
+      0.74,
+      0.82,
+      0.02
+     ],
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "fl*",
+     "value": "11,90"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "P-LCR",
+     "reference": "19 - 47",
+     "region": [
+      0.06,
+      0.76,
+      0.82,
+      0.02
+     ],
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "%",
+     "value": "37"
+    }
+   ],
+   "suggestedName": "Morfologia krwi"
+  },
+  "jane-doe-lab-19:1": {
+   "dates": [
+    {
+     "iso": "2022-08-03",
+     "kind": "received",
+     "marker": "1",
+     "printed": "2022-08-03 11:52"
+    },
+    {
+     "iso": "2022-08-03",
+     "kind": "performed",
+     "marker": "1",
+     "printed": "2022-08-03"
+    },
+    {
+     "iso": "2022-08-03",
+     "kind": "reported",
+     "marker": "1",
+     "printed": "2022-08-03 17:07:35"
+    },
+    {
+     "iso": "2022-08-03",
+     "kind": "received",
+     "marker": "2",
+     "printed": "2022-08-03 11:52"
+    },
+    {
+     "iso": "2022-08-03",
+     "kind": "performed",
+     "marker": "2",
+     "printed": "2022-08-03"
+    },
+    {
+     "iso": "2022-08-03",
+     "kind": "reported",
+     "marker": "2",
+     "printed": "2022-08-03 17:07:35"
+    }
+   ],
+   "rows": [
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Gran. pałeczkowate",
+     "reference": "1,0 - 5,0",
+     "region": [
+      0.065,
+      0.256,
+      0.8,
+      0.018
+     ],
+     "section": "Weryfikacja – rozmaz krwi (ICD-9: C32)",
+     "specimen": "KREW ŻYLNA (EDTA)",
+     "unit": "%*",
+     "value": "2,0"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Gran. segmentowane",
+     "reference": "40,0 - 70,0",
+     "region": [
+      0.065,
+      0.276,
+      0.8,
+      0.018
+     ],
+     "section": "Weryfikacja – rozmaz krwi (ICD-9: C32)",
+     "specimen": "KREW ŻYLNA (EDTA)",
+     "unit": "%*",
+     "value": "51,0"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "H",
+     "marker": null,
+     "name": "Limfocyty",
+     "reference": "20 - 45",
+     "region": [
+      0.065,
+      0.296,
+      0.8,
+      0.018
+     ],
+     "section": "Weryfikacja – rozmaz krwi (ICD-9: C32)",
+     "specimen": "KREW ŻYLNA (EDTA)",
+     "unit": "%*",
+     "value": "46"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "L",
+     "marker": null,
+     "name": "Monocyty",
+     "reference": "3,0 - 8,0",
+     "region": [
+      0.065,
+      0.316,
+      0.8,
+      0.018
+     ],
+     "section": "Weryfikacja – rozmaz krwi (ICD-9: C32)",
+     "specimen": "KREW ŻYLNA (EDTA)",
+     "unit": "%*",
+     "value": "1,0"
+    }
+   ],
+   "suggestedName": "Weryfikacja – rozmaz krwi"
+  },
+  "jane-doe-lab-23:0": {
+   "dates": [
+    {
+     "iso": "2023-02-20",
+     "kind": "registered",
+     "marker": null,
+     "printed": "2023-02-20"
+    },
+    {
+     "iso": "2023-02-20",
+     "kind": "collected",
+     "marker": null,
+     "printed": "2023-02-20 13:00"
+    }
+   ],
+   "rows": [
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "L",
+     "marker": "1",
+     "name": "Leukocyty",
+     "reference": "4,0 - 10,0",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "3,6"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Erytrocyty",
+     "reference": "3,9 - 5,1",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "mln/µl*",
+     "value": "4,9"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Hemoglobina",
+     "reference": "11,2 - 15,7",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "g/dl*",
+     "value": "14,9"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Hematokryt",
+     "reference": "34 - 45",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "42"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "MCV",
+     "reference": "79 - 95",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "fl*",
+     "value": "86"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "MCH",
+     "reference": "26 - 32",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "pg*",
+     "value": "30"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "MCHC",
+     "reference": "32,2 - 35,5",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "g/dl*",
+     "value": "35,4"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Płytki krwi",
+     "reference": "125 - 396",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "159"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Limfocyty %",
+     "reference": "21 - 50",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "49"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Inne(Eo,Bazo,Mono) %",
+     "reference": "0,10 - 24,00",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "%",
+     "value": "7,60"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Neutrofile %",
+     "reference": "40 - 70",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "43"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Limfocyty #",
+     "reference": "1,3 - 3,4",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "1,8"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Inne(Eo,Bazo,Mono) #",
+     "reference": "0,00 - 1,80",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "tys/µl",
+     "value": "0,20"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "L",
+     "marker": "1",
+     "name": "Neutrofile #",
+     "reference": "1,78 - 6,04",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "1,60"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "RDW-CV",
+     "reference": "12 - 14",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "14"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "PDW",
+     "reference": "10 - 16",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "fl*",
+     "value": "12"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "MPV",
+     "reference": "9,40 - 12,50",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "fl*",
+     "value": "10,40"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "P-LCR",
+     "reference": "19 - 47",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C53)",
+     "specimen": null,
+     "unit": "%",
+     "value": "28"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "2",
+     "name": "TSH (ICD-9: L69)",
+     "reference": "0,35 - 4,94",
+     "region": null,
+     "section": null,
+     "specimen": null,
+     "unit": "µIU/ml*",
+     "value": "0,75"
+    }
+   ],
+   "suggestedName": "Morfologia krwi i TSH"
+  },
+  "jane-doe-lab-23:1": {
+   "dates": [
+    {
+     "iso": "2023-02-20",
+     "kind": "received",
+     "marker": "1",
+     "printed": "2023-02-20 14:19"
+    },
+    {
+     "iso": "2023-02-20",
+     "kind": "performed",
+     "marker": "1",
+     "printed": "2023-02-20"
+    },
+    {
+     "iso": "2023-02-20",
+     "kind": "reported",
+     "marker": "1",
+     "printed": "2023-02-20 15:26:44"
+    },
+    {
+     "iso": "2023-02-20",
+     "kind": "received",
+     "marker": "2",
+     "printed": "2023-02-20 14:48"
+    },
+    {
+     "iso": "2023-02-20",
+     "kind": "performed",
+     "marker": "2",
+     "printed": "2023-02-20"
+    },
+    {
+     "iso": "2023-02-20",
+     "kind": "reported",
+     "marker": "2",
+     "printed": "2023-02-20 19:03:46"
+    },
+    {
+     "iso": "2023-02-20",
+     "kind": "received",
+     "marker": "3",
+     "printed": "2023-02-20 14:48"
+    },
+    {
+     "iso": "2023-02-20",
+     "kind": "performed",
+     "marker": "3",
+     "printed": "2023-02-20"
+    },
+    {
+     "iso": "2023-02-20",
+     "kind": "reported",
+     "marker": "3",
+     "printed": "2023-02-20 19:03:46"
+    },
+    {
+     "iso": "2023-02-20",
+     "kind": "received",
+     "marker": "4",
+     "printed": "2023-02-20 14:48"
+    }
+   ],
+   "rows": [
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "3",
+     "name": "FT3 (ICD-9: O55)",
+     "reference": "1,71 - 3,71",
+     "region": [
+      0.03,
+      0.335,
+      0.85,
+      0.03
+     ],
+     "section": null,
+     "specimen": "SUROWICA",
+     "unit": "pg/ml*",
+     "value": "2,91"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "4",
+     "name": "FT4 (ICD-9: O69)",
+     "reference": "0,70 - 1,48",
+     "region": [
+      0.03,
+      0.485,
+      0.85,
+      0.03
+     ],
+     "section": null,
+     "specimen": "SUROWICA",
+     "unit": "ng/dl*",
+     "value": "1,25"
+    }
+   ],
+   "suggestedName": "FT3, FT4"
+  },
+  "jane-doe-lab-23:2": {
+   "dates": [
+    {
+     "iso": "2023-02-20",
+     "kind": "performed",
+     "marker": null,
+     "printed": "2023-02-20"
+    },
+    {
+     "iso": "2023-02-20",
+     "kind": "reported",
+     "marker": null,
+     "printed": "2023-02-20 19:03:46"
+    }
+   ],
+   "rows": [],
+   "suggestedName": null
+  },
+  "jane-doe-lab-27:0": {
+   "dates": [
+    {
+     "iso": "2023-11-13",
+     "kind": "registered",
+     "marker": null,
+     "printed": "2023-11-13"
+    },
+    {
+     "iso": "2023-11-13",
+     "kind": "collected",
+     "marker": null,
+     "printed": "2023-11-13 13:17"
+    }
+   ],
+   "rows": [
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Leukocyty",
+     "reference": "4,0 - 10,0",
+     "region": [
+      0.06,
+      0.405,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "4,7"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Erytrocyty",
+     "reference": "3,9 - 5,1",
+     "region": [
+      0.06,
+      0.425,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "mln/µl*",
+     "value": "4,8"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Hemoglobina",
+     "reference": "11,2 - 15,7",
+     "region": [
+      0.06,
+      0.445,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "g/dl*",
+     "value": "14,2"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Hematokryt",
+     "reference": "34,1 - 44,9",
+     "region": [
+      0.06,
+      0.465,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "41,5"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "MCV",
+     "reference": "79,4 - 94,8",
+     "region": [
+      0.06,
+      0.485,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "fl*",
+     "value": "87,0"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "MCH",
+     "reference": "25,6 - 32,2",
+     "region": [
+      0.06,
+      0.505,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "pg",
+     "value": "29,8"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "MCHC",
+     "reference": "32,2 - 35,5",
+     "region": [
+      0.06,
+      0.525,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "g/dl*",
+     "value": "34,2"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Płytki krwi",
+     "reference": "125 - 396",
+     "region": [
+      0.06,
+      0.545,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "179"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "RDW-SD",
+     "reference": "36,4 - 46,3",
+     "region": [
+      0.06,
+      0.565,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "fl",
+     "value": "39,6"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "RDW-CV",
+     "reference": "11,7 - 14,4",
+     "region": [
+      0.06,
+      0.585,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "12,5"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "PDW",
+     "reference": "9,0 - 17,0",
+     "region": [
+      0.06,
+      0.605,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "fl",
+     "value": "12,6"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "MPV",
+     "reference": "9,4 - 12,5",
+     "region": [
+      0.06,
+      0.625,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "fl",
+     "value": "10,8"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "P-LCR",
+     "reference": "19,1 - 46,6",
+     "region": [
+      0.06,
+      0.645,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "%",
+     "value": "31,7"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "PCT",
+     "reference": "0,2 - 0,4",
+     "region": [
+      0.06,
+      0.665,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "%",
+     "value": "0,2"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "L",
+     "marker": null,
+     "name": "Neutrofile",
+     "reference": "1,78 - 6,04",
+     "region": [
+      0.06,
+      0.685,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "1,72"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Limfocyty",
+     "reference": "1,30 - 3,40",
+     "region": [
+      0.06,
+      0.705,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "2,48"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Monocyty",
+     "reference": "0,31 - 0,92",
+     "region": [
+      0.06,
+      0.725,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "0,37"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Eozynofile",
+     "reference": "0,03 - 0,39",
+     "region": [
+      0.06,
+      0.745,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "0,07"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Bazofile",
+     "reference": "0,0 - 0,1",
+     "region": [
+      0.06,
+      0.765,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "0,0"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "L",
+     "marker": null,
+     "name": "Neutrofile",
+     "reference": "40,8 - 70,4",
+     "region": [
+      0.06,
+      0.785,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "36,8"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "H",
+     "marker": null,
+     "name": "Limfocyty",
+     "reference": "21,0 - 50,0",
+     "region": [
+      0.06,
+      0.805,
+      0.84,
+      0.018
+     ],
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "53,0"
+    }
+   ],
+   "suggestedName": "Morfologia krwi"
+  },
+  "jane-doe-lab-27:1": {
+   "dates": [],
+   "rows": [
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Monocyty",
+     "reference": "5,1 - 11,2",
+     "region": [
+      0.06,
+      0.245,
+      0.8,
+      0.025
+     ],
+     "section": "Morfologia krwi (ICD-9: C55) - kontynuacja z poprzedniej strony",
+     "specimen": null,
+     "unit": "%*",
+     "value": "7,9"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Eozynofile",
+     "reference": "0,4 - 6,6",
+     "region": [
+      0.06,
+      0.27,
+      0.8,
+      0.025
+     ],
+     "section": "Morfologia krwi (ICD-9: C55) - kontynuacja z poprzedniej strony",
+     "specimen": null,
+     "unit": "%*",
+     "value": "1,5"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Bazofile",
+     "reference": "0,2 - 1,3",
+     "region": [
+      0.06,
+      0.295,
+      0.8,
+      0.025
+     ],
+     "section": "Morfologia krwi (ICD-9: C55) - kontynuacja z poprzedniej strony",
+     "specimen": null,
+     "unit": "%*",
+     "value": "0,6"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Niedojrzałe granulocyty IG %",
+     "reference": "0,00 - 0,40",
+     "region": [
+      0.06,
+      0.32,
+      0.8,
+      0.03
+     ],
+     "section": "Morfologia krwi (ICD-9: C55) - kontynuacja z poprzedniej strony",
+     "specimen": null,
+     "unit": "%",
+     "value": "0,20"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Niedojrzałe granulocyty IG il.",
+     "reference": "0,00 - 0,03",
+     "region": [
+      0.06,
+      0.355,
+      0.8,
+      0.03
+     ],
+     "section": "Morfologia krwi (ICD-9: C55) - kontynuacja z poprzedniej strony",
+     "specimen": null,
+     "unit": "tys/µl",
+     "value": "0,01"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "NRBC%",
+     "reference": "0,00 - 0,01",
+     "region": [
+      0.06,
+      0.39,
+      0.8,
+      0.025
+     ],
+     "section": "Morfologia krwi (ICD-9: C55) - kontynuacja z poprzedniej strony",
+     "specimen": null,
+     "unit": "%*",
+     "value": "0,00"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "NRBC#",
+     "reference": "0,00 - 0,03",
+     "region": [
+      0.06,
+      0.415,
+      0.8,
+      0.025
+     ],
+     "section": "Morfologia krwi (ICD-9: C55) - kontynuacja z poprzedniej strony",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "0,00"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Gran. segmentowane",
+     "reference": "40 - 70",
+     "region": [
+      0.06,
+      0.475,
+      0.8,
+      0.025
+     ],
+     "section": "Rozmaz krwi manualnie (ICD-9: C32)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "40"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "H",
+     "marker": null,
+     "name": "Limfocyty",
+     "reference": "20 - 45",
+     "region": [
+      0.06,
+      0.5,
+      0.85,
+      0.025
+     ],
+     "section": "Rozmaz krwi manualnie (ICD-9: C32)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "57"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Monocyty",
+     "reference": "3,0 - 8,0",
+     "region": [
+      0.06,
+      0.525,
+      0.8,
+      0.025
+     ],
+     "section": "Rozmaz krwi manualnie (ICD-9: C32)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "3,0"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "3",
+     "name": "TSH (ICD-9: L69)",
+     "reference": "0,35 - 4,94",
+     "region": [
+      0.03,
+      0.56,
+      0.85,
+      0.025
+     ],
+     "section": null,
+     "specimen": null,
+     "unit": "µIU/ml*",
+     "value": "1,61"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "4",
+     "name": "FT3 (ICD-9: O55)",
+     "reference": "1,58 - 3,91",
+     "region": [
+      0.03,
+      0.68,
+      0.85,
+      0.025
+     ],
+     "section": null,
+     "specimen": null,
+     "unit": "pg/ml*",
+     "value": "2,67"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "5",
+     "name": "FT4 (ICD-9: O69)",
+     "reference": "0,70 - 1,48",
+     "region": [
+      0.03,
+      0.795,
+      0.85,
+      0.025
+     ],
+     "section": null,
+     "specimen": null,
+     "unit": "ng/dl*",
+     "value": "1,00"
+    }
+   ],
+   "suggestedName": "Blood morphology, manual smear, TSH FT3 FT4"
+  },
+  "jane-doe-lab-27:2": {
+   "dates": [
+    {
+     "iso": "2023-11-13",
+     "kind": "received",
+     "marker": "1",
+     "printed": "2023-11-13 14:06"
+    },
+    {
+     "iso": "2023-11-13",
+     "kind": "performed",
+     "marker": "1",
+     "printed": "2023-11-13"
+    },
+    {
+     "iso": "2023-11-13",
+     "kind": "reported",
+     "marker": "1",
+     "printed": "2023-11-13 15:49:01"
+    },
+    {
+     "iso": "2023-11-13",
+     "kind": "received",
+     "marker": "2",
+     "printed": "2023-11-13 14:06"
+    },
+    {
+     "iso": "2023-11-13",
+     "kind": "performed",
+     "marker": "2",
+     "printed": "2023-11-13"
+    },
+    {
+     "iso": "2023-11-13",
+     "kind": "reported",
+     "marker": "2",
+     "printed": "2023-11-13 16:42:46"
+    },
+    {
+     "iso": "2023-11-13",
+     "kind": "received",
+     "marker": "3",
+     "printed": "2023-11-13 14:05"
+    },
+    {
+     "iso": "2023-11-13",
+     "kind": "performed",
+     "marker": "3",
+     "printed": "2023-11-13"
+    },
+    {
+     "iso": "2023-11-13",
+     "kind": "reported",
+     "marker": "3",
+     "printed": "2023-11-13 15:59:19"
+    },
+    {
+     "iso": "2023-11-13",
+     "kind": "received",
+     "marker": "4",
+     "printed": "2023-11-13 14:05"
+    },
+    {
+     "iso": "2023-11-13",
+     "kind": "performed",
+     "marker": "4",
+     "printed": "2023-11-13"
+    },
+    {
+     "iso": "2023-11-13",
+     "kind": "reported",
+     "marker": "4",
+     "printed": "2023-11-13 15:59:19"
+    },
+    {
+     "iso": "2023-11-13",
+     "kind": "received",
+     "marker": "5",
+     "printed": "2023-11-13 14:05"
+    },
+    {
+     "iso": "2023-11-13",
+     "kind": "performed",
+     "marker": "5",
+     "printed": "2023-11-13"
+    },
+    {
+     "iso": "2023-11-13",
+     "kind": "reported",
+     "marker": "5",
+     "printed": "2023-11-13 15:59:19"
+    }
+   ],
+   "rows": [],
+   "suggestedName": null
+  },
+  "jane-doe-lab-28:0": {
+   "dates": [
+    {
+     "iso": "2024-09-09",
+     "kind": "registered",
+     "marker": null,
+     "printed": "2024-09-09"
+    },
+    {
+     "iso": "2024-09-09",
+     "kind": "collected",
+     "marker": "1",
+     "printed": "2024-09-09 09:23"
+    }
+   ],
+   "rows": [
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Erytrocyty",
+     "reference": "3,9 - 5,1",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "mln/µl*",
+     "value": "4,5"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Hemoglobina",
+     "reference": "11,2 - 15,7",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "g/dl*",
+     "value": "13,7"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Hematokryt",
+     "reference": "34,1 - 44,9",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "39,8"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "MCV",
+     "reference": "79,4 - 94,8",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "fl*",
+     "value": "87,9"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "MCH",
+     "reference": "25,6 - 32,2",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "pg",
+     "value": "30,2"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "MCHC",
+     "reference": "32,2 - 35,5",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "g/dl*",
+     "value": "34,4"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "RDW-SD",
+     "reference": "36,4 - 46,3",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "fl",
+     "value": "39,9"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "RDW-CV",
+     "reference": "11,7 - 14,4",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "12,4"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Płytki krwi",
+     "reference": "125 - 396",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "175"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "PDW",
+     "reference": "9,0 - 17,0",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "fl",
+     "value": "13,9"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "MPV",
+     "reference": "9,4 - 12,5",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "fl",
+     "value": "11,0"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "P-LCR",
+     "reference": "19,1 - 46,6",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "%",
+     "value": "33,7"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "PCT",
+     "reference": "0,2 - 0,4",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "%",
+     "value": "0,2"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "L",
+     "marker": "1",
+     "name": "Leukocyty",
+     "reference": "4,0 - 10,0",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "3,1"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "L",
+     "marker": "1",
+     "name": "Neutrofile",
+     "reference": "1,78 - 6,04",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "1,17"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Limfocyty",
+     "reference": "1,30 - 3,40",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "1,56"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Monocyty",
+     "reference": "0,31 - 0,92",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "0,33"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Eozynofile",
+     "reference": "0,03 - 0,39",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "0,04"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "1",
+     "name": "Bazofile",
+     "reference": "0,01 - 0,09",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "0,03"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "L",
+     "marker": "1",
+     "name": "Neutrofile",
+     "reference": "40,8 - 70,4",
+     "region": null,
+     "section": "Morfologia krwi (ICD-9: C55)",
+     "specimen": null,
+     "unit": "%*",
+     "value": "37,2"
+    }
+   ],
+   "suggestedName": "Morfologia krwi"
+  },
+  "jane-doe-lab-28:1": {
+   "dates": [],
+   "rows": [
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Limfocyty",
+     "reference": "21,0 - 50,0",
+     "region": [
+      0.065,
+      0.255,
+      0.78,
+      0.02
+     ],
+     "section": "Morfologia krwi (ICD-9: C55) - kontynuacja z poprzedniej strony",
+     "specimen": null,
+     "unit": "%*",
+     "value": "49,7"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Monocyty",
+     "reference": "5,1 - 11,2",
+     "region": [
+      0.065,
+      0.277,
+      0.78,
+      0.02
+     ],
+     "section": "Morfologia krwi (ICD-9: C55) - kontynuacja z poprzedniej strony",
+     "specimen": null,
+     "unit": "%*",
+     "value": "10,5"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Eozynofile",
+     "reference": "0,4 - 6,6",
+     "region": [
+      0.065,
+      0.298,
+      0.78,
+      0.02
+     ],
+     "section": "Morfologia krwi (ICD-9: C55) - kontynuacja z poprzedniej strony",
+     "specimen": null,
+     "unit": "%*",
+     "value": "1,3"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Bazofile",
+     "reference": "0,2 - 1,3",
+     "region": [
+      0.065,
+      0.319,
+      0.78,
+      0.02
+     ],
+     "section": "Morfologia krwi (ICD-9: C55) - kontynuacja z poprzedniej strony",
+     "specimen": null,
+     "unit": "%*",
+     "value": "1,0"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Niedojrzałe granulocyty IG %",
+     "reference": "0,00 - 0,40",
+     "region": [
+      0.065,
+      0.34,
+      0.78,
+      0.025
+     ],
+     "section": "Morfologia krwi (ICD-9: C55) - kontynuacja z poprzedniej strony",
+     "specimen": null,
+     "unit": "%",
+     "value": "0,30"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "Niedojrzałe granulocyty IG il.",
+     "reference": "0,00 - 0,03",
+     "region": [
+      0.065,
+      0.38,
+      0.78,
+      0.025
+     ],
+     "section": "Morfologia krwi (ICD-9: C55) - kontynuacja z poprzedniej strony",
+     "specimen": null,
+     "unit": "tys/µl",
+     "value": "0,01"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "NRBC#",
+     "reference": "0,00 - 0,03",
+     "region": [
+      0.065,
+      0.42,
+      0.78,
+      0.02
+     ],
+     "section": "Morfologia krwi (ICD-9: C55) - kontynuacja z poprzedniej strony",
+     "specimen": null,
+     "unit": "tys/µl*",
+     "value": "0,00"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": null,
+     "name": "NRBC%",
+     "reference": "0,00 - 0,01",
+     "region": [
+      0.065,
+      0.441,
+      0.78,
+      0.02
+     ],
+     "section": "Morfologia krwi (ICD-9: C55) - kontynuacja z poprzedniej strony",
+     "specimen": null,
+     "unit": "%*",
+     "value": "0,00"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "2",
+     "name": "TSH (ICD-9: L69)",
+     "reference": "0,35 - 4,94",
+     "region": [
+      0.03,
+      0.475,
+      0.82,
+      0.025
+     ],
+     "section": null,
+     "specimen": null,
+     "unit": "µIU/ml*",
+     "value": "0,76"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "3",
+     "name": "FT3 (ICD-9: O55)",
+     "reference": "1,58 - 3,91",
+     "region": [
+      0.03,
+      0.595,
+      0.82,
+      0.025
+     ],
+     "section": null,
+     "specimen": null,
+     "unit": "pg/ml*",
+     "value": "2,90"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "4",
+     "name": "FT4 (ICD-9: O69)",
+     "reference": "0,70 - 1,48",
+     "region": [
+      0.03,
+      0.735,
+      0.82,
+      0.025
+     ],
+     "section": null,
+     "specimen": null,
+     "unit": "ng/dl*",
+     "value": "0,95"
+    }
+   ],
+   "suggestedName": "Morfologia krwi, TSH, FT3, FT4"
+  },
+  "jane-doe-lab-28:2": {
+   "dates": [
+    {
+     "iso": "2024-09-09",
+     "kind": "received",
+     "marker": "1",
+     "printed": "2024-09-09 11:06"
+    },
+    {
+     "iso": "2024-09-09",
+     "kind": "performed",
+     "marker": "1",
+     "printed": "2024-09-09"
+    },
+    {
+     "iso": "2024-09-09",
+     "kind": "reported",
+     "marker": "1",
+     "printed": "2024-09-09 11:46:16"
+    },
+    {
+     "iso": "2024-09-09",
+     "kind": "received",
+     "marker": "2",
+     "printed": "2024-09-09 11:05"
+    },
+    {
+     "iso": "2024-09-09",
+     "kind": "performed",
+     "marker": "2",
+     "printed": "2024-09-09"
+    },
+    {
+     "iso": "2024-09-09",
+     "kind": "reported",
+     "marker": "2",
+     "printed": "2024-09-09 13:04:26"
+    },
+    {
+     "iso": "2024-09-09",
+     "kind": "received",
+     "marker": "3",
+     "printed": "2024-09-09 11:05"
+    },
+    {
+     "iso": "2024-09-09",
+     "kind": "performed",
+     "marker": "3",
+     "printed": "2024-09-09"
+    },
+    {
+     "iso": "2024-09-09",
+     "kind": "reported",
+     "marker": "3",
+     "printed": "2024-09-09 13:04:26"
+    },
+    {
+     "iso": "2024-09-09",
+     "kind": "received",
+     "marker": "4",
+     "printed": "2024-09-09 11:05"
+    },
+    {
+     "iso": "2024-09-09",
+     "kind": "performed",
+     "marker": "4",
+     "printed": "2024-09-09"
+    },
+    {
+     "iso": "2024-09-09",
+     "kind": "reported",
+     "marker": "4",
+     "printed": "2024-09-09 13:04:26"
+    },
+    {
+     "iso": "2024-09-09",
+     "kind": "received",
+     "marker": "5",
+     "printed": "2024-09-09 11:05"
+    },
+    {
+     "iso": "2024-09-09",
+     "kind": "performed",
+     "marker": "5",
+     "printed": "2024-09-09"
+    },
+    {
+     "iso": "2024-09-09",
+     "kind": "reported",
+     "marker": "5",
+     "printed": "2024-09-09 13:04:26"
+    },
+    {
+     "iso": "2024-09-09",
+     "kind": "received",
+     "marker": "6",
+     "printed": "2024-09-09 11:05"
+    },
+    {
+     "iso": "2024-09-09",
+     "kind": "performed",
+     "marker": "6",
+     "printed": "2024-09-09"
+    },
+    {
+     "iso": "2024-09-09",
+     "kind": "reported",
+     "marker": "6",
+     "printed": "2024-09-09 13:05:05"
+    },
+    {
+     "iso": "2024-09-09",
+     "kind": "received",
+     "marker": "7",
+     "printed": "2024-09-09 11:28"
+    },
+    {
+     "iso": "2024-09-09",
+     "kind": "performed",
+     "marker": "7",
+     "printed": "2024-09-09"
+    },
+    {
+     "iso": "2024-09-10",
+     "kind": "reported",
+     "marker": "7",
+     "printed": "2024-09-10 07:30:20"
+    }
+   ],
+   "rows": [
+    {
+     "date": null,
+     "doubt": null,
+     "flag": null,
+     "marker": "5",
+     "name": "anty-TPO (ICD-9: O09)",
+     "reference": "0,00 - 5,61",
+     "region": [
+      0.03,
+      0.27,
+      0.86,
+      0.03
+     ],
+     "section": null,
+     "specimen": null,
+     "unit": "IU/ml",
+     "value": "3,40"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "H",
+     "marker": "6",
+     "name": "anty-TG (ICD-9: O18)",
+     "reference": "0,00 - 4,11",
+     "region": [
+      0.03,
+      0.318,
+      0.86,
+      0.03
+     ],
+     "section": null,
+     "specimen": null,
+     "unit": "IU/ml",
+     "value": "37,88"
+    },
+    {
+     "date": null,
+     "doubt": null,
+     "flag": "H",
+     "marker": "7",
+     "name": "P/c. p. receptorom TSH (TRAb) (ICD-9: O15)",
+     "reference": "0,00 - 1,99",
+     "region": [
+      0.06,
+      0.393,
+      0.83,
+      0.025
+     ],
+     "section": null,
+     "specimen": null,
+     "unit": "IU/l",
+     "value": "2,06"
+    }
+   ],
+   "suggestedName": "Thyroid autoantibodies"
+  },
+  "jane-doe-lab-28:3": {
+   "dates": [],
+   "rows": [],
+   "suggestedName": null
+  }
+ },
+ "identities": {
+  "alat(gpt) i.p.||": {
+   "key": "alt",
+   "newTest": null,
+   "panel": "liver",
+   "reason": "",
+   "words": []
+  },
+  "albumin i.p.||": {
+   "key": "albumin",
+   "newTest": null,
+   "panel": "liver",
+   "reason": "",
+   "words": []
+  },
+  "anty-tg (icd-9: o18)||": {
+   "key": "anti-tg",
+   "newTest": null,
+   "panel": "thyroid",
+   "reason": "",
+   "words": []
+  },
+  "anty-tpo (icd-9: o09)||": {
+   "key": "anti-tpo",
+   "newTest": null,
+   "panel": "thyroid",
+   "reason": "",
+   "words": []
+  },
+  "ap ifcc i.p.||": {
+   "key": "alp",
+   "newTest": null,
+   "panel": "liver",
+   "reason": "",
+   "words": []
+  },
+  "aptt i.p.||": {
+   "key": "aptt",
+   "newTest": null,
+   "panel": "coagulation",
+   "reason": "",
+   "words": []
+  },
+  "atypowe limfocyty#||": {
+   "key": "atyp-lymph",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "atypowe limfocyty%|%|": {
+   "key": "atyp-lymph-pct",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "basophils||": {
+   "key": "baso",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "bazofile|%|": {
+   "key": "baso-pct",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "bazofile||": {
+   "key": "baso",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "bilirubin gesamt i. p.||": {
+   "key": "bilirubin",
+   "newTest": null,
+   "panel": "liver",
+   "reason": "",
+   "words": []
+  },
+  "calcium i.p.||": {
+   "key": "calcium",
+   "newTest": null,
+   "panel": "electrolytes",
+   "reason": "",
+   "words": []
+  },
+  "chlorid i.p.||": {
+   "key": "chloride",
+   "newTest": null,
+   "panel": "electrolytes",
+   "reason": "",
+   "words": []
+  },
+  "chlorki||": {
+   "key": "chloride",
+   "newTest": null,
+   "panel": "electrolytes",
+   "reason": "",
+   "words": []
+  },
+  "cholesterol całkowity||": {
+   "key": "chol",
+   "newTest": null,
+   "panel": "lipids",
+   "reason": "",
+   "words": []
+  },
+  "cholesterol hdl||": {
+   "key": "hdl",
+   "newTest": null,
+   "panel": "lipids",
+   "reason": "",
+   "words": []
+  },
+  "cholesterol ldl||": {
+   "key": "ldl",
+   "newTest": null,
+   "panel": "lipids",
+   "reason": "",
+   "words": []
+  },
+  "cholesterol nie-hdl||": {
+   "key": null,
+   "newTest": {
+    "key": "non-hdl",
+    "label": "Non-HDL cholesterol",
+    "unit": "mg/dl"
+   },
+   "panel": "lipids",
+   "reason": "",
+   "words": []
+  },
+  "creatinin i.p.||": {
+   "key": "creatinine",
+   "newTest": null,
+   "panel": "kidney",
+   "reason": "",
+   "words": []
+  },
+  "crp (icd-9: i81)||": {
+   "key": "crp",
+   "newTest": null,
+   "panel": "inflammation",
+   "reason": "",
+   "words": []
+  },
+  "crp i. p.||": {
+   "key": "crp",
+   "newTest": null,
+   "panel": "inflammation",
+   "reason": "",
+   "words": []
+  },
+  "egfr (icd-9: m37)||": {
+   "key": "egfr",
+   "newTest": null,
+   "panel": "kidney",
+   "reason": "",
+   "words": []
+  },
+  "eosinophils||": {
+   "key": "eos",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "eozynofile|%|": {
+   "key": "eos-pct",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "eozynofile||": {
+   "key": "eos",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "ery-verteilungsbreite i.vb.|%|": {
+   "key": "rdw-cv",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "erythrozyten i. vb.||": {
+   "key": "rbc",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "erytrocyty||": {
+   "key": "rbc",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "esr||": {
+   "key": "esr",
+   "newTest": null,
+   "panel": "inflammation",
+   "reason": "",
+   "words": []
+  },
+  "ft3 (icd-9: o55)||": {
+   "key": "ft3",
+   "newTest": null,
+   "panel": "thyroid",
+   "reason": "",
+   "words": []
+  },
+  "ft4 (icd-9: o69)||": {
+   "key": "ft4",
+   "newTest": null,
+   "panel": "thyroid",
+   "reason": "",
+   "words": []
+  },
+  "gamma-gt i. p.||": {
+   "key": "ggt",
+   "newTest": null,
+   "panel": "liver",
+   "reason": "",
+   "words": []
+  },
+  "gfr ckd-stadium||": {
+   "key": null,
+   "newTest": {
+    "key": "gfr-ckd-stage",
+    "label": "GFR CKD stage",
+    "unit": ""
+   },
+   "panel": "kidney",
+   "reason": "",
+   "words": [
+    {
+     "english": "stage I (1)",
+     "level": null,
+     "printed": "I (1)"
+    }
+   ]
+  },
+  "gfr-schätzung (ckd-epi)||": {
+   "key": "egfr",
+   "newTest": null,
+   "panel": "kidney",
+   "reason": "",
+   "words": []
+  },
+  "glucose i.p. (si-einheit)||": {
+   "key": "glucose",
+   "newTest": null,
+   "panel": "metabolic",
+   "reason": "",
+   "words": []
+  },
+  "glukoza (icd-9: l43)||": {
+   "key": "glucose",
+   "newTest": null,
+   "panel": "metabolic",
+   "reason": "",
+   "words": []
+  },
+  "gran. kwasochłonne|%|": {
+   "key": "eos-pct",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "gran. pałeczkowate|%|": {
+   "key": null,
+   "newTest": {
+    "key": "band-neut-pct",
+    "label": "Band neutrophils %",
+    "unit": "%*"
+   },
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "gran. segmentowane|%|": {
+   "key": "neut-pct",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "haematocrit||": {
+   "key": "hct",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "haemoglobin||": {
+   "key": "hgb",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "hb i. vb.||": {
+   "key": "hgb",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "hematokryt|%|": {
+   "key": "hct",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "hemoglobina||": {
+   "key": "hgb",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "inne(eo,bazo,mono) #||": {
+   "key": "mxd",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "inne(eo,bazo,mono) %|%|": {
+   "key": "mxd-pct",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "inr i.p.||": {
+   "key": "inr",
+   "newTest": null,
+   "panel": "coagulation",
+   "reason": "",
+   "words": []
+  },
+  "kalium i.p.||": {
+   "key": "potassium",
+   "newTest": null,
+   "panel": "electrolytes",
+   "reason": "",
+   "words": []
+  },
+  "kreatynina (icd-9: m37)||": {
+   "key": "creatinine",
+   "newTest": null,
+   "panel": "kidney",
+   "reason": "",
+   "words": []
+  },
+  "ldh ifcc i.p.||": {
+   "key": null,
+   "newTest": {
+    "key": "ldh",
+    "label": "Lactate dehydrogenase",
+    "unit": "U/l"
+   },
+   "panel": "other",
+   "reason": "",
+   "words": []
+  },
+  "leukocyty||": {
+   "key": "wbc",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "limfocyty #||": {
+   "key": "lymph",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "limfocyty %|%|": {
+   "key": "lymph-pct",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "limfocyty|%|": {
+   "key": "lymph-pct",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "limfocyty||": {
+   "key": "lymph",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "lymphocytes||": {
+   "key": "lymph",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "mch i. vb.||": {
+   "key": "mch",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "mch||": {
+   "key": "mch",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "mchc i. vb.||": {
+   "key": "mchc",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "mchc||": {
+   "key": "mchc",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "mcv i. vb.||": {
+   "key": "mcv",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "mcv||": {
+   "key": "mcv",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "mocznik (icd-9: n13)||": {
+   "key": "urea",
+   "newTest": null,
+   "panel": "kidney",
+   "reason": "",
+   "words": []
+  },
+  "monocytes||": {
+   "key": "mono",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "monocyty|%|": {
+   "key": "mono-pct",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "monocyty||": {
+   "key": "mono",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "mpv i.vb.||": {
+   "key": "mpv",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "mpv||": {
+   "key": "mpv",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "natrium i.p.||": {
+   "key": "sodium",
+   "newTest": null,
+   "panel": "electrolytes",
+   "reason": "",
+   "words": []
+  },
+  "neutrofile #||": {
+   "key": "neut",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "neutrofile %|%|": {
+   "key": "neut-pct",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "neutrofile|%|": {
+   "key": "neut-pct",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "neutrofile||": {
+   "key": "neut",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "neutrophils||": {
+   "key": "neut",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "niedojrzałe duże komórki (młode formy)#||": {
+   "key": "luc",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "niedojrzałe duże komórki (młode formy)%|%|": {
+   "key": "luc-pct",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "niedojrzałe granulocyty ig %|%|": {
+   "key": "ig-pct",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "niedojrzałe granulocyty ig il.||": {
+   "key": "ig",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "nrbc#||": {
+   "key": "nrbc",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "nrbc%|%|": {
+   "key": "nrbc-pct",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "p-lcr|%|": {
+   "key": "p-lcr",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "p/c. p. receptorom tsh (trab) (icd-9: o15)||": {
+   "key": "trab",
+   "newTest": null,
+   "panel": "thyroid",
+   "reason": "",
+   "words": []
+  },
+  "pct|%|": {
+   "key": "pct",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "pcv (hämatokrit) i. vb.|%|": {
+   "key": "hct",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "pdw||": {
+   "key": "pdw",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "phosphat i. p.||": {
+   "key": "phosphate",
+   "newTest": null,
+   "panel": "electrolytes",
+   "reason": "",
+   "words": []
+  },
+  "platelets||": {
+   "key": "plt",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "płytki krwi||": {
+   "key": "plt",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "potas||": {
+   "key": "potassium",
+   "newTest": null,
+   "panel": "electrolytes",
+   "reason": "",
+   "words": []
+  },
+  "quick i.p.|%|": {
+   "key": "quick",
+   "newTest": null,
+   "panel": "coagulation",
+   "reason": "",
+   "words": []
+  },
+  "rcc||": {
+   "key": "rbc",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "rdw-cv|%|": {
+   "key": "rdw-cv",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "rdw-sd||": {
+   "key": "rdw-sd",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "reticulocytes||": {
+   "key": "retic",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "sód||": {
+   "key": "sodium",
+   "newTest": null,
+   "panel": "electrolytes",
+   "reason": "",
+   "words": []
+  },
+  "thrombozyten i. vb.||": {
+   "key": "plt",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  },
+  "trójglicerydy||": {
+   "key": "tg",
+   "newTest": null,
+   "panel": "lipids",
+   "reason": "",
+   "words": []
+  },
+  "tsh (icd-9: l69)||": {
+   "key": "tsh",
+   "newTest": null,
+   "panel": "thyroid",
+   "reason": "",
+   "words": []
+  },
+  "wcc||": {
+   "key": "wbc",
+   "newTest": null,
+   "panel": "blood-count",
+   "reason": "",
+   "words": []
+  }
+ },
+ "specimens": {
+  "krew żylna (edta)": "venous blood (EDTA)",
+  "surowica": "serum"
+ }
+}

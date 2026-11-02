@@ -4,6 +4,7 @@ import {
   Component,
   computed,
   ElementRef,
+  inject,
   OnDestroy,
   OnInit,
   signal,
@@ -14,11 +15,14 @@ import { MAX_WAIT_SECONDS } from '@shared/jobs';
 import { PROCESSING_VERSION, type PrintedRow } from '@shared/processing';
 import type { RecordsResponse } from '@shared/records';
 import { BusyError, JobClient } from '../core/job-client';
+import { ServerConfigService } from '../core/server-config';
 import { Icon } from '../ui/icon';
 
 /** Fictional pages with their identifiers already blacked out, as an approved copy would be. */
 interface LiveSample {
   key: string;
+  /** The sample patient page it is: the server replays Meta's recorded answer for it. */
+  sample: string;
   src: string;
   width: number;
   height: number;
@@ -29,6 +33,7 @@ interface LiveSample {
 const SAMPLES: LiveSample[] = [
   {
     key: 'polish-thyroid',
+    sample: 'jane-doe-lab-10:0',
     src: 'samples/live/polish-thyroid.jpg',
     width: 1100,
     height: 1559,
@@ -38,6 +43,7 @@ const SAMPLES: LiveSample[] = [
   },
   {
     key: 'german-cumulative',
+    sample: 'jane-doe-002:0',
     src: 'samples/live/german-cumulative.jpg',
     width: 1200,
     height: 1594,
@@ -70,9 +76,9 @@ interface Models {
 }
 
 /**
- * The demo's one live path: an approved, fictional page goes through the same job API as a
- * user's page, Muse Spark reads it, then Muse Wonder identifies each printed test. Rows appear
- * as soon as Spark answers, so the wait for Wonder is spent looking at results.
+ * An approved, fictional page goes through the same job API as a user's page: Muse Spark's
+ * transcription, then Muse Wonder's identity of each printed test. Both answers are Meta's real
+ * ones for this page, recorded once and replayed by the server, so the demo costs nothing.
  */
 @Component({
   selector: 'app-live-read',
@@ -87,11 +93,12 @@ interface Models {
         <div class="min-w-0">
           <h2 id="live-h" class="text-2xl sm:text-3xl tracking-tight">
             <span class="font-bold">Watch Meta's AI read a page</span>{{ ' '
-            }}<span class="font-light">right now</span>
+            }}<span class="font-light">line by line</span>
           </h2>
           <p class="mt-2 max-w-2xl text-base-content/80 leading-relaxed">
-            Everything above was prepared earlier. Pick one of Jane's pages and it goes through the
-            real pipeline live, with personal details already blacked out.
+            Pick one of Jane's pages. It goes through the real pipeline, with personal details
+            already blacked out. Meta's answers for Jane's pages are real, recorded once and
+            replayed, so this is instant and free. Your own documents are read live.
           </p>
         </div>
         @if (models()) {
@@ -115,7 +122,7 @@ interface Models {
       </div>
 
       @if (models() === null) {
-        <p class="mt-4 text-sm">Live reading isn't switched on for this server.</p>
+        <p class="mt-4 text-sm">The sample answers aren't on this server.</p>
       } @else {
         <div #body class="live-body">
           <div class="side flex flex-col min-w-0">
@@ -151,7 +158,7 @@ interface Models {
                     ? 'Reading…'
                     : phase() === 'done' || phase() === 'error'
                       ? 'Read it again'
-                      : 'Read it live'
+                      : 'Read it'
                 }}
               </button>
               @if (running()) {
@@ -227,37 +234,30 @@ interface Models {
                   <span class="font-semibold">Platelets</span>
                 </div>
                 <p class="text-base-content/80 leading-relaxed">
-                  Press <strong>Read it live</strong>. Each line {{ spark() }} finds is highlighted
-                  on the page and lands here, then {{ wonder() }} gives it its standard name.
+                  Press <strong>Read it</strong>. Each line {{ spark() }} finds is highlighted on
+                  the page and lands here, then {{ wonder() }} gives it its standard name.
                 </p>
               </div>
             } @else {
               <ol class="steps-live">
                 @if (phase() !== 'idle') {
-                  <li
-                    [class.active]="phase() === 'reading'"
-                    [class.finished]="sparkSeconds() !== null"
-                  >
+                  <li [class.active]="phase() === 'reading'" [class.finished]="sparkDone()">
                     <strong>{{ spark() }}</strong>
-                    {{ sparkSeconds() === null ? 'is reading the page' : 'read the page' }}
-                    <span class="tabular-nums text-base-content/70">
-                      · {{ sparkSeconds() ?? elapsed('reading') | number: '1.0-0' }} s
-                      @if (rows().length) {
+                    {{ sparkDone() ? 'read the page' : 'is reading the page' }}
+                    @if (rows().length) {
+                      <span class="tabular-nums text-base-content/70">
                         · {{ rows().length }} rows
-                      }
-                    </span>
+                      </span>
+                    }
                   </li>
                 }
-                @if (sparkSeconds() !== null) {
+                @if (sparkDone()) {
                   <li
                     [class.active]="phase() === 'identifying'"
                     [class.finished]="phase() === 'done'"
                   >
                     <strong>{{ wonder() }}</strong>
                     {{ phase() === 'done' ? 'named each test' : 'is naming each test' }}
-                    <span class="tabular-nums text-base-content/70">
-                      · {{ wonderSeconds() ?? elapsed('identifying') | number: '1.0-0' }} s
-                    </span>
                   </li>
                 }
               </ol>
@@ -740,6 +740,7 @@ interface Models {
   `,
 })
 export class LiveRead implements OnInit, OnDestroy {
+  private readonly server = inject(ServerConfigService);
   protected readonly samples = SAMPLES;
   protected readonly chosen = signal(SAMPLES[0]);
   protected readonly readSample = signal<LiveSample | null>(null);
@@ -749,11 +750,7 @@ export class LiveRead implements OnInit, OnDestroy {
   protected readonly records = signal<RecordsResponse | null>(null);
   protected readonly error = signal<string | null>(null);
   protected readonly focused = signal<number | null>(null);
-  protected readonly sparkSeconds = signal<number | null>(null);
-  protected readonly wonderSeconds = signal<number | null>(null);
-  private readonly now = signal(performance.now());
-  private readonly started: Partial<Record<Phase, number>> = {};
-  private timer: ReturnType<typeof setInterval> | null = null;
+  protected readonly sparkDone = signal(false);
   private run$: AbortController | null = null;
   private client: JobClient | null = null;
   private pageId = '';
@@ -788,13 +785,8 @@ export class LiveRead implements OnInit, OnDestroy {
 
   async ngOnInit() {
     void document.fonts?.ready.then(() => this.measure());
-    try {
-      const response = await fetch('/api/config');
-      const body = (await response.json()) as { models?: Models | null };
-      this.models.set(response.ok ? (body.models ?? null) : null);
-    } catch {
-      this.models.set(null);
-    }
+    const config = await this.server.load();
+    this.models.set(config?.samplePatient ? config.models : null);
   }
 
   ngOnDestroy() {
@@ -855,11 +847,6 @@ export class LiveRead implements OnInit, OnDestroy {
     this.wires.set(wires);
   }
 
-  protected elapsed(phase: Phase): number {
-    const start = this.started[phase];
-    return start === undefined ? 0 : (this.now() - start) / 1000;
-  }
-
   protected identity(index: number): Identity | undefined {
     return this.identities().get(`${this.pageId}:${index}`);
   }
@@ -869,7 +856,6 @@ export class LiveRead implements OnInit, OnDestroy {
     this.run$.abort();
     this.run$ = null;
     void this.client?.removeBatch();
-    this.stopTimer();
     if (this.running()) this.phase.set('idle');
   }
 
@@ -887,9 +873,8 @@ export class LiveRead implements OnInit, OnDestroy {
     this.rows.set([]);
     this.records.set(null);
     this.error.set(null);
-    this.sparkSeconds.set(null);
-    this.wonderSeconds.set(null);
-    this.begin('reading');
+    this.sparkDone.set(false);
+    this.phase.set('reading');
     try {
       const image = await dataUrl(sample.src, abort.signal);
       await client.submitPage({
@@ -898,6 +883,7 @@ export class LiveRead implements OnInit, OnDestroy {
         page: 0,
         revision: crypto.randomUUID(),
         image,
+        sample: sample.sample,
       });
       const page = await this.until(client, abort.signal, (view) =>
         view.pages.find(
@@ -906,10 +892,10 @@ export class LiveRead implements OnInit, OnDestroy {
       );
       const result = (page as PageJobView).result;
       if (!result) throw new Error(`${this.spark()} couldn't read this page. Try again.`);
-      this.sparkSeconds.set(this.elapsed('reading'));
+      this.sparkDone.set(true);
       this.rows.set(result.rows);
 
-      this.begin('identifying');
+      this.phase.set('identifying');
       await client.submitNormalization({
         processingVersion: PROCESSING_VERSION,
         documents: [
@@ -928,7 +914,6 @@ export class LiveRead implements OnInit, OnDestroy {
       );
       if (!normalization.result)
         throw new Error(`${this.wonder()} couldn't finish identifying the tests. Try again.`);
-      this.wonderSeconds.set(this.elapsed('identifying'));
       this.records.set(normalization.result);
       this.phase.set('done');
     } catch (error) {
@@ -944,23 +929,10 @@ export class LiveRead implements OnInit, OnDestroy {
     } finally {
       if (this.run$ === abort) {
         this.run$ = null;
-        this.stopTimer();
         // Results are shown; the server can forget the batch now.
         void client.removeBatch();
       }
     }
-  }
-
-  private begin(phase: Phase) {
-    this.started[phase] = performance.now();
-    this.now.set(performance.now());
-    this.phase.set(phase);
-    this.timer ??= setInterval(() => this.now.set(performance.now()), 250);
-  }
-
-  private stopTimer() {
-    if (this.timer) clearInterval(this.timer);
-    this.timer = null;
   }
 
   /** Long-poll the batch until `pick` finds what we wait for. */

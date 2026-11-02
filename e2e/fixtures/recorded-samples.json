@@ -1,0 +1,139 @@
+{
+  "recordedAt": "2026-11-01T00:00:00.000Z",
+  "models": {
+    "transcription": "muse-spark-1.3",
+    "identification": "muse-wonder-1.0"
+  },
+  "note": "Test double for the end-to-end tests only: made-up answers in the recorded format. The real recording is api/samples/recorded.json.",
+  "pages": {
+    "jane-doe-039:0": {
+      "suggestedName": "Haematology",
+      "dates": [
+        {
+          "kind": "collected",
+          "printed": "25/07/2012",
+          "iso": "2012-07-25",
+          "marker": null
+        }
+      ],
+      "rows": [
+        {
+          "name": "Haemoglobin",
+          "marker": null,
+          "section": null,
+          "value": "13.2",
+          "unit": "g/dL",
+          "reference": "11.5-16.5",
+          "flag": null,
+          "specimen": null,
+          "date": null,
+          "region": [0.05, 0.3, 0.9, 0.03],
+          "doubt": null
+        },
+        {
+          "name": "Platelets",
+          "marker": null,
+          "section": null,
+          "value": "250",
+          "unit": "10^9/L",
+          "reference": "150-400",
+          "flag": null,
+          "specimen": null,
+          "date": null,
+          "region": [0.05, 0.35, 0.9, 0.03],
+          "doubt": null
+        }
+      ]
+    },
+    "jane-doe-lab-10:0": {
+      "suggestedName": "Thyroid tests",
+      "dates": [
+        {
+          "kind": "collected",
+          "printed": "2021-01-21",
+          "iso": "2021-01-21",
+          "marker": null
+        }
+      ],
+      "rows": [
+        {
+          "name": "TSH",
+          "marker": null,
+          "section": null,
+          "value": "4,880",
+          "unit": "mIU/l",
+          "reference": "0,270 - 4,200",
+          "flag": "H",
+          "specimen": null,
+          "date": null,
+          "region": [0.03, 0.385, 0.85, 0.03],
+          "doubt": null
+        },
+        {
+          "name": "FT3",
+          "marker": null,
+          "section": null,
+          "value": "3,71",
+          "unit": "pg/ml",
+          "reference": "2,04 - 4,40",
+          "flag": null,
+          "specimen": null,
+          "date": null,
+          "region": [0.03, 0.445, 0.85, 0.03],
+          "doubt": null
+        },
+        {
+          "name": "FT4",
+          "marker": null,
+          "section": null,
+          "value": "1,39",
+          "unit": "ng/dl",
+          "reference": "0,93 - 1,71",
+          "flag": null,
+          "specimen": null,
+          "date": null,
+          "region": [0.03, 0.493, 0.85, 0.03],
+          "doubt": null
+        }
+      ]
+    }
+  },
+  "identities": {
+    "ft3||": {
+      "key": "ft3",
+      "newTest": null,
+      "panel": "thyroid",
+      "reason": "",
+      "words": []
+    },
+    "ft4||": {
+      "key": "ft4",
+      "newTest": null,
+      "panel": "thyroid",
+      "reason": "",
+      "words": []
+    },
+    "haemoglobin||": {
+      "key": "hgb",
+      "newTest": null,
+      "panel": "blood-count",
+      "reason": "",
+      "words": []
+    },
+    "platelets||": {
+      "key": "plt",
+      "newTest": null,
+      "panel": "blood-count",
+      "reason": "",
+      "words": []
+    },
+    "tsh||": {
+      "key": "tsh",
+      "newTest": null,
+      "panel": "thyroid",
+      "reason": "",
+      "words": []
+    }
+  },
+  "specimens": {}
+}

@@ -80,6 +80,8 @@ export interface LocalDocument {
   privacyVersion?: number;
   pages: WorkingPage[];
   file: File | null;
+  /** A sample patient document (its DEMO_DOCUMENTS id): read from its recorded answers, never live. */
+  sample?: string;
   addedAt: number;
 }
 

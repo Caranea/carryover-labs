@@ -44,6 +44,12 @@ interface Usage {
   completion_tokens?: number;
 }
 
+/** Told about every call Meta may bill: its token usage, or undefined when it was not reported. */
+export type UsageListener = (
+  task: ModelTask,
+  usage: { input: number; output: number } | undefined,
+) => void;
+
 interface Answer<T> {
   answer: T;
   headersMs: number;
@@ -77,6 +83,7 @@ export class MetaModelClient implements JsonModel {
   constructor(
     private readonly endpoint: ModelEndpoint,
     private readonly retryMs = 2000,
+    private readonly onUsage: UsageListener = () => undefined,
   ) {
     if (endpoint.traceDir)
       this.log.warn(
@@ -86,8 +93,9 @@ export class MetaModelClient implements JsonModel {
 
   async ask<T>(task: ModelTask, signal?: AbortSignal): Promise<T> {
     const started = Date.now();
+    const billed = { reported: false };
     try {
-      const { answer, headersMs, usage } = await this.call<T>(task, signal);
+      const { answer, headersMs, usage } = await this.call<T>(task, signal, billed);
       // Counts and timings only, never content: they show where the time and the credits go.
       this.log.log(
         `${task.kind}: ${task.model} answered in ${Date.now() - started} ms ` +
@@ -105,11 +113,18 @@ export class MetaModelClient implements JsonModel {
       this.log.warn(
         `${task.kind}: ${task.model} failed after ${Date.now() - started} ms: ${reason}`,
       );
+      // A timeout or a dropped connection may still be billed: count the worst case.
+      if (!billed.reported && !(error instanceof ModelFailure) && !signal?.aborted)
+        this.onUsage(task, undefined);
       throw error instanceof AnswerCutOff ? error : new Error(FAILED);
     }
   }
 
-  private async call<T>(task: ModelTask, cancel?: AbortSignal): Promise<Answer<T>> {
+  private async call<T>(
+    task: ModelTask,
+    cancel?: AbortSignal,
+    billed = { reported: false },
+  ): Promise<Answer<T>> {
     const content = task.image
       ? [
           { type: 'text', text: task.user },
@@ -150,6 +165,13 @@ export class MetaModelClient implements JsonModel {
       usage?: Usage;
     };
     const choice = data.choices?.[0];
+    billed.reported = true;
+    this.onUsage(
+      task,
+      data.usage?.prompt_tokens !== undefined && data.usage.completion_tokens !== undefined
+        ? { input: data.usage.prompt_tokens, output: data.usage.completion_tokens }
+        : undefined,
+    );
     await this.trace(task, {
       status: res.status,
       ms: Date.now() - sent,

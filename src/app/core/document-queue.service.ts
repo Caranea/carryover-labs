@@ -17,6 +17,7 @@ import { privacyCheck } from '../pii/privacy-check';
 import { applyRememberedDetails, learnDetails, RememberedDetails } from '../pii/remembered-details';
 import { documentReportDate } from './document-name';
 import { protectMedicalTerms } from '../pii/medical-terms';
+import { DEMO_DOCUMENTS } from './demo-documents';
 
 /**
  * Holds every document being prepared on this device and the list of
@@ -229,6 +230,34 @@ export class DocumentQueueService {
   // Adding and processing files
   // ---------------------------------------------------------------------------
 
+  /**
+   * Add sample patient documents (DEMO_DOCUMENTS ids). They go through the same privacy check
+   * and approval as your own files; the server answers them from recorded Meta answers.
+   */
+  addSamples(ids: string[], privacyMode: PrivacyMode = this.privacyMode()): string[] {
+    if (!this.recoveryReady()) return [];
+    this.privacyModeChosen.set(true);
+    const added = DEMO_DOCUMENTS.filter((doc) => ids.includes(doc.id)).map(
+      (sample): LocalDocument => ({
+        localId: crypto.randomUUID(),
+        name: `Lab document ${++this.counter}`,
+        generatedName: `Lab document ${this.counter}`,
+        fileName: sample.name,
+        sourceKind: sample.kind,
+        status: 'queued',
+        strict: false,
+        privacyMode,
+        progress: 0,
+        message: 'Waiting',
+        pages: [],
+        file: null,
+        sample: sample.id,
+        addedAt: Date.now(),
+      }),
+    );
+    return this.enqueue(added);
+  }
+
   add(files: Iterable<File>, privacyMode: PrivacyMode = this.privacyMode()): string[] {
     if (!this.recoveryReady()) return [];
     this.privacyModeChosen.set(true);
@@ -254,6 +283,10 @@ export class DocumentQueueService {
         addedAt: Date.now(),
       });
     }
+    return this.enqueue(added);
+  }
+
+  private enqueue(added: LocalDocument[]): string[] {
     if (!added.length) return [];
     // Start a fresh batch after the previous one has been approved or discarded.
     if (!this.resultsBlocked()) {
@@ -272,7 +305,7 @@ export class DocumentQueueService {
 
   retry(localId: string) {
     const doc = this.byId(localId);
-    if (!doc?.file) return;
+    if (!doc?.file && !doc?.sample) return;
     this.patch(localId, { status: 'queued', error: undefined, progress: 0, message: 'Waiting' });
     void this.run();
   }
@@ -300,11 +333,14 @@ export class DocumentQueueService {
     this.activeChecks.set(id, abort);
     try {
       this.patch(id, { status: 'reading', progress: 0, message: 'Opening' });
+      const progress = (fraction: number, message: string) =>
+        this.patch(id, { progress: fraction * 0.7, message });
+      const sample = DEMO_DOCUMENTS.find((d) => d.id === doc.sample);
       const pages = doc.pages.length
         ? doc.pages
-        : await this.extraction.extract(doc.file!, (fraction, message) =>
-            this.patch(id, { progress: fraction * 0.7, message }),
-          );
+        : sample
+          ? await this.extraction.extractSample(sample.pages, progress)
+          : await this.extraction.extract(doc.file!, progress);
       if (this.destroyed || !this.byId(id)) return revokePageUrls(pages);
 
       const mode = this.byId(id)!.privacyMode;
@@ -558,7 +594,7 @@ export class DocumentQueueService {
       this.patch(localId, { message: 'Saving on this device' });
       const summary = doc.serverId
         ? await this.history.replace(doc.serverId, manifest, images)
-        : await this.history.create(manifest, images, doc.fileName, doc.localId);
+        : await this.history.create(manifest, images, doc.fileName, doc.localId, doc.sample);
       if (!this.byId(localId)) return false;
       // The originals are no longer needed on this device either.
       revokePageUrls(this.byId(localId)?.pages ?? []);

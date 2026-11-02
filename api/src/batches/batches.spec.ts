@@ -7,7 +7,8 @@ import sharp from 'sharp';
 import { BatchesModule } from './batches.module.js';
 import { securityHeaders } from '../security/http-security.js';
 import type { JsonModel, ModelTask } from '../records/meta-model.js';
-import { PROCESSING_VERSION } from '../shared/processing.js';
+import { PROCESSING_VERSION, type PrintedRow } from '../shared/processing.js';
+import { SampleAnswers } from './samples.js';
 
 /** A stub Meta model: Spark answers each page with one row; Wonder maps nothing. */
 function stubModel(delayMs = 0): JsonModel & { calls: ModelTask[] } {
@@ -30,9 +31,19 @@ function stubModel(delayMs = 0): JsonModel & { calls: ModelTask[] } {
   };
 }
 
-async function start(model: JsonModel | null, limits = {}) {
+async function start(
+  model: JsonModel | null,
+  limits = {},
+  samples?: SampleAnswers,
+  modelDailyBudgetUsd?: number,
+) {
   const app: INestApplication = await NestFactory.create(
-    BatchesModule.forRoot({ model: null, modelConcurrency: 2 }, model, limits),
+    BatchesModule.forRoot(
+      { model: null, modelConcurrency: 2, modelDailyBudgetUsd },
+      model,
+      limits,
+      samples,
+    ),
     { logger: false },
   );
   app.setGlobalPrefix('api');
@@ -166,15 +177,147 @@ describe('batch job API', () => {
   });
 });
 
+const row: PrintedRow = {
+  name: 'Hemoglobina',
+  marker: null,
+  section: 'Morfologia',
+  value: '13,1',
+  unit: 'g/dl',
+  reference: '12-16',
+  flag: null,
+  specimen: null,
+  date: { kind: 'collected', printed: '03.02.2025', iso: '2025-02-03' },
+  region: [0.1, 0.2, 0.5, 0.05],
+  doubt: null,
+};
+/** A recording of one page and its one test name, as scripts/record-samples.mjs writes it. */
+const samples = () =>
+  new SampleAnswers({
+    recordedAt: '2026-11-01T00:00:00Z',
+    models: { transcription: 'muse-spark-1.3', identification: 'muse-wonder-1.0' },
+    pages: { 'jane-doe-lab-03:0': { rows: [row], dates: [], suggestedName: 'Morfologia' } },
+    identities: {
+      'hemoglobina||': { key: 'hgb', newTest: null, panel: 'blood-count', reason: '', words: [] },
+    },
+    specimens: {},
+  });
+
+async function settle(base: string, batch: string) {
+  for (let version = 0; ;) {
+    const view = (await (
+      await fetch(`${base}/batches/${batch}?since=${version}&wait=5`)
+    ).json()) as {
+      version: number;
+      pages: { state: string; error?: string; result?: { observations: unknown[] } }[];
+      normalization: {
+        state: string;
+        error?: string;
+        result?: { stats: { values: number } };
+      };
+    };
+    version = view.version;
+    const busy = [...view.pages, view.normalization].some(
+      (j) => j.state === 'queued' || j.state === 'running',
+    );
+    if (!busy) return view;
+  }
+}
+
 describe('without a Meta key', () => {
-  it('reports processing as unavailable', async () => {
+  it('still reads the sample patient from its recording, and refuses anything else', async () => {
+    const { app, base } = await start(null, {}, samples());
+    try {
+      assert.deepEqual(await (await fetch(`${base}/config`)).json(), {
+        models: { transcription: 'muse-spark-1.3', identification: 'muse-wonder-1.0' },
+        live: false,
+        samplePatient: true,
+      });
+      const page = { ...body(0), sample: 'jane-doe-lab-03:0' };
+      assert.equal((await post(`${base}/batches/sample-a/pages`, page)).status, 202);
+      const pages = await settle(base, 'sample-a');
+      assert.equal(pages.pages[0].state, 'done');
+      const result = pages.pages[0].result as unknown as {
+        documentId: string;
+        observations: { name: string; value: number; bbox: number[] }[];
+      };
+      assert.equal(result.documentId, 'doc');
+      assert.equal(result.observations[0].name, 'Hemoglobina');
+      assert.equal(result.observations[0].value, 13.1);
+      // Regions are placed on the image actually sent (40 × 40 here).
+      assert.deepEqual(result.observations[0].bbox, [4, 8, 20, 2]);
+
+      // A sample without a recording is refused, never read live.
+      const unknown = await post(`${base}/batches/sample-a/pages`, {
+        ...body(1),
+        sample: 'jane-doe-lab-03:1',
+      });
+      assert.equal(unknown.status, 400);
+      assert.equal((await post(`${base}/batches/sample-a/pages`, body(1))).status, 503);
+
+      const documents = [
+        {
+          id: 'doc',
+          name: 'Lab document',
+          observations: result.observations,
+          dates: [],
+        },
+      ];
+      const normalized = await post(`${base}/batches/sample-a/normalize`, {
+        processingVersion: PROCESSING_VERSION,
+        documents,
+      });
+      assert.equal(normalized.status, 202);
+      const done = await settle(base, 'sample-a');
+      assert.equal(done.normalization.state, 'done');
+      assert.equal(done.normalization.result?.stats.values, 1);
+
+      // A test name the recording does not know needs Wonder: refused without a key.
+      const other = structuredClone(documents);
+      (other[0].observations[0] as { name: string }).name = 'Ferritin';
+      const refused = await post(`${base}/batches/sample-b/normalize`, {
+        processingVersion: PROCESSING_VERSION,
+        documents: other,
+      });
+      assert.equal(refused.status, 503);
+      assert.match(((await refused.json()) as { message: string }).message, /sample patient/);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('switches the sample patient off when nothing is recorded', async () => {
     const { app, base } = await start(null);
     try {
-      assert.equal((await post(`${base}/batches/batch-x/pages`, body(0))).status, 503);
-      assert.deepEqual(await (await fetch(`${base}/config`)).json(), {
-        modelName: null,
-        models: null,
-      });
+      assert.deepEqual(
+        ((await (await fetch(`${base}/config`)).json()) as { samplePatient: boolean })
+          .samplePatient,
+        false,
+      );
+      assert.equal(
+        (await post(`${base}/batches/batch-x/pages`, { ...body(0), sample: 'jane-doe-039:0' }))
+          .status,
+        400,
+      );
+    } finally {
+      await app.close();
+    }
+  });
+});
+
+describe('daily spending limit', () => {
+  it('refuses new documents once the limit is reached; the sample patient still works', async () => {
+    const model = stubModel();
+    // Each Spark call could cost up to $0.14, more than this whole limit.
+    const { app, base } = await start(model, {}, samples(), 0.05);
+    try {
+      assert.equal((await post(`${base}/batches/spend-a/pages`, body(0))).status, 202);
+      const view = await settle(base, 'spend-a');
+      assert.equal(view.pages[0].state, 'failed');
+      assert.match(view.pages[0].error!, /today's limit.*sample patient still works/);
+      assert.equal(model.calls.length, 0);
+      const sample = { ...body(1), sample: 'jane-doe-lab-03:0' };
+      assert.equal((await post(`${base}/batches/spend-a/pages`, sample)).status, 202);
+      assert.equal((await settle(base, 'spend-a')).pages[1].state, 'done');
     } finally {
       await app.close();
     }
