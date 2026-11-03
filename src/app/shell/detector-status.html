@@ -4,20 +4,18 @@
     class="status-button"
     (click)="queue.openReview()"
     aria-haspopup="dialog"
-    aria-label="Open document review"
+    [attr.aria-label]="'Open document review: ' + statusLabel()"
+    [attr.title]="statusLabel()"
   >
     @if (queue.batchProgress().remaining) {
       <span class="loading loading-spinner loading-xs" aria-hidden="true"></span>
     } @else {
       <app-icon name="shield" size="1.1rem" />
     }
-    <span>{{
-      queue.batchProgress().ready
-        ? queue.batchProgress().ready + ' ready to check'
-        : queue.resultsBlocked()
-          ? 'Document progress'
-          : 'Documents approved'
-    }}</span>
+    <span class="status-label">{{ statusLabel() }}</span>
+    @if (queue.batchProgress().ready) {
+      <span class="status-count" aria-hidden="true">{{ queue.batchProgress().ready }}</span>
+    }
   </button>
 }
 

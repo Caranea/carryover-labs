@@ -43,6 +43,12 @@ export class DetectorStatus {
       ? [doc]
       : [];
   });
+  /** Short status shown on the header button; also its tooltip and part of its accessible name. */
+  protected readonly statusLabel = computed(() => {
+    const batch = this.queue.batchProgress();
+    if (batch.ready) return batch.ready + ' ready to check';
+    return this.queue.resultsBlocked() ? 'Document progress' : 'Documents approved';
+  });
   protected readonly title = computed(() => {
     const batch = this.queue.batchProgress();
     if (batch.ready || this.selected().length) return 'Check and approve your documents';
