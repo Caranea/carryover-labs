@@ -58,6 +58,14 @@ Open **[carryover.pl/demo](https://carryover.pl/demo)**. It needs no account and
 
 Readings with an uncertain transcription, an unresolved identity, a missing date or an unverifiable unit stay out of the charts and are listed for review with a reason. The full design is in [architecture](docs/architecture.md).
 
+### More than reading text
+
+- **Cumulative reports.** A 2012 fax prints four visits side by side. Muse Spark returns one row per value with the date of its column, so one photographed sheet becomes four points on each chart.
+- **Dates in footnotes.** Some Polish reports print the collection date in a footnote, sometimes on another page. Spark returns each row's footnote marker and every date printed elsewhere, and server code joins them across the document's pages. An ambiguous date such as 01/06/2012 is settled by the other dates in the document, and two conflicting dates leave the reading undated and in review.
+- **Two results on one line.** When a line prints a percentage and an absolute count, as neutrophils often do, Spark returns two rows and Muse Wonder keeps them as separate tests.
+
+Each model has the job it fits. Personal details have to be found before anything leaves the device, so that step runs a small Meta XLM-RoBERTa model in the browser instead of a hosted model. Reading a photographed table needs vision, so each approved page goes to Muse Spark. Naming a test is a question about all the reports together, so Muse Wonder sees every printed name in the batch at once. Numbers never come from a model: unit conversion and charts are plain server code.
+
 ## Local PII redaction
 
 Health records are too sensitive to redact on a server, so Carryover does it in the browser. It runs [`bardsai/eu-pii-anonimization-multilang`](https://huggingface.co/bardsai/eu-pii-anonimization-multilang), a token classifier built on Meta AI's open [XLM-RoBERTa](https://huggingface.co/FacebookAI/xlm-roberta-base), with no call to any server to find personal details.
