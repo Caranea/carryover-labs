@@ -1,4 +1,4 @@
-<div class="mx-auto max-w-5xl px-5 sm:px-8 py-10 sm:py-14 flex flex-col gap-10">
+<div class="mx-auto max-w-7xl px-5 sm:px-8 py-10 sm:py-14 flex flex-col gap-10">
   <header class="flex flex-col gap-3">
     <app-step-rail />
     <h1 class="text-4xl sm:text-5xl tracking-tight">
@@ -40,14 +40,41 @@
     }
   }
 
-  <section class="rounded-box border border-base-300 bg-base-100 p-5" aria-labelledby="mode-h">
-    <h2 id="mode-h" class="font-display text-xl font-semibold">Finding personal details</h2>
-    <p class="mt-1 text-base-content/80">{{ modeSummary() }}</p>
-    <details class="mt-2 mode-choice">
-      <summary class="cursor-pointer font-semibold text-primary w-fit">Change how we check</summary>
-      <fieldset class="mt-3 flex flex-col gap-3">
-        <legend class="sr-only">How to check personal details</legend>
-        <label class="flex items-start gap-3 cursor-pointer rounded-xl p-3 hover:bg-base-200">
+  @if (!queue.recoveryReady()) {
+    <div class="alert alert-info alert-soft" role="status">
+      @if (queue.recovery.otherTab()) {
+        <span class="loading loading-spinner loading-sm"></span
+        ><span>Carryover is open in another tab. Close it to continue here.</span>
+      } @else if (queue.restoring()) {
+        <span class="loading loading-spinner loading-sm"></span
+        ><span>Restoring your saved progress…</span>
+      } @else {
+        <span>{{
+          queue.recovery.error() ||
+            'Saved progress could not be restored. Your existing files have been kept.'
+        }}</span
+        ><button class="btn btn-sm" (click)="queue.retryRecovery()">Try again</button>
+      }
+    </div>
+  }
+
+  <div class="grid gap-6 lg:grid-cols-[7fr_5fr]">
+    <section
+      class="rounded-box border border-base-300 bg-base-100 p-5 min-w-0"
+      aria-labelledby="mode-h"
+    >
+      <h2 id="mode-h" class="font-display text-xl font-semibold">Finding personal details</h2>
+      <p class="mt-1 text-base-content/80">{{ modeSummary() }}</p>
+      <fieldset class="mt-4 flex flex-col gap-2 min-w-0">
+        <legend class="font-semibold mb-2">Change how we check</legend>
+        <label
+          class="flex items-start gap-3 cursor-pointer rounded-xl border p-3"
+          [class]="
+            privacyMode() === 'automatic'
+              ? 'border-primary bg-primary/5'
+              : 'border-base-300 hover:bg-base-200'
+          "
+        >
           <input
             type="radio"
             name="privacy-mode"
@@ -83,7 +110,14 @@
             </span>
           </span>
         </label>
-        <label class="flex items-start gap-3 cursor-pointer rounded-xl p-3 hover:bg-base-200">
+        <label
+          class="flex items-start gap-3 cursor-pointer rounded-xl border p-3"
+          [class]="
+            privacyMode() === 'lightweight'
+              ? 'border-primary bg-primary/5'
+              : 'border-base-300 hover:bg-base-200'
+          "
+        >
           <input
             type="radio"
             name="privacy-mode"
@@ -113,93 +147,75 @@
           </span>
         </label>
       </fieldset>
-    </details>
-  </section>
-  @if (!queue.recoveryReady()) {
-    <div class="alert alert-info alert-soft" role="status">
-      @if (queue.recovery.otherTab()) {
-        <span class="loading loading-spinner loading-sm"></span
-        ><span>Carryover is open in another tab. Close it to continue here.</span>
-      } @else if (queue.restoring()) {
-        <span class="loading loading-spinner loading-sm"></span
-        ><span>Restoring your saved progress…</span>
-      } @else {
-        <span>{{
-          queue.recovery.error() ||
-            'Saved progress could not be restored. Your existing files have been kept.'
-        }}</span
-        ><button class="btn btn-sm" (click)="queue.retryRecovery()">Try again</button>
-      }
-    </div>
-  }
-
-  <!-- Dropzone -->
-  <section
-    class="card border-2 border-dashed transition-colors"
-    [class]="
-      dragging()
-        ? 'border-primary bg-primary/5'
-        : 'border-base-300 bg-base-100 hover:border-primary/60'
-    "
-    (dragenter)="onDragEnter($event)"
-    (dragover)="$event.preventDefault()"
-    (dragleave)="onDragLeave()"
-    (drop)="onDrop($event)"
-    aria-labelledby="drop-h"
-  >
-    <div class="card-body items-center text-center gap-4 py-12">
-      <span class="grid place-items-center size-16 rounded-full bg-primary/10 text-primary">
-        <app-icon name="upload" size="1.9rem" />
-      </span>
-      <div>
-        <h2 id="drop-h" class="font-display text-2xl font-semibold">
-          {{ dragging() ? 'Release to add' : 'Choose a file or take a photo' }}
-        </h2>
-        <p class="text-base-content/80 mt-1">
-          Start with one document. On a computer, you can also drag files here.
-        </p>
+    </section>
+    <!-- Dropzone -->
+    <section
+      class="card border-2 border-dashed transition-colors min-w-0"
+      [class]="
+        dragging()
+          ? 'border-primary bg-primary/5'
+          : 'border-base-300 bg-base-100 hover:border-primary/60'
+      "
+      (dragenter)="onDragEnter($event)"
+      (dragover)="$event.preventDefault()"
+      (dragleave)="onDragLeave()"
+      (drop)="onDrop($event)"
+      aria-labelledby="drop-h"
+    >
+      <div class="card-body items-center justify-center text-center gap-4 px-6 py-8">
+        <span class="grid place-items-center size-16 rounded-full bg-primary/10 text-primary">
+          <app-icon name="upload" size="1.9rem" />
+        </span>
+        <div>
+          <h2 id="drop-h" class="font-display text-2xl font-semibold">
+            {{ dragging() ? 'Release to add' : 'Choose a file or take a photo' }}
+          </h2>
+          <p class="text-base-content/80 mt-1">
+            Start with one document. On a computer, you can also drag files here.
+          </p>
+        </div>
+        <div class="flex flex-wrap justify-center gap-3">
+          <label class="btn btn-primary rounded-full px-6">
+            <app-icon name="upload" size="1.1rem" /> Choose files
+            <input
+              type="file"
+              multiple
+              [accept]="accept"
+              [disabled]="!queue.recoveryReady()"
+              (change)="onFiles($any($event.target))"
+              class="sr-only"
+            />
+          </label>
+          <label class="btn btn-outline rounded-full px-6 border-base-300 pointer-fine:hidden">
+            <app-icon name="camera" size="1.1rem" /> Take a photo
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              [disabled]="!queue.recoveryReady()"
+              (change)="onFiles($any($event.target))"
+              class="sr-only"
+            />
+          </label>
+          @if (sampleDocuments().length) {
+            <button
+              type="button"
+              class="btn btn-outline rounded-full px-6 border-base-300"
+              [disabled]="!queue.recoveryReady()"
+              (click)="openSamples()"
+            >
+              <app-icon name="user" size="1.1rem" /> Try the sample patient
+            </button>
+          }
+        </div>
+        <ul class="flex flex-wrap justify-center gap-1.5" aria-label="Supported formats">
+          @for (f of formats; track f) {
+            <li class="badge badge-ghost badge-sm">{{ f }}</li>
+          }
+        </ul>
       </div>
-      <div class="flex flex-wrap justify-center gap-3">
-        <label class="btn btn-primary rounded-full px-6">
-          <app-icon name="upload" size="1.1rem" /> Choose files
-          <input
-            type="file"
-            multiple
-            [accept]="accept"
-            [disabled]="!queue.recoveryReady()"
-            (change)="onFiles($any($event.target))"
-            class="sr-only"
-          />
-        </label>
-        <label class="btn btn-outline rounded-full px-6 border-base-300 pointer-fine:hidden">
-          <app-icon name="camera" size="1.1rem" /> Take a photo
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            [disabled]="!queue.recoveryReady()"
-            (change)="onFiles($any($event.target))"
-            class="sr-only"
-          />
-        </label>
-        @if (sampleDocuments().length) {
-          <button
-            type="button"
-            class="btn btn-outline rounded-full px-6 border-base-300"
-            [disabled]="!queue.recoveryReady()"
-            (click)="openSamples()"
-          >
-            <app-icon name="user" size="1.1rem" /> Try the sample patient
-          </button>
-        }
-      </div>
-      <ul class="flex flex-wrap justify-center gap-1.5" aria-label="Supported formats">
-        @for (f of formats; track f) {
-          <li class="badge badge-ghost badge-sm">{{ f }}</li>
-        }
-      </ul>
-    </div>
-  </section>
+    </section>
+  </div>
   <app-storage-notice />
 
   <!-- On this device -->
