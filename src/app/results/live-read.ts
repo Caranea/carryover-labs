@@ -29,6 +29,12 @@ interface LiveSample {
   title: string;
   detail: string;
   language: string;
+  /**
+   * Where each recorded row is printed, as [x, y, width, height] fractions of the image, in row
+   * order. Measured on the image: Muse Spark's own regions are rough estimates, up to a line off
+   * on the Polish page and missing on the German one, and the recording is never edited by hand.
+   */
+  lines: readonly (readonly [number, number, number, number])[];
 }
 const SAMPLES: LiveSample[] = [
   {
@@ -40,6 +46,11 @@ const SAMPLES: LiveSample[] = [
     title: 'Polish PDF',
     detail: '3 thyroid tests · quick',
     language: 'pl',
+    lines: [
+      [0.03, 0.3849, 0.855, 0.0231],
+      [0.03, 0.4407, 0.855, 0.0237],
+      [0.03, 0.4843, 0.855, 0.0231],
+    ],
   },
   {
     key: 'german-cumulative',
@@ -50,6 +61,36 @@ const SAMPLES: LiveSample[] = [
     title: 'German phone photo',
     detail: '28 tests · dense',
     language: 'de',
+    lines: [
+      [0.0841, 0.2434, 0.2734, 0.0191],
+      [0.084, 0.2657, 0.2737, 0.0201],
+      [0.0839, 0.2889, 0.2739, 0.0194],
+      [0.0838, 0.3115, 0.2741, 0.0201],
+      [0.0837, 0.3347, 0.2743, 0.0194],
+      [0.0836, 0.3573, 0.2745, 0.0194],
+      [0.0835, 0.3799, 0.2748, 0.0194],
+      [0.0833, 0.4024, 0.275, 0.0201],
+      [0.0832, 0.4257, 0.2752, 0.0194],
+      [0.0831, 0.4482, 0.2754, 0.0201],
+      [0.083, 0.4715, 0.2756, 0.0194],
+      [0.0829, 0.494, 0.2759, 0.0201],
+      [0.0828, 0.5173, 0.2761, 0.0204],
+      [0.0827, 0.5408, 0.2763, 0.0201],
+      [0.0826, 0.564, 0.2765, 0.0201],
+      [0.0824, 0.5872, 0.2768, 0.0201],
+      [0.0823, 0.6217, 0.2771, 0.0201],
+      [0.0822, 0.6449, 0.2773, 0.0201],
+      [0.0821, 0.6681, 0.2776, 0.0207],
+      [0.0819, 0.7039, 0.2779, 0.0201],
+      [0.0818, 0.7271, 0.2781, 0.0207],
+      [0.0817, 0.7509, 0.2784, 0.0207],
+      [0.0815, 0.7748, 0.2786, 0.0207],
+      [0.0814, 0.7986, 0.2788, 0.0213],
+      [0.0813, 0.8231, 0.279, 0.0207],
+      [0.0812, 0.8469, 0.2793, 0.021],
+      [0.0811, 0.8711, 0.2795, 0.021],
+      [0.0809, 0.8952, 0.2798, 0.0354],
+    ],
   },
 ];
 
@@ -209,7 +250,7 @@ interface Models {
                       <span class="sweep" aria-hidden="true"></span>
                     }
                     @for (r of rows(); track $index) {
-                      @if (r.region; as b) {
+                      @if (regionOf($index, r); as b) {
                         <span
                           class="mark"
                           [class.on]="focused() === $index"
@@ -443,13 +484,19 @@ interface Models {
       align-items: flex-end;
       gap: 1.25rem 2.5rem;
     }
+    /* Both rows of tiles share one grid, so their edges line up. */
+    .models,
+    .chooser {
+      --tile-gap: 1.5rem;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.6rem var(--tile-gap);
+    }
     .models {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 0.6rem;
+      flex: 1 1 100%;
     }
     .models li {
+      position: relative;
       display: flex;
       align-items: center;
       gap: 0.6rem;
@@ -460,11 +507,13 @@ interface Models {
     }
     .models li + li::before {
       content: '→';
-      margin: 0 0.35rem 0 -1.6rem;
+      position: absolute;
+      top: 50%;
+      left: calc(-1px - var(--tile-gap));
+      width: var(--tile-gap);
+      text-align: center;
+      transform: translateY(-50%);
       color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
-    }
-    .models li + li {
-      margin-left: 1.4rem;
     }
     .models small {
       font-size: 0.82rem;
@@ -517,12 +566,9 @@ interface Models {
       }
     }
     @media (max-width: 39.999rem) {
-      .models {
-        flex-direction: column;
-        align-items: stretch;
-      }
-      .models li + li {
-        margin-left: 0;
+      .models,
+      .chooser {
+        grid-template-columns: minmax(0, 1fr);
       }
       .models li + li::before {
         content: none;
@@ -544,13 +590,13 @@ interface Models {
         grid-template-columns: minmax(0, 31rem) minmax(0, 1fr);
         gap: 3rem;
       }
+      /* Spark above the page it reads, Wonder above the names it gives. */
+      .models {
+        --tile-gap: 3rem;
+        grid-template-columns: minmax(0, 31rem) minmax(0, 1fr);
+      }
     }
 
-    .chooser {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
-      gap: 0.6rem;
-    }
     .choice {
       display: flex;
       align-items: center;
@@ -946,6 +992,12 @@ export class LiveRead implements OnInit, OnDestroy {
       });
     }
     this.wires.set(wires);
+  }
+
+  /** Where row `index` is printed; a re-recorded page with other rows falls back on the model. */
+  protected regionOf(index: number, row: PrintedRow) {
+    const { lines } = this.shown();
+    return lines.length === this.rows().length ? lines[index] : row.region;
   }
 
   protected identity(index: number): Identity | undefined {
