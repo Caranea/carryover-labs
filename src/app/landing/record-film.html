@@ -1,0 +1,155 @@
+@let f = frame();
+<div class="panel">
+  <ol class="stepper" [class.all]="!motionAllowed()">
+    @for (step of steps; track step.title; let i = $index) {
+      <li
+        [class.current]="i === f.activeStep"
+        [class.done]="i < f.activeStep"
+        [attr.aria-current]="i === f.activeStep ? 'step' : null"
+      >
+        <span class="progress-line" [style.width.%]="f.stepFill[i]"></span>
+        <span class="marker" aria-hidden="true">
+          @if (i < f.activeStep) {
+            <app-icon name="check" size="1.05rem" />
+          } @else {
+            {{ i + 1 }}
+          }
+        </span>
+        <div>
+          <h3>{{ step.title }}</h3>
+          <p>{{ step.text }}</p>
+        </div>
+      </li>
+    }
+  </ol>
+
+  <div class="workspace">
+    <!-- The pages repeat what the table says, so assistive technology reads the table. -->
+    <div #viewer class="viewer" aria-hidden="true">
+      <div class="thumbs">
+        @for (doc of documents; track doc.src; let i = $index) {
+          @let page = f.pages[i];
+          <div class="thumb" [class.active]="page.active" [style.opacity]="page.thumbOpacity">
+            <span class="thumb-image"
+              ><img [src]="doc.src" [class.photo]="doc.photo" alt="" loading="lazy"
+            /></span>
+            <span>{{ doc.year }}</span>
+          </div>
+        }
+      </div>
+
+      <div class="page-area">
+        @for (doc of documents; track doc.src; let i = $index) {
+          @let page = f.pages[i];
+          <div
+            class="page"
+            [style.aspect-ratio]="doc.width + ' / ' + doc.height"
+            [style.opacity]="page.pageOpacity"
+          >
+            <img [src]="doc.src" [class.photo]="doc.photo" alt="" loading="lazy" />
+            @if (page.outline; as o) {
+              <span
+                class="outline"
+                [style.left.%]="o.left"
+                [style.top.%]="o.top"
+                [style.width.%]="o.width"
+                [style.height.%]="o.height"
+              ></span>
+            }
+            @for (b of page.redactions; track $index) {
+              <span
+                class="redact-bar"
+                [style.left.%]="b.left"
+                [style.top.%]="b.top"
+                [style.width.%]="b.width"
+                [style.height.%]="b.height"
+                [style.transform]="'scaleX(' + b.drawn + ')'"
+              ></span>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="caption" [style.opacity]="f.captionOpacity">
+        <span>{{ documents[f.document].label }}</span>
+        <span>{{ documents[f.document].language }}</span>
+      </div>
+    </div>
+
+    <div class="results">
+      <table class="table-plain">
+        <caption>
+          Jane's blood count, newest first
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col" class="test">Test</th>
+            @for (doc of documents; track doc.src; let i = $index) {
+              <th
+                scope="col"
+                class="date"
+                [class.active]="f.columns[i].active"
+                [style.opacity]="f.columns[i].opacity"
+              >
+                <span class="day">{{ doc.day }}</span> {{ doc.year }}
+              </th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of rows; track row.name; let r = $index) {
+            <tr>
+              <th scope="row" class="test">
+                <span class="name">{{ row.name }}</span>
+                <span class="sub">{{ f.subtitles[r] }}</span>
+              </th>
+              @for (value of row.values; track $index; let i = $index) {
+                @let cell = f.cells[r][i];
+                <td [style.opacity]="cell.opacity">
+                  <span class="value" [class.low]="row.low.includes(i)" [class.traced]="cell.traced"
+                    >{{ value }}
+                    @if (row.low.includes(i)) {
+                      <span class="flag" aria-label="flagged low">↓L</span>
+                    }
+                  </span>
+                </td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      <div class="trace" [style.opacity]="f.traceOpacity">
+        <p>
+          <strong>{{ tracedRow.name }}, 9 Feb 2014.</strong> Printed as “Płytki krwi 98 tys/µl”, lab
+          range 180 to 430, flagged L by the lab.
+        </p>
+        <p class="hint">Select any value to see it on its page.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<ul class="promises">
+  <li><app-icon name="lock" /> Your original files stay on your device</li>
+  <li><app-icon name="file-text" /> Every value links back to the page it came from</li>
+  <li>
+    <app-icon name="shield" /> Flags and ranges are copied from your reports, never interpreted
+  </li>
+</ul>
+
+<div class="actions">
+  <a routerLink="/demo" class="btn btn-primary rounded-full">
+    See Jane's results <app-icon name="arrow-right" size="1.1rem" />
+  </a>
+  @if (motionAllowed()) {
+    <button
+      type="button"
+      class="btn btn-ghost rounded-full text-primary"
+      [class.is-hidden]="!finished()"
+      (click)="play()"
+    >
+      <app-icon name="replay" size="1rem" /> Replay
+    </button>
+  }
+</div>
