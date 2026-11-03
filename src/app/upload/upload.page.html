@@ -93,7 +93,7 @@
                 >
               }</span
             ><span class="block text-sm text-base-content/80 mt-1"
-              >Finds names, addresses and common personal details on your device. We automatically
+              >Finds personal details on your device. We automatically
               choose and download a compatible checker, then reuse it in this browser. Takes longer,
               but requires less work.</span
             >
@@ -135,8 +135,7 @@
                 >
               }</span
             ><span class="block text-sm text-base-content/80 mt-1"
-              >No large detector download. Details hidden in earlier documents are reused on this
-              device. After the file is read, you tap any other personal details to hide them.
+              >No large detector download. You manually select words for redaction.
               Reading photos can still take time.</span
             >
             <span
@@ -170,9 +169,6 @@
           <h2 id="drop-h" class="font-display text-2xl font-semibold">
             {{ dragging() ? 'Release to add' : 'Choose a file or take a photo' }}
           </h2>
-          <p class="text-base-content/80 mt-1">
-            Start with one document. On a computer, you can also drag files here.
-          </p>
         </div>
         <div class="flex flex-wrap justify-center gap-3">
           <label class="btn btn-primary rounded-full px-6">
@@ -347,13 +343,18 @@
     } @else if (!queue.saved()!.length) {
       <div class="card bg-base-200">
         <div class="card-body items-center text-center gap-3 py-12">
+          <!-- A scrap of a report: black is what gets removed, yellow is what is kept. -->
           <div
-            class="w-24 rounded-xl bg-base-100 p-3 shadow-sm flex flex-col gap-2"
+            class="w-52 -rotate-1 rounded-lg border border-base-300 bg-base-100 flex flex-col gap-1.5 px-4 py-3 text-left text-xs leading-5"
             aria-hidden="true"
           >
-            <span class="h-1.5 w-4/5 rounded bg-base-300"></span>
-            <span class="h-1.5 w-1/2 rounded bg-black"></span>
-            <span class="h-1.5 w-3/4 rounded bg-accent"></span>
+            <p class="flex items-center gap-2">Patient <span class="h-3 w-24 bg-black"></span></p>
+            <p class="flex justify-between">
+              Hemoglobin <span class="rounded-sm bg-accent px-1 font-semibold">13.2 g/dL</span>
+            </p>
+            <p class="flex justify-between">
+              Ferritin <span class="rounded-sm bg-accent px-1 font-semibold">41 ng/mL</span>
+            </p>
           </div>
           <p class="font-display text-lg font-semibold">No documents yet</p>
           <p class="text-base-content/80 max-w-sm">
@@ -434,10 +435,9 @@
   <div class="modal-box max-w-2xl">
     <h3 id="sample-h" class="font-display text-xl font-semibold">Try the sample patient</h3>
     <p id="sample-d" class="mt-2 text-base-content/80 leading-relaxed">
-      Jane Doe is a de-identified sample, based on real reports. These are the demo's documents.
+      Jane Doe is a de-identified sample, based on real lab formats. These are the demo's documents.
       They go through the same steps as yours: the privacy check on this device, your approval, then
-      reading. Meta's answers for them are real, recorded once and replayed, so they cost nothing
-      and work even when reading new documents is paused.
+      reading. Meta's answers for them are real, recorded once and replayed, so they cost nothing.
     </p>
     <fieldset class="mt-4 min-w-0">
       <legend class="font-semibold mb-2">Documents to add</legend>

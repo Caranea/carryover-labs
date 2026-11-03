@@ -243,11 +243,11 @@ export const TRACED = { document: 4, row: 3 } as const;
 export const STEPS = [
   {
     title: 'Add your results',
-    text: 'Choose a photo, PDF, Word file, or text document from any lab.',
+    text: 'Choose a photo, PDF, Word file, or text document from any lab. We support English, Polish and German.',
   },
   {
     title: 'Check personal details',
-    text: 'Your device suggests details to hide. Review every page and add any missing black bars.',
+    text: 'Your device suggests details to hide. Review every page and add any missing black bars. Your data stays safe.',
   },
   {
     title: 'View your history',

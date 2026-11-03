@@ -78,7 +78,7 @@ export class UploadPage implements OnInit {
     if (this.device.ner.modelCached() || this.device.ner.state() === 'ready')
       return 'Carryover finds them on your device and you check its work. The checker is already saved in this browser.';
     const mb = this.device.variant() === 'gpu-fp16' ? 560 : 280;
-    return `Carryover finds them on your device and you check its work. The first time, it downloads about ${mb} MB, so use Wi-Fi.`;
+    return `Carryover finds them on your device and you check its work. The first time, it downloads about ${mb} MB.`;
   });
   protected readonly readyCount = computed(
     () => this.local().filter((d) => d.status === 'review').length,
