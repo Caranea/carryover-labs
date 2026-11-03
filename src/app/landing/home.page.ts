@@ -1,32 +1,15 @@
 import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { HeroStack } from './hero-stack';
+import { RecordFilm } from './record-film';
 import { Icon } from '../ui/icon';
 
 @Component({
   selector: 'app-home',
-  imports: [RouterLink, HeroStack, Icon],
+  imports: [RouterLink, HeroStack, RecordFilm, Icon],
   templateUrl: './home.page.html',
 })
 export class HomePage {
-  protected readonly steps = [
-    {
-      icon: 'upload' as const,
-      title: 'Add your results',
-      text: 'Choose a photo, PDF, Word file, or text document from any lab.',
-    },
-    {
-      icon: 'scan' as const,
-      title: 'Check personal details',
-      text: 'Your device suggests details to hide. Review every page and add any missing black bars.',
-    },
-    {
-      icon: 'check-circle' as const,
-      title: 'View your history',
-      text: 'Save the approved copy in this browser, explore results over time, and print them for your appointment.',
-    },
-  ];
-
   protected readonly faq = [
     {
       question: 'Where are my documents saved?',

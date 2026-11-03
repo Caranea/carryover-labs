@@ -1,0 +1,462 @@
+:host {
+  --out: #b3261e;
+  --soft-ink: color-mix(in oklab, var(--color-base-content) 82%, transparent);
+  --line: var(--color-base-300);
+  display: block;
+  min-width: 0;
+}
+
+.panel {
+  overflow: hidden;
+  background: var(--color-base-100);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+}
+
+/* Steps: three columns, or only the current step where there is no room. */
+.stepper {
+  display: grid;
+  border-bottom: 1px solid var(--line);
+}
+
+.stepper li {
+  position: relative;
+  display: flex;
+  gap: 0.75rem;
+  padding: 1rem;
+  min-height: 8rem;
+}
+
+.stepper li.current {
+  background: color-mix(in oklab, var(--color-primary) 7%, transparent);
+}
+
+.stepper li:not(.current) {
+  display: none;
+}
+
+.stepper.all li:not(.current) {
+  display: flex;
+}
+
+.stepper.all li {
+  min-height: 0;
+}
+
+.stepper li + li {
+  border-top: 1px solid var(--line);
+}
+
+.marker {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.125rem;
+  height: 2.125rem;
+  border: 1.5px solid color-mix(in oklab, var(--color-base-content) 35%, transparent);
+  border-radius: 50%;
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--soft-ink);
+}
+
+.current .marker {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-primary-content);
+}
+
+.done .marker {
+  background: color-mix(in oklab, var(--color-primary) 14%, transparent);
+  border-color: transparent;
+  color: var(--color-primary);
+}
+
+.stepper h3 {
+  font-size: 1.1875rem;
+  font-weight: 600;
+  line-height: 2.125rem;
+}
+
+.stepper p {
+  margin-top: 0.125rem;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  color: var(--soft-ink);
+}
+
+.progress-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background: var(--color-primary);
+}
+
+.workspace {
+  display: flex;
+  flex-direction: column;
+}
+
+/* The page viewer. */
+.viewer {
+  flex: none;
+  padding: 1rem;
+  background: var(--color-base-200);
+  border-bottom: 1px solid var(--line);
+}
+
+.thumbs {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.375rem;
+}
+
+.thumb {
+  text-align: center;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--soft-ink);
+}
+
+.thumb-image {
+  display: block;
+  height: 3.375rem;
+  margin-bottom: 0.25rem;
+  overflow: hidden;
+  background: var(--color-base-100);
+  border-radius: 3px;
+  outline: 1px solid var(--line);
+}
+
+.thumb-image img {
+  display: block;
+  width: 100%;
+  max-width: none;
+}
+
+.thumb.active {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.thumb.active .thumb-image {
+  outline-color: var(--color-primary);
+}
+
+.photo {
+  filter: saturate(0.3);
+}
+
+.page-area {
+  position: relative;
+  height: 18.75rem;
+  margin-top: 0.75rem;
+}
+
+.page {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--color-base-100);
+  border-radius: 3px;
+  outline: 1px solid var(--line);
+  transform: translateX(-50%);
+}
+
+.page img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+}
+
+.outline {
+  position: absolute;
+  background: color-mix(in oklab, var(--color-primary) 20%, transparent);
+  outline: 1px solid color-mix(in oklab, var(--color-primary) 60%, transparent);
+}
+
+.redact-bar {
+  position: absolute;
+  background: #000;
+  transform-origin: left center;
+}
+
+.caption {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.625rem;
+  font-size: 0.8125rem;
+  color: var(--soft-ink);
+}
+
+/* The results table. */
+.results {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 1rem;
+}
+
+.table-plain {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.table-plain caption {
+  margin-bottom: 0.75rem;
+  text-align: left;
+  font-weight: 600;
+}
+
+.table-plain tr {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  align-items: center;
+}
+
+.table-plain thead tr {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--color-base-content);
+}
+
+.table-plain tbody tr {
+  padding-block: 0.5rem 0.375rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.table-plain thead .test {
+  display: none;
+}
+
+.table-plain tbody .test {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.5rem;
+  text-align: left;
+  font-weight: 400;
+}
+
+.date {
+  text-align: right;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--soft-ink);
+}
+
+.date .day {
+  display: none;
+}
+
+.date.active {
+  color: var(--color-primary);
+}
+
+.name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.sub {
+  font-size: 0.8125rem;
+  color: var(--soft-ink);
+}
+
+.table-plain td {
+  padding-block: 0.25rem;
+  text-align: right;
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
+.value {
+  display: inline-block;
+  padding: 0.125rem 0.3125rem;
+  margin-right: -0.3125rem;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.value.low {
+  font-weight: 700;
+  color: var(--out);
+}
+
+.value.traced {
+  background: color-mix(in oklab, var(--color-primary) 12%, transparent);
+  outline: 1.5px solid var(--color-primary);
+}
+
+.flag {
+  padding-left: 0.125rem;
+  font-size: 0.75rem;
+}
+
+.trace {
+  margin-top: 1rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+.trace strong {
+  font-weight: 600;
+}
+
+.trace .hint {
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--soft-ink);
+}
+
+/* Plain statements under the panel. */
+.promises {
+  display: grid;
+  gap: 0.75rem 2rem;
+  margin-top: 1.25rem;
+  font-size: 0.9375rem;
+  line-height: 1.4;
+}
+
+.promises li {
+  display: flex;
+  gap: 0.625rem;
+}
+
+.promises app-icon {
+  color: var(--color-primary);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+.is-hidden {
+  visibility: hidden;
+}
+
+@media (min-width: 40rem) {
+  .stepper li {
+    min-height: 6.25rem;
+  }
+
+  .date .day {
+    display: inline;
+  }
+
+  .date {
+    line-height: 1.25;
+  }
+
+  .date .day::after {
+    content: '\A';
+    white-space: pre;
+  }
+
+  .thumb-image {
+    height: 4rem;
+  }
+
+  .page-area {
+    height: 25rem;
+  }
+}
+
+/* Side by side, with a row of tests beside their values. */
+@media (min-width: 64rem) {
+  .stepper {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .stepper li {
+    padding: 1.25rem 1.5rem 1.125rem;
+  }
+
+  .stepper li:not(.current) {
+    display: flex;
+  }
+
+  .stepper li + li {
+    border-top: 0;
+    border-left: 1px solid var(--line);
+  }
+
+  /* Same thirds as the steps, so the divider runs straight down the panel. */
+  .workspace {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .viewer {
+    border-bottom: 0;
+  }
+
+  .thumb-image {
+    height: 3.375rem;
+  }
+
+  .results {
+    grid-column: span 2;
+    padding: 1.25rem 1.5rem;
+    border-left: 1px solid var(--line);
+  }
+
+  .table-plain caption {
+    margin-bottom: 1rem;
+  }
+
+  .table-plain tr {
+    grid-template-columns: 11rem repeat(6, minmax(0, 1fr));
+  }
+
+  .table-plain thead .test {
+    display: block;
+    align-self: end;
+    text-align: left;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--soft-ink);
+  }
+
+  .table-plain tbody tr {
+    min-height: 3.875rem;
+    padding-block: 0;
+  }
+
+  .table-plain tbody .test {
+    grid-column: auto;
+    display: block;
+    min-width: 0;
+  }
+
+  .name,
+  .sub {
+    display: block;
+  }
+
+  .sub {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .table-plain td {
+    font-size: 1rem;
+  }
+
+  .promises {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

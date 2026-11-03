@@ -28,31 +28,16 @@
 </section>
 
 <section id="how" class="bg-base-200 scroll-mt-16">
-  <div class="mx-auto max-w-7xl px-5 sm:px-8 py-20 lg:py-28">
-    <div class="text-center max-w-2xl mx-auto mb-14">
-      <h2 class="text-3xl sm:text-5xl tracking-tight">
-        <span class="font-bold">Three steps,</span>{{ ' '
-        }}<span class="font-light">and you stay in control</span>
+  <div class="mx-auto max-w-7xl px-5 sm:px-8 py-16 lg:py-20">
+    <div class="max-w-3xl mb-8">
+      <h2 class="text-3xl sm:text-4xl font-semibold tracking-tight">
+        Three steps, and you stay in control
       </h2>
+      <p class="mt-3 text-lg text-base-content/80">
+        Shown with sample reports for Jane Doe, a fictional patient.
+      </p>
     </div>
-    <ol class="grid gap-6 md:grid-cols-3">
-      @for (step of steps; track step.title; let index = $index) {
-        <li class="card bg-base-100 border border-base-300 shadow-sm">
-          <div class="card-body gap-4">
-            <div class="flex items-center justify-between">
-              <span class="grid place-items-center size-12 rounded-2xl bg-primary/10 text-primary">
-                <app-icon [name]="step.icon" size="1.5rem" />
-              </span>
-              <span class="font-display text-4xl font-light text-base-content/15">{{
-                index + 1
-              }}</span>
-            </div>
-            <h3 class="card-title font-display text-xl">{{ step.title }}</h3>
-            <p class="text-base-content/80 leading-relaxed">{{ step.text }}</p>
-          </div>
-        </li>
-      }
-    </ol>
+    <app-record-film />
   </div>
 </section>
 
