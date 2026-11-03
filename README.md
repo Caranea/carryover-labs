@@ -4,6 +4,8 @@
 
 # Carryover Labs
 
+![Not medical advice: Carryover does not diagnose or interpret results](https://img.shields.io/badge/Not_medical_advice-Does_not_diagnose_or_interpret_results-b42318?style=for-the-badge)
+
 **Years of lab reports. One timeline for a short doctor's appointment.**
 
 [![Try the live demo](https://img.shields.io/badge/Try_the_demo-carryover.pl-0d7a68?style=for-the-badge)](https://carryover.pl/demo)
