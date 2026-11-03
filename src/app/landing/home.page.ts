@@ -14,7 +14,7 @@ export class HomePage {
     {
       question: 'What actually leaves my device?',
       answer:
-        'Only the copy you approve. Carryover reads each page in your browser and helps you cover personal details with black bars. When you tap “Approve and send”, that blacked-out copy goes to Meta’s AI. Your original files, their names and the words you hid stay on your device.',
+        'Only the copy you approve. Carryover reads each page in your browser and helps you cover personal details with black bars. When you tap “Approve and send”, that blacked-out copy goes to Meta’s AI. Your original files, their names and the words you hid stay on your device. If you accept analytics cookies, Google Analytics also counts your visits to our home and demo pages. It doesn’t run on your documents or results.',
     },
     {
       question: 'Can the black bars be removed later?',

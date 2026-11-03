@@ -99,6 +99,8 @@ interface Identity {
   status: 'charted' | 'text' | 'held';
   label: string | null;
   value: number | null;
+  /** '<', '>' and the like, as printed before the value. */
+  comparator: string | null;
   unit: string | null;
   note: string | null;
 }
@@ -388,7 +390,9 @@ interface Models {
                           <div class="value">
                             @if (identity($index); as id) {
                               @if (id.value !== null) {
-                                <span class="v">{{ id.value | number: '1.0-3' }}</span>
+                                <span class="v"
+                                  >{{ id.comparator }}{{ id.value | number: '1.0-3' }}</span
+                                >
                                 <span class="u">{{ id.unit }}</span>
                               }
                             }
@@ -1120,6 +1124,7 @@ function identitiesOf(records: RecordsResponse | null): Map<string, Identity> {
             status: 'charted',
             label: series.label,
             value: p.value,
+            comparator: p.comparator,
             unit: series.unit,
             note: null,
           });
@@ -1128,6 +1133,7 @@ function identitiesOf(records: RecordsResponse | null): Map<string, Identity> {
       status: 'text',
       label: t.label,
       value: null,
+      comparator: null,
       unit: null,
       note: t.english,
     });
@@ -1136,6 +1142,7 @@ function identitiesOf(records: RecordsResponse | null): Map<string, Identity> {
       status: 'held',
       label: null,
       value: null,
+      comparator: null,
       unit: null,
       note: w.detail,
     });

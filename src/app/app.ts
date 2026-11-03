@@ -9,10 +9,12 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { CookieBanner } from './shell/cookie-banner';
 import { DetectorStatus } from './shell/detector-status';
 import { Mark } from './shell/mark';
 import { Toasts } from './shell/toasts';
 import { Icon } from './ui/icon';
+import { AnalyticsService } from './core/analytics';
 import { DocumentQueueService } from './core/document-queue.service';
 import { CLEARED_FLAG, clearLocalData } from './core/clear-local-data';
 import { errorMessage } from './core/errors';
@@ -20,7 +22,16 @@ import { ToastService } from './core/toast.service';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, Mark, DetectorStatus, Toasts, Icon],
+  imports: [
+    RouterOutlet,
+    RouterLink,
+    RouterLinkActive,
+    Mark,
+    DetectorStatus,
+    CookieBanner,
+    Toasts,
+    Icon,
+  ],
   templateUrl: './app.html',
   styleUrl: './app.css',
   host: {
@@ -32,6 +43,7 @@ import { ToastService } from './core/toast.service';
 })
 export class App {
   protected readonly queue = inject(DocumentQueueService);
+  protected readonly analytics = inject(AnalyticsService);
   private readonly router = inject(Router);
   private readonly injector = inject(Injector);
   private readonly navigation = viewChild<ElementRef<HTMLElement>>('navigation');

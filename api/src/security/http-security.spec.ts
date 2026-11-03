@@ -47,7 +47,11 @@ describe('HTTP privacy headers', () => {
     assert.equal(r.headers.get('X-Content-Type-Options'), 'nosniff');
     assert.equal(r.headers.get('Strict-Transport-Security'), 'max-age=31536000');
     const csp = r.headers.get('Content-Security-Policy') ?? '';
-    assert.match(csp, /script-src 'self' 'wasm-unsafe-eval'(;|$)/, 'no inline or remote script');
+    assert.match(
+      csp,
+      /script-src 'self' 'wasm-unsafe-eval' https:\/\/www\.googletagmanager\.com(;|$)/,
+      'no inline script, and one named remote host',
+    );
     assert.match(csp, /frame-ancestors 'none'/);
   });
 });

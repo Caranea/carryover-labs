@@ -224,9 +224,15 @@
 :host:has(main app-step-rail) .app-footer {
   padding-bottom: calc(4rem + env(safe-area-inset-bottom));
 }
+:host:has(main app-step-rail) app-cookie-banner {
+  bottom: calc(5rem + env(safe-area-inset-bottom));
+}
 @media (max-height: 34rem) {
   :host:has(main app-step-rail) .app-footer {
     padding-bottom: 0;
+  }
+  :host:has(main app-step-rail) app-cookie-banner {
+    bottom: 1rem;
   }
 }
 
@@ -352,12 +358,18 @@
   line-height: 1.6;
 }
 
+.footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
 .footer-clear {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
   min-height: 44px;
-  margin-top: 0.75rem;
   padding: 0 1rem;
   border: 1px solid rgb(221 246 235 / 35%);
   border-radius: 999px;

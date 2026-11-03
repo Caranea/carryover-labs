@@ -1,3 +1,4 @@
+import { clearAnalyticsCookies } from './analytics';
 import { deleteDeviceDatabase } from './device-storage';
 import { forgetServerBatch } from './job-client';
 
@@ -17,5 +18,6 @@ export async function clearLocalData(): Promise<void> {
   for (const storage of [localStorage, sessionStorage]) {
     for (const key of Object.keys(storage)) if (key.startsWith(PREFIX)) storage.removeItem(key);
   }
+  clearAnalyticsCookies();
   sessionStorage.setItem(CLEARED_FLAG, '1');
 }

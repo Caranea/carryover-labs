@@ -12,6 +12,7 @@ describe('clearing all local data', () => {
     localStorage.setItem('carryover.processing.batch', 'batch-1');
     localStorage.setItem('carryover.demo.history.v1', '{"entries":[]}');
     localStorage.setItem('someone-else', 'kept');
+    document.cookie = '_ga=GA1.1.1; path=/';
     await deviceTransaction<void>(['queue-state'], 'readwrite', (tx) => {
       tx.objectStore('queue-state').put({ fileName: 'Jane_Doe.pdf' }, 'head');
     });
@@ -24,6 +25,7 @@ describe('clearing all local data', () => {
     );
     expect(Object.keys(localStorage).filter((k) => k.startsWith('carryover.'))).toEqual([]);
     expect(localStorage.getItem('someone-else')).toBe('kept');
+    expect(document.cookie).not.toContain('_ga=');
     expect(sessionStorage.getItem(CLEARED_FLAG)).toBe('1');
     expect((await indexedDB.databases()).map((d) => d.name)).not.toContain('carryover.device.v1');
     // Nothing in this tab can write the old state back before the reload.

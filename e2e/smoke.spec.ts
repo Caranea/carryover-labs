@@ -63,6 +63,41 @@ test('a document opens even when lazy files can no longer be fetched', async ({ 
   await expect(page.locator('app-review')).toBeVisible();
 });
 
+test('Google Analytics waits for consent and passes the security policy', async ({ page }) => {
+  const blocked: string[] = [];
+  page.on('console', (message) => {
+    if (/Content Security Policy/i.test(message.text())) blocked.push(message.text());
+  });
+  let requests = 0;
+  await page.route('https://www.googletagmanager.com/**', (route) => {
+    requests += 1;
+    return route.fulfill({ contentType: 'text/javascript', body: 'window.tagLoaded = true;' });
+  });
+
+  await page.goto('/');
+  const banner = page.getByRole('region', { name: 'Analytics cookies' });
+  await expect(banner).toBeVisible();
+  expect(requests).toBe(0);
+
+  await banner.getByRole('button', { name: 'Decline' }).click();
+  await expect(banner).toBeHidden();
+  await page.reload();
+  await expect(banner).toBeHidden();
+  expect(requests).toBe(0);
+
+  await page.getByRole('button', { name: 'Cookie settings' }).click();
+  await banner.getByRole('button', { name: 'Accept' }).click();
+  await expect.poll(() => page.evaluate(() => 'tagLoaded' in window)).toBe(true);
+  expect(blocked).toEqual([]);
+
+  // A person's own pages open fresh, so the script doesn't come along.
+  await page.locator('header').getByRole('link', { name: 'Documents' }).click();
+  await expect(page).toHaveURL(/\/documents$/);
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  expect(await page.evaluate(() => 'tagLoaded' in window)).toBe(false);
+  expect(await page.evaluate(() => 'dataLayer' in window)).toBe(false);
+});
+
 test('a missing file is a 404, not the app page', async ({ request }) => {
   const missing = await request.get('/chunk-REPLACED.js');
   expect(missing.status()).toBe(404);
