@@ -1,8 +1,8 @@
 <div class="results-page mx-auto max-w-7xl px-5 sm:px-8 py-6 sm:py-12 flex flex-col gap-8">
   <header class="flex flex-col gap-3">
     <app-step-rail />
-    <div class="results-intro" [class.with-aside]="demo">
-      <div class="flex flex-col gap-3 min-w-0">
+    <div class="results-intro" [class.with-aside]="demo" [class.compact]="!demo">
+      <div class="intro-main flex flex-col gap-3 min-w-0">
         @if (demo) {
           <span class="badge badge-soft badge-primary gap-1.5 py-3 px-3 self-start no-print">
             <app-icon name="eye-off" size="0.9rem" /> De-identified sample: every name, lab and
@@ -13,9 +13,20 @@
             <span class="font-light">finally in one place</span>
           </h1>
         } @else {
-          <h1 class="text-4xl sm:text-5xl tracking-tight">
-            <span class="font-bold">Your results</span>
-          </h1>
+          <div class="title-row">
+            <h1 class="text-3xl sm:text-4xl tracking-tight">
+              <span class="font-bold">Your results</span>
+            </h1>
+            @if (data()?.stats?.documents) {
+              <button
+                type="button"
+                class="btn btn-primary rounded-full export-pdf no-print"
+                (click)="exportPdf()"
+              >
+                <app-icon name="file-text" size="1rem" /><span class="label">Export PDF</span>
+              </button>
+            }
+          </div>
         }
         <p class="print-only exported">
           Exported {{ exportedOn | date: 'd MMM y' }} from Carryover Labs. Values as printed on the
@@ -36,7 +47,7 @@
             >
           }
         </p>
-        <p class="text-lg text-base-content/80 max-w-3xl leading-relaxed no-print">
+        <p class="text-base-content/80 max-w-3xl leading-relaxed no-print" [class.text-lg]="demo">
           @if (demo) {
             Read from {{ sample.documents }} documents in {{ sample.languages }} languages and lined
             up newest first. Select a value to see the page it came from, or a test name to see its
@@ -46,25 +57,30 @@
             page, or a test name to see its chart.
           }
         </p>
-        <div class="flex flex-wrap gap-2 mt-2 no-print">
-          @if (data()?.stats?.documents) {
-            <button
-              type="button"
-              class="btn btn-primary rounded-full export-pdf"
-              (click)="exportPdf()"
-            >
-              <app-icon name="file-text" size="1.1rem" />Export PDF
-            </button>
-          }
-          @if (demo) {
+        @if (demo) {
+          <div class="flex flex-wrap gap-2 mt-2 no-print">
+            @if (data()?.stats?.documents) {
+              <button
+                type="button"
+                class="btn btn-primary rounded-full export-pdf"
+                (click)="exportPdf()"
+              >
+                <app-icon name="file-text" size="1.1rem" />Export PDF
+              </button>
+            }
             <a routerLink="/documents" class="btn btn-outline rounded-full">Use my own documents</a>
+          </div>
+          @if (summary(); as d) {
+            <ng-container *ngTemplateOutlet="stats; context: { $implicit: d }" />
           }
-        </div>
+        }
       </div>
       @if (demo) {
         <aside class="no-print" aria-label="The patient's original documents">
           <app-demo-documents />
         </aside>
+      } @else if (summary(); as d) {
+        <ng-container *ngTemplateOutlet="stats; context: { $implicit: d }" />
       }
     </div>
   </header>
@@ -111,43 +127,9 @@
   } @else if (data()) {
     @let d = data()!;
 
-    <section class="report-head" aria-label="Summary">
-      <dl>
-        <div>
-          <dt>Documents</dt>
-          <dd>{{ d.stats.documents }}</dd>
-        </div>
-        <div>
-          <dt>Tests</dt>
-          <dd>{{ d.stats.tests + textTests() }}</dd>
-        </div>
-        <div>
-          <dt>Values</dt>
-          <dd>{{ d.stats.values + d.textResults.length }}</dd>
-        </div>
-        <div>
-          <dt>Time span</dt>
-          <dd>{{ span(d.stats.from, d.stats.to) }}</dd>
-        </div>
-        @if (d.warnings.length) {
-          <div>
-            <dt>To check</dt>
-            <dd>
-              <a
-                class="link"
-                [href]="anchor('review-readings')"
-                (click)="$event.preventDefault(); jump('review-readings')"
-                >{{ d.warnings.length }}</a
-              >
-            </dd>
-          </div>
-        }
-      </dl>
-    </section>
-
     <div class="flex flex-col gap-3">
-      <div class="flex flex-wrap items-center gap-x-5 gap-y-3 no-print">
-        <label class="input w-full sm:w-80">
+      <div class="filter-bar no-print">
+        <label class="input search">
           <app-icon name="scan" size="1rem" />
           <input
             type="search"
@@ -158,32 +140,25 @@
           />
         </label>
         @if (flaggedTotal() || flaggedOnly()) {
-          <label class="flag-filter" [class.on]="flaggedOnly()">
+          <label
+            class="flag-filter"
+            [class.on]="flaggedOnly()"
+            title="Only tests with values the lab flagged"
+          >
             <input
               type="checkbox"
               class="toggle toggle-sm"
               [checked]="flaggedOnly()"
               (change)="flaggedOnly.set($any($event.target).checked)"
             />
-            Only tests with values the lab flagged
+            Lab-flagged only
             <span class="count">{{ flaggedTotal() }}</span>
           </label>
         }
+        @if (panels().length > 1) {
+          <app-panel-nav [panels]="panels()" (jump)="jump($event)" />
+        }
       </div>
-      @if (panels().length > 1) {
-        <nav class="panel-nav no-print" aria-label="Jump to a panel">
-          @for (p of panels(); track p.key) {
-            <a [href]="anchor(p.key)" (click)="$event.preventDefault(); jump(p.key)"
-              >{{ p.label }}
-              @if (p.flagged) {
-                <span class="count" [attr.aria-label]="p.flagged + ' flagged'">{{
-                  p.flagged
-                }}</span>
-              }
-            </a>
-          }
-        </nav>
-      }
       @if (panels().length) {
         <p class="legend">
           <span class="key"
@@ -594,6 +569,19 @@
     }
   }
 </div>
+
+<!-- The summary counts: beside the title, or under the sample's introduction. -->
+<ng-template #stats let-d>
+  <app-results-summary
+    [documents]="d.stats.documents"
+    [tests]="d.stats.tests + textTests()"
+    [values]="d.stats.values + d.textResults.length"
+    [span]="span(d.stats.from, d.stats.to)"
+    [toCheck]="d.warnings.length"
+    [checkHref]="anchor('review-readings')"
+    (check)="jump('review-readings')"
+  />
+</ng-template>
 
 <!-- The heading rows of a panel's table: used by the table and by its pinned copy. -->
 <ng-template #headRows let-p let-cols="cols" let-trend="trend">

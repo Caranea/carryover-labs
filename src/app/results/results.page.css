@@ -11,61 +11,26 @@
   --hover: #f5f8f9;
 }
 
-.report-head dl {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  border-top: 2px solid var(--ink);
-  border-bottom: 1px solid var(--rule);
-  color: var(--ink);
-}
-.report-head dl > div {
-  padding: 0.6rem 0.75rem 0.7rem 0;
-}
-.report-head dt {
-  font-size: 0.8125rem;
-  color: var(--ink-soft);
-}
-.report-head dd {
-  font-size: 1.35rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.panel-nav {
+/* Search, the flag filter and the jump-to row share one line on wide screens. */
+.filter-bar {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.45rem 0.5rem;
-  font-size: 0.92rem;
-}
-.panel-nav a {
-  display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  min-height: 2.5rem;
-  padding: 0.3rem 0.9rem;
-  border: 1px solid var(--color-base-300);
-  border-radius: 999px;
-  color: var(--ink);
+  gap: 0.75rem;
 }
-.panel-nav a:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+.filter-bar .search {
+  width: 100%;
 }
-.panel-nav .count {
-  display: inline-grid;
-  place-items: center;
-  min-width: 1.2rem;
-  height: 1.2rem;
-  padding: 0 0.3rem;
-  border-radius: 999px;
-  background: var(--out);
-  color: #fff;
-  font-size: 0.75rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
+@media (width >= 40rem) {
+  .filter-bar .search {
+    flex: none;
+    width: 16rem;
+  }
 }
 /* A pill that turns red while on: the page is then showing flagged tests only. */
 .flag-filter {
+  flex: none;
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   gap: 0.6rem;
@@ -466,7 +431,7 @@
   text-underline-offset: 3px;
   cursor: pointer;
 }
-:where(.value, .show, .test button, .panel-nav a):focus-visible {
+:where(.value, .show, .test button):focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
@@ -670,12 +635,6 @@ app-spark.wide {
     color: var(--ink);
   }
 
-  .report-head dl {
-    grid-template-columns: repeat(auto-fit, minmax(28mm, 1fr));
-  }
-  .report-head dd {
-    font-size: 13pt;
-  }
   .legend {
     display: flex;
     font-size: 7.5pt;
@@ -836,6 +795,71 @@ app-spark.wide {
 .results-intro {
   display: grid;
   gap: 1.5rem;
+}
+.intro-main app-results-summary {
+  margin-top: 0.5rem;
+}
+
+/* Your own results: a short title row, and the counts as tiles on the right. */
+.results-intro.compact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem 2rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--color-base-300);
+}
+.results-intro.compact .intro-main {
+  flex: 1 1 24rem;
+  gap: 0.4rem;
+}
+.title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.title-row .export-pdf {
+  height: 2.5rem;
+  min-height: 2.5rem;
+  padding-inline: 1rem;
+  font-size: 0.875rem;
+}
+@media (width >= 48rem) {
+  .title-row {
+    justify-content: flex-start;
+  }
+}
+@media (width < 48rem) {
+  .results-intro.compact > app-results-summary {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  /* An icon button on phones; the label stays for screen readers. */
+  .title-row .export-pdf {
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+  }
+  .title-row .export-pdf .label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+@media print {
+  .results-intro.compact {
+    display: block;
+    padding: 0;
+    border: 0;
+  }
+  .results-intro.compact app-results-summary {
+    margin-top: 5mm;
+  }
 }
 @media (min-width: 64rem) {
   .results-intro.with-aside {
