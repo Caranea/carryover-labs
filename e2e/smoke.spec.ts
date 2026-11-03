@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-/** A fictional phone photo whose identifiers are already blacked out. */
+/** A de-identified phone photo whose identifiers are already blacked out. */
 const PHOTO = 'public/samples/live/german-cumulative.jpg';
 
 /** Stand in for the batch API: accept every page and never finish, recording what was sent. */
@@ -103,7 +103,7 @@ test('the sample patient is read from recorded answers, with no key, and charted
   await expect(page.getByText('Platelets').first()).toBeVisible();
 });
 
-test('the demo replays Meta answers for a fictional page without a key', async ({ page }) => {
+test('the demo replays Meta answers for a sample page without a key', async ({ page }) => {
   await page.goto('/demo');
   await expect(page.getByRole('heading', { level: 1 })).toContainText("Jane's tests");
   await page.getByRole('button', { name: 'Read it', exact: true }).click();

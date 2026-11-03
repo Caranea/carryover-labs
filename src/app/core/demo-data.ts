@@ -1,5 +1,5 @@
 /**
- * The /demo patient, Jane Doe: an invented person, and what Carryover makes of her ten documents
+ * The /demo patient, Jane Doe (a stand-in name), and what Carryover makes of her ten documents
  * (see demo-documents.ts). Every result row printed on those pages is here, transcribed and
  * checked row by row against the page images, with the outline of the row. The rows went through
  * the API's own buildRecords(), so the record below is exactly what the pipeline produces from
@@ -792,5 +792,5 @@ export const DEMO_RECORDS: RecordsResponse = {
     {"observationId":"jane-doe-039:0:hct:2012-07-25","documentId":"jane-doe-039","documentName":"Jane_Doe_039.png","page":0,"bbox":[154,715,461,22],"reason":"unit","detail":"The unit is missing. Check the source and enter its unit before this reading can be compared.","by":"rules","printedName":"Haematocrit","printedValue":"0.36","printedUnit":null,"date":"2012-07-25"},
   ],
   stats: {"documents":10,"tests":67,"values":282,"from":"2012-06-08","to":"2024-09-09"},
-  model: {"state":"off","name":null,"waiting":0,"message":"This fictional sample is prepared in advance and does not call an AI model."},
+  model: {"state":"off","name":null,"waiting":0,"message":"This sample is prepared in advance and does not call an AI model."},
 };

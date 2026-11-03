@@ -85,8 +85,8 @@ export function sourceText(words: StoredWord[]): string {
           <div class="p-4 sm:p-5 space-y-4">
             @if (s.target.demoText !== undefined) {
               <p class="rounded-box bg-base-200 p-3 text-sm">
-                Fictional sample. Jane Doe is an invented patient; the names, labs and addresses on
-                this page are not real.
+                De-identified sample. Jane Doe is a stand-in name; the names, labs and addresses on
+                this page have been replaced.
               </p>
             }
             @if (s.loading) {

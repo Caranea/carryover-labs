@@ -18,7 +18,7 @@ import { BusyError, JobClient } from '../core/job-client';
 import { ServerConfigService } from '../core/server-config';
 import { Icon } from '../ui/icon';
 
-/** Fictional pages with their identifiers already blacked out, as an approved copy would be. */
+/** De-identified pages with their identifiers already blacked out, as an approved copy would be. */
 interface LiveSample {
   key: string;
   /** The sample patient page it is: the server replays Meta's recorded answer for it. */
@@ -76,7 +76,7 @@ interface Models {
 }
 
 /**
- * An approved, fictional page goes through the same job API as a user's page: Muse Spark's
+ * An approved, de-identified page goes through the same job API as a user's page: Muse Spark's
  * transcription, then Muse Wonder's identity of each printed test. Both answers are Meta's real
  * ones for this page, recorded once and replayed by the server, so the demo costs nothing.
  */
