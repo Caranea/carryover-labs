@@ -247,7 +247,7 @@ export const STEPS = [
   },
   {
     title: 'Check personal details',
-    text: 'Your device suggests details to hide. Review every page and add any missing black bars. Your data stays safe.',
+    text: 'Your device suggests details to hide. Review every page and add any missing black bars.',
   },
   {
     title: 'View your history',

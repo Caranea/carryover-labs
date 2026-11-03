@@ -129,9 +129,14 @@
             AI reads that checked copy; our server keeps it only while it is read, at most 15
             minutes.
           </p>
-          <button type="button" class="footer-clear" (click)="askClear()">
-            <app-icon name="trash" size="1rem" /> Delete all my data from this browser
-          </button>
+          <div class="footer-actions">
+            <button type="button" class="footer-clear" (click)="askClear()">
+              <app-icon name="trash" size="1rem" /> Delete all my data from this browser
+            </button>
+            <button type="button" class="footer-clear" (click)="analytics.reopen()">
+              Cookie settings
+            </button>
+          </div>
         </div>
       </section>
     </div>
@@ -179,4 +184,5 @@
   <form method="dialog" class="modal-backdrop"><button>close</button></form>
 </dialog>
 
+<app-cookie-banner />
 <app-toasts />
