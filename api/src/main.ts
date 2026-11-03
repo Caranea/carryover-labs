@@ -8,6 +8,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { BatchesModule } from './batches/batches.module.js';
 import { loadConfig } from './config.js';
 import { securityHeaders } from './security/http-security.js';
+import { isAppPage } from './web-routes.js';
 
 async function bootstrap() {
   const config = loadConfig();
@@ -27,7 +28,7 @@ async function bootstrap() {
   if (existsSync(join(config.webRoot, 'index.html'))) {
     app.useStaticAssets(config.webRoot, { index: false });
     app.use((req: Request, res: Response, next: NextFunction) => {
-      if (req.method !== 'GET' || req.path.startsWith('/api/')) return next();
+      if (req.method !== 'GET' || !isAppPage(req.path)) return next();
       res.sendFile(join(config.webRoot, 'index.html'));
     });
   }

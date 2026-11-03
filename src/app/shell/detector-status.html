@@ -130,15 +130,8 @@
     <div class="privacy-body">
       @if (queue.reviewOpened()) {
         @if (selected().length) {
-          @defer (on immediate) {
-            @for (doc of selected(); track doc.localId) {
-              <app-review [localId]="doc.localId" [embedded]="true" />
-            }
-          } @placeholder {
-            <div class="waiting-state" role="status">
-              <span class="loading loading-spinner text-primary"></span>
-              <p>Opening the document…</p>
-            </div>
+          @for (doc of selected(); track doc.localId) {
+            <app-review [localId]="doc.localId" [embedded]="true" />
           }
         } @else {
           <div class="waiting-state" role="status">
