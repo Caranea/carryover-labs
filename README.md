@@ -44,10 +44,10 @@ Open http://localhost:4200. Without a key, everything but reading your own docum
 ## Run with Docker
 
 ```sh
-docker compose up --build
+docker compose up
 ```
 
-Open http://localhost:3000. The image builds the app and the API for Linux and serves both from one origin. Put `META_MODEL_API_KEY` in `api/.env` (as for a local run) to read your own documents; without it, `/demo`, the sample patient and on-device redaction still work. The port is bound to `127.0.0.1` because the API spends your Meta credits.
+Open http://localhost:3000 once the log says `App and API are running`. The first run takes a few minutes. There is one container and no separate frontend or port 4200: the image builds the app and the API for Linux and serves both from one origin. Put `META_MODEL_API_KEY` in `api/.env` (as for a local run) to read your own documents; without it, `/demo`, the sample patient and on-device redaction still work. The port is bound to `127.0.0.1` because the API spends your Meta credits.
 
 ## Check the code
 

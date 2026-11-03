@@ -1,7 +1,9 @@
-# docker compose up --build, then open http://localhost:3000
+# docker compose up, then open http://localhost:3000. This one service is the app and the API.
 services:
   carryover:
     build: .
+    # Always rebuild, so a plain `docker compose up` can't start an image from an older checkout.
+    pull_policy: build
     ports:
       # Local only: the API spends your Meta credits, so don't publish it on your network.
       - '127.0.0.1:3000:3000'
@@ -14,4 +16,5 @@ services:
       # Fixed inside the container, whatever api/.env says.
       HOST: 0.0.0.0
       PORT: '3000'
+      APP_URL: http://localhost:3000
     restart: unless-stopped

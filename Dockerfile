@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # Builds the Angular app and the API, then runs both from one origin on port 3000:
-#   docker compose up --build          (reads META_MODEL_API_KEY from your shell or .env)
+#   docker compose up                  (reads META_MODEL_API_KEY from your shell or .env)
 # Without a key, everything but reading your own documents works: on-device redaction, /demo
 # and the sample patient, whose recorded Meta answers (api/samples) are replayed at no cost.
 
