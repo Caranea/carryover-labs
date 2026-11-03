@@ -1,6 +1,6 @@
 {
   "image": "public/samples/live/german-cumulative.jpg",
-  "description": "Fictional German cumulative report (Jane Doe, MUSTER Klinikum Beispielstadt), phone photo, with the patient name, birth date and order number blacked out. Every result row as printed, transcribed by hand and checked against the image.",
+  "description": "De-identified German cumulative report (Jane Doe, MUSTER Klinikum Beispielstadt), phone photo, with the patient name, birth date and order number blacked out. Every result row as printed, transcribed by hand and checked against the image.",
   "dates": [
     { "kind": "registered", "printed": "03.03.2022 07:45", "iso": "2022-03-03" },
     { "kind": "received", "printed": "03.03.2022 08:29", "iso": "2022-03-03" }
