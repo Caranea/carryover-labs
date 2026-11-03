@@ -76,18 +76,15 @@
         }
       </div>
       @if (demo) {
-        <aside class="no-print" aria-label="The patient's original documents">
+        <aside class="demo-actions no-print" aria-label="How this sample was read">
           <app-demo-documents />
+          <app-live-read />
         </aside>
       } @else if (summary(); as d) {
         <ng-container *ngTemplateOutlet="stats; context: { $implicit: d }" />
       }
     </div>
   </header>
-
-  @if (demo) {
-    <app-live-read class="no-print" />
-  }
 
   @if (error()) {
     <div role="alert" class="alert alert-error alert-soft">

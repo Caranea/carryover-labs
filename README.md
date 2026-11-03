@@ -2,7 +2,7 @@
 
 Carryover turns years of lab reports in Polish, German and English into one timeline a patient can bring to a short doctor's appointment. Every chart point links back to the page it came from. It does not diagnose, interpret results or give medical advice.
 
-Open `/demo` for an account-free, de-identified sample: 10 lab documents from 2012–2024 under the stand-in name Jane Doe, based on real reports and published with the owner's consent, in three languages (Polish PDFs from two labs, a German report and an English fax, both photographed). Every result row on them is shown. Every name, lab and address on them has been replaced; "See initial tests" shows the original pages. The charts are prepared data; "Watch Meta's AI read a page" sends one of two blacked-out sample pages through the pipeline (Muse Spark, then Muse Wonder) and shows Meta's recorded answers for it, line by line.
+Open `/demo` for an account-free, de-identified sample: 10 lab documents from 2012–2024 under the stand-in name Jane Doe, based on real reports and published with the owner's consent, in three languages (Polish PDFs from two labs, a German report and an English fax, both photographed). Every result row on them is shown. Every name, lab and address on them has been replaced; "See the originals" shows the original pages. The charts are prepared data; "Watch how Meta AI processes docs" sends one of two blacked-out sample pages through the pipeline (Muse Spark, then Muse Wonder) and shows Meta's recorded answers for it, line by line.
 
 ## Try the sample patient
 

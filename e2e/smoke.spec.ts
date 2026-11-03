@@ -106,6 +106,7 @@ test('the sample patient is read from recorded answers, with no key, and charted
 test('the demo replays Meta answers for a sample page without a key', async ({ page }) => {
   await page.goto('/demo');
   await expect(page.getByRole('heading', { level: 1 })).toContainText("Jane's tests");
+  await page.getByRole('button', { name: 'Watch how Meta AI processes docs' }).click();
   await page.getByRole('button', { name: 'Read it', exact: true }).click();
   await expect(page.getByText('named each test')).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('app-live-read').getByText('Free T4')).toBeVisible();
@@ -122,5 +123,13 @@ test('the demo says when no sample answers are on the server', async ({ page }) 
     }),
   );
   await page.goto('/demo');
+  await page.getByRole('button', { name: 'Watch how Meta AI processes docs' }).click();
   await expect(page.getByText("The sample answers aren't on this server.")).toBeVisible();
+});
+
+test('the demo says when the server cannot be reached', async ({ page }) => {
+  await page.route('**/api/config', (route) => route.abort());
+  await page.goto('/demo');
+  await page.getByRole('button', { name: 'Watch how Meta AI processes docs' }).click();
+  await expect(page.getByText("The server can't be reached right now")).toBeVisible();
 });

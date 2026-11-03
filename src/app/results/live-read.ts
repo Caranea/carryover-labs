@@ -85,274 +85,357 @@ interface Models {
   imports: [Icon, DecimalPipe],
   host: { '(window:resize)': 'measure()' },
   template: `
-    <section
-      class="live rounded-box border border-base-300 bg-base-100 p-5 sm:p-8"
-      aria-labelledby="live-h"
+    <button
+      type="button"
+      class="watch btn btn-primary rounded-full w-full"
+      aria-haspopup="dialog"
+      (click)="open()"
     >
-      <div class="live-head">
-        <div class="min-w-0">
-          <h2 id="live-h" class="text-2xl sm:text-3xl tracking-tight">
-            <span class="font-bold">Watch Meta's AI read a page</span>{{ ' '
-            }}<span class="font-light">line by line</span>
-          </h2>
-          <p class="mt-2 max-w-2xl text-base-content/80 leading-relaxed">
-            Pick one of Jane's pages. It goes through the real pipeline, with personal details
-            already blacked out. Meta's answers for Jane's pages are real, recorded once and
-            replayed, so this is instant and free. Your own documents are read live.
-          </p>
+      <app-icon name="scan" size="1.1rem" />Watch how Meta AI processes docs
+    </button>
+
+    <dialog #dialog class="modal" aria-labelledby="live-h" (close)="cancel()">
+      <div class="modal-box max-w-6xl p-0">
+        <div class="sticky top-0 z-10 flex justify-end h-0">
+          <button
+            type="button"
+            class="btn btn-ghost btn-circle bg-base-100 mt-2 mr-2"
+            aria-label="Close"
+            (click)="close()"
+          >
+            <app-icon name="x" />
+          </button>
         </div>
-        @if (models()) {
-          <ol class="models" aria-label="The two models, in order">
-            <li>
-              <span class="step">1</span>
-              <span class="flex flex-col">
-                <strong>{{ spark() }}</strong>
-                <small>copies each line as printed</small>
-              </span>
-            </li>
-            <li>
-              <span class="step">2</span>
-              <span class="flex flex-col">
-                <strong>{{ wonder() }}</strong>
-                <small>names the test, in any language</small>
-              </span>
-            </li>
-          </ol>
-        }
-      </div>
-
-      @if (models() === null) {
-        <p class="mt-4 text-sm">The sample answers aren't on this server.</p>
-      } @else {
-        <div #body class="live-body">
-          <div class="side flex flex-col min-w-0">
-            <fieldset class="chooser" [disabled]="running()">
-              <legend class="sr-only">Choose a page</legend>
-              @for (s of samples(); track s.key) {
-                <label class="choice" [class.chosen]="chosen().key === s.key">
-                  <input
-                    type="radio"
-                    name="live-sample"
-                    class="sr-only"
-                    [checked]="chosen().key === s.key"
-                    (change)="choose(s)"
-                  />
-                  <img [src]="s.src" alt="" width="30" height="42" />
-                  <span class="flex flex-col min-w-0">
-                    <span class="font-semibold">{{ s.title }}</span>
-                    <span class="text-sm text-base-content/70">{{ s.detail }}</span>
-                  </span>
-                </label>
-              }
-            </fieldset>
-            <div class="mt-3 flex gap-2">
-              <button
-                type="button"
-                class="btn btn-primary rounded-full flex-1"
-                [disabled]="running()"
-                (click)="run()"
-              >
-                <app-icon name="scan" size="1.1rem" />
-                {{
-                  running()
-                    ? 'Reading…'
-                    : phase() === 'done' || phase() === 'error'
-                      ? 'Read it again'
-                      : 'Read it'
-                }}
-              </button>
-              @if (running()) {
-                <button type="button" class="btn btn-ghost rounded-full" (click)="cancel()">
-                  Stop
-                </button>
-              }
+        <section class="live p-5 sm:p-8" aria-labelledby="live-h">
+          <div class="live-head">
+            <div class="min-w-0">
+              <h2 id="live-h" class="text-2xl sm:text-3xl tracking-tight">
+                <span class="font-bold">Watch Meta's AI read a page</span>{{ ' '
+                }}<span class="font-light">line by line</span>
+              </h2>
+              <p class="mt-2 max-w-2xl text-base-content/80 leading-relaxed">
+                Pick one of Jane's pages. It goes through the real pipeline, with personal details
+                already blacked out. Meta's answers for Jane's pages are real, recorded once and
+                replayed, so this is instant and free. Your own documents are read live.
+              </p>
             </div>
-
-            <figure class="sheet-wrap">
-              <div class="sheet">
-                <img
-                  [src]="shown().src"
-                  [width]="shown().width"
-                  [height]="shown().height"
-                  class="block w-full h-auto"
-                  [alt]="
-                    shown().title +
-                    (rows().length ? ', with the rows the model found highlighted' : '')
-                  "
-                  (load)="measure()"
-                />
-                @if (phase() === 'reading') {
-                  <span class="sweep" aria-hidden="true"></span>
-                }
-                @for (r of rows(); track $index) {
-                  @if (r.region; as b) {
-                    <span
-                      class="mark"
-                      [class.on]="focused() === $index"
-                      [attr.data-row]="$index"
-                      [style.left.%]="b[0] * 100"
-                      [style.top.%]="b[1] * 100"
-                      [style.width.%]="b[2] * 100"
-                      [style.height.%]="b[3] * 100"
-                      aria-hidden="true"
-                    ></span>
-                    @if (few()) {
-                      <span
-                        class="pin on-page"
-                        [attr.data-pin]="$index"
-                        [style.left]="'min(' + (b[0] + b[2]) * 100 + '%, calc(100% - 1.6rem))'"
-                        [style.top.%]="(b[1] + b[3] / 2) * 100"
-                        aria-hidden="true"
-                        >{{ $index + 1 }}</span
-                      >
-                    }
-                  }
-                }
-              </div>
-              <figcaption class="mt-2 flex items-center gap-1.5 text-sm text-base-content/70">
-                <app-icon name="lock" size="0.9rem" /> Personal details are already blacked out, as
-                they would be after your own review.
-              </figcaption>
-            </figure>
-          </div>
-
-          <div class="out min-w-0" aria-live="polite">
-            @if (phase() === 'idle' && !rows().length) {
-              <div class="empty">
-                <p class="font-display text-2xl leading-tight tracking-tight">
-                  <span class="font-bold">A printed line goes in,</span><br />
-                  <span class="font-light">a test you can chart comes out</span>
-                </p>
-                <div class="example">
-                  <span class="text-base-content/80" lang="pl">TSH (ICD-9: L69)</span>
-                  <app-icon name="arrow-right" size="1rem" />
-                  <span class="font-semibold">Thyroid-stimulating hormone</span>
-                </div>
-                <div class="example">
-                  <span class="text-base-content/80" lang="de">Thrombozyten</span>
-                  <app-icon name="arrow-right" size="1rem" />
-                  <span class="font-semibold">Platelets</span>
-                </div>
-                <p class="text-base-content/80 leading-relaxed">
-                  Press <strong>Read it</strong>. Each line {{ spark() }} finds is highlighted on
-                  the page and lands here, then {{ wonder() }} gives it its standard name.
-                </p>
-              </div>
-            } @else {
-              <ol class="steps-live">
-                @if (phase() !== 'idle') {
-                  <li [class.active]="phase() === 'reading'" [class.finished]="sparkDone()">
+            @if (models()) {
+              <ol class="models" aria-label="The two models, in order">
+                <li>
+                  <span class="step">1</span>
+                  <span class="flex flex-col">
                     <strong>{{ spark() }}</strong>
-                    {{ sparkDone() ? 'read the page' : 'is reading the page' }}
-                    @if (rows().length) {
-                      <span class="tabular-nums text-base-content/70">
-                        · {{ rows().length }} rows
-                      </span>
-                    }
-                  </li>
-                }
-                @if (sparkDone()) {
-                  <li
-                    [class.active]="phase() === 'identifying'"
-                    [class.finished]="phase() === 'done'"
-                  >
+                    <small>copies each line as printed</small>
+                  </span>
+                </li>
+                <li>
+                  <span class="step">2</span>
+                  <span class="flex flex-col">
                     <strong>{{ wonder() }}</strong>
-                    {{ phase() === 'done' ? 'named each test' : 'is naming each test' }}
-                  </li>
-                }
+                    <small>names the test, in any language</small>
+                  </span>
+                </li>
               </ol>
-              @if (error(); as e) {
-                <p role="alert" class="alert alert-error alert-soft mt-3">{{ e }}</p>
-              }
-
-              @if (rows().length) {
-                <ol class="rows" aria-label="What the models read and identified">
-                  @for (r of rows(); track $index) {
-                    <li
-                      tabindex="0"
-                      class="row"
-                      [attr.data-card]="$index"
-                      [class.on]="focused() === $index"
-                      [class.pending]="phase() === 'identifying' && !identity($index)"
-                      (mouseenter)="focused.set($index)"
-                      (focus)="focused.set($index)"
-                      (mouseleave)="focused.set(null)"
-                      (blur)="focused.set(null)"
-                    >
-                      <span class="pin" aria-hidden="true">{{ $index + 1 }}</span>
-                      <div class="min-w-0">
-                        <p class="text-sm text-base-content/80">
-                          Printed:
-                          <span
-                            class="highlight text-base-content"
-                            [attr.lang]="shown().language"
-                            >{{ r.name ?? 'Unreadable' }}</span
-                          >
-                          @if (r.value) {
-                            · {{ r.value }} {{ r.unit }}
-                          }
-                        </p>
-                        @if (r.doubt) {
-                          <p class="mt-1 text-xs text-warning-content">
-                            Hard to read: {{ r.doubt }}
-                          </p>
-                        }
-                        @if (identity($index); as id) {
-                          @if (id.status === 'held') {
-                            <p class="mt-1 text-base-content/80">Held for review: {{ id.note }}</p>
-                          } @else {
-                            <p class="name">{{ id.label }}</p>
-                            @if (id.status === 'text' && id.note) {
-                              <p class="text-sm text-base-content/80">{{ id.note }}</p>
-                            }
-                          }
-                        } @else if (phase() === 'identifying') {
-                          <p class="mt-1.5 flex items-center gap-2 text-base-content/70">
-                            <span class="loading loading-dots loading-xs" aria-hidden="true"></span>
-                            {{ wonder() }} is naming this test…
-                          </p>
-                        } @else if (phase() === 'done') {
-                          <p class="mt-1 text-base-content/70">Not identified</p>
-                        }
-                      </div>
-                      <div class="value">
-                        @if (identity($index); as id) {
-                          @if (id.value !== null) {
-                            <span class="v">{{ id.value | number: '1.0-3' }}</span>
-                            <span class="u">{{ id.unit }}</span>
-                          }
-                        }
-                        @if (flagText(r.flag); as f) {
-                          <span class="flag">{{ f }}</span>
-                        }
-                      </div>
-                    </li>
-                  }
-                </ol>
-                <p class="mt-4 flex items-center gap-1.5 text-sm text-base-content/70">
-                  <app-icon name="check" size="0.95rem" /> Every value in the app links back to the
-                  exact line it was read from.
-                </p>
-              }
             }
           </div>
 
-          @if (wires().length) {
-            <svg class="wires" aria-hidden="true">
-              @for (w of wires(); track w.index) {
-                <g [class.on]="focused() === w.index">
-                  <path [attr.d]="w.d" />
-                  <circle [attr.cx]="w.x1" [attr.cy]="w.y1" r="3" />
-                  <circle [attr.cx]="w.x2" [attr.cy]="w.y2" r="3" />
-                </g>
+          @if (models() === null) {
+            <p class="mt-4 text-sm">
+              @if (unreachable()) {
+                The server can't be reached right now, so the sample pages can't be read.
+              } @else {
+                The sample answers aren't on this server.
               }
-            </svg>
+            </p>
+          } @else {
+            <div #body class="live-body">
+              <div class="side flex flex-col min-w-0">
+                <fieldset class="chooser" [disabled]="running()">
+                  <legend class="sr-only">Choose a page</legend>
+                  @for (s of samples(); track s.key) {
+                    <label class="choice" [class.chosen]="chosen().key === s.key">
+                      <input
+                        type="radio"
+                        name="live-sample"
+                        class="sr-only"
+                        [checked]="chosen().key === s.key"
+                        (change)="choose(s)"
+                      />
+                      <img [src]="s.src" alt="" width="30" height="42" />
+                      <span class="flex flex-col min-w-0">
+                        <span class="font-semibold">{{ s.title }}</span>
+                        <span class="text-sm text-base-content/70">{{ s.detail }}</span>
+                      </span>
+                    </label>
+                  }
+                </fieldset>
+                <div class="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    class="btn btn-primary rounded-full flex-1"
+                    [disabled]="running()"
+                    (click)="run()"
+                  >
+                    <app-icon name="scan" size="1.1rem" />
+                    {{
+                      running()
+                        ? 'Reading…'
+                        : phase() === 'done' || phase() === 'error'
+                          ? 'Read it again'
+                          : 'Read it'
+                    }}
+                  </button>
+                  @if (running()) {
+                    <button type="button" class="btn btn-ghost rounded-full" (click)="cancel()">
+                      Stop
+                    </button>
+                  }
+                </div>
+
+                <figure class="sheet-wrap">
+                  <div class="sheet">
+                    <img
+                      [src]="shown().src"
+                      [width]="shown().width"
+                      [height]="shown().height"
+                      class="block w-full h-auto"
+                      [alt]="
+                        shown().title +
+                        (rows().length ? ', with the rows the model found highlighted' : '')
+                      "
+                      (load)="measure()"
+                    />
+                    @if (phase() === 'reading') {
+                      <span class="sweep" aria-hidden="true"></span>
+                    }
+                    @for (r of rows(); track $index) {
+                      @if (r.region; as b) {
+                        <span
+                          class="mark"
+                          [class.on]="focused() === $index"
+                          [attr.data-row]="$index"
+                          [style.left.%]="b[0] * 100"
+                          [style.top.%]="b[1] * 100"
+                          [style.width.%]="b[2] * 100"
+                          [style.height.%]="b[3] * 100"
+                          aria-hidden="true"
+                        ></span>
+                        @if (few()) {
+                          <span
+                            class="pin on-page"
+                            [attr.data-pin]="$index"
+                            [style.left]="'min(' + (b[0] + b[2]) * 100 + '%, calc(100% - 1.6rem))'"
+                            [style.top.%]="(b[1] + b[3] / 2) * 100"
+                            aria-hidden="true"
+                            >{{ $index + 1 }}</span
+                          >
+                        }
+                      }
+                    }
+                  </div>
+                  <figcaption class="mt-2 flex items-center gap-1.5 text-sm text-base-content/70">
+                    <app-icon name="lock" size="0.9rem" /> Personal details are already blacked out,
+                    as they would be after your own review.
+                  </figcaption>
+                </figure>
+              </div>
+
+              <div class="out min-w-0" aria-live="polite">
+                @if (phase() === 'idle' && !rows().length) {
+                  <div class="empty">
+                    <p class="font-display text-2xl leading-tight tracking-tight">
+                      <span class="font-bold">A printed line goes in,</span><br />
+                      <span class="font-light">a test you can chart comes out</span>
+                    </p>
+                    <div class="example">
+                      <span class="text-base-content/80" lang="pl">TSH (ICD-9: L69)</span>
+                      <app-icon name="arrow-right" size="1rem" />
+                      <span class="font-semibold">Thyroid-stimulating hormone</span>
+                    </div>
+                    <div class="example">
+                      <span class="text-base-content/80" lang="de">Thrombozyten</span>
+                      <app-icon name="arrow-right" size="1rem" />
+                      <span class="font-semibold">Platelets</span>
+                    </div>
+                    <p class="text-base-content/80 leading-relaxed">
+                      Press <strong>Read it</strong>. Each line {{ spark() }} finds is highlighted
+                      on the page and lands here, then {{ wonder() }} gives it its standard name.
+                    </p>
+                  </div>
+                } @else {
+                  <ol class="steps-live">
+                    @if (phase() !== 'idle') {
+                      <li [class.active]="phase() === 'reading'" [class.finished]="sparkDone()">
+                        <strong>{{ spark() }}</strong>
+                        {{ sparkDone() ? 'read the page' : 'is reading the page' }}
+                        @if (rows().length) {
+                          <span class="tabular-nums text-base-content/70">
+                            · {{ rows().length }} rows
+                          </span>
+                        }
+                      </li>
+                    }
+                    @if (sparkDone()) {
+                      <li
+                        [class.active]="phase() === 'identifying'"
+                        [class.finished]="phase() === 'done'"
+                      >
+                        <strong>{{ wonder() }}</strong>
+                        {{ phase() === 'done' ? 'named each test' : 'is naming each test' }}
+                      </li>
+                    }
+                  </ol>
+                  @if (error(); as e) {
+                    <p role="alert" class="alert alert-error alert-soft mt-3">{{ e }}</p>
+                  }
+
+                  @if (rows().length) {
+                    <ol class="rows" aria-label="What the models read and identified">
+                      @for (r of rows(); track $index) {
+                        <li
+                          tabindex="0"
+                          class="row"
+                          [attr.data-card]="$index"
+                          [class.on]="focused() === $index"
+                          [class.pending]="phase() === 'identifying' && !identity($index)"
+                          (mouseenter)="focused.set($index)"
+                          (focus)="focused.set($index)"
+                          (mouseleave)="focused.set(null)"
+                          (blur)="focused.set(null)"
+                        >
+                          <span class="pin" aria-hidden="true">{{ $index + 1 }}</span>
+                          <div class="min-w-0">
+                            <p class="text-sm text-base-content/80">
+                              Printed:
+                              <span
+                                class="highlight text-base-content"
+                                [attr.lang]="shown().language"
+                                >{{ r.name ?? 'Unreadable' }}</span
+                              >
+                              @if (r.value) {
+                                · {{ r.value }} {{ r.unit }}
+                              }
+                            </p>
+                            @if (r.doubt) {
+                              <p class="mt-1 text-xs text-warning-content">
+                                Hard to read: {{ r.doubt }}
+                              </p>
+                            }
+                            @if (identity($index); as id) {
+                              @if (id.status === 'held') {
+                                <p class="mt-1 text-base-content/80">
+                                  Held for review: {{ id.note }}
+                                </p>
+                              } @else {
+                                <p class="name">{{ id.label }}</p>
+                                @if (id.status === 'text' && id.note) {
+                                  <p class="text-sm text-base-content/80">{{ id.note }}</p>
+                                }
+                              }
+                            } @else if (phase() === 'identifying') {
+                              <p class="mt-1.5 flex items-center gap-2 text-base-content/70">
+                                <span
+                                  class="loading loading-dots loading-xs"
+                                  aria-hidden="true"
+                                ></span>
+                                {{ wonder() }} is naming this test…
+                              </p>
+                            } @else if (phase() === 'done') {
+                              <p class="mt-1 text-base-content/70">Not identified</p>
+                            }
+                          </div>
+                          <div class="value">
+                            @if (identity($index); as id) {
+                              @if (id.value !== null) {
+                                <span class="v">{{ id.value | number: '1.0-3' }}</span>
+                                <span class="u">{{ id.unit }}</span>
+                              }
+                            }
+                            @if (flagText(r.flag); as f) {
+                              <span class="flag">{{ f }}</span>
+                            }
+                          </div>
+                        </li>
+                      }
+                    </ol>
+                    <p class="mt-4 flex items-center gap-1.5 text-sm text-base-content/70">
+                      <app-icon name="check" size="0.95rem" /> Every value in the app links back to
+                      the exact line it was read from.
+                    </p>
+                  }
+                }
+              </div>
+
+              @if (wires().length) {
+                <svg class="wires" aria-hidden="true">
+                  @for (w of wires(); track w.index) {
+                    <g [class.on]="focused() === w.index">
+                      <path [attr.d]="w.d" />
+                      <circle [attr.cx]="w.x1" [attr.cy]="w.y1" r="3" />
+                      <circle [attr.cx]="w.x2" [attr.cy]="w.y2" r="3" />
+                    </g>
+                  }
+                </svg>
+              }
+            </div>
           }
-        </div>
-      }
-    </section>
+        </section>
+      </div>
+      <form method="dialog" class="modal-backdrop"><button>Close</button></form>
+    </dialog>
   `,
   styles: `
+    /* The demo's main call to action: larger than Export PDF, with a slow ring around it. */
+    .watch {
+      position: relative;
+      height: 3.75rem;
+      padding-inline: 1.25rem;
+      font-size: 1.05rem;
+      font-weight: 600;
+      white-space: nowrap;
+      box-shadow: 0 14px 28px -14px color-mix(in oklab, var(--color-primary) 85%, black);
+      transition:
+        transform 0.15s,
+        box-shadow 0.15s;
+    }
+    .watch:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 18px 32px -14px color-mix(in oklab, var(--color-primary) 85%, black);
+    }
+    .watch::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      animation: watch-ring 2.8s ease-out infinite;
+    }
+    @keyframes watch-ring {
+      0% {
+        box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-primary) 45%, transparent);
+      }
+      70%,
+      100% {
+        box-shadow: 0 0 0 14px transparent;
+      }
+    }
+    @media (max-width: 24rem) {
+      .watch {
+        padding-inline: 0.75rem;
+        font-size: 0.875rem;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .watch {
+        transition: none;
+      }
+      .watch:hover {
+        transform: none;
+      }
+      .watch::after {
+        animation: none;
+      }
+    }
     .live-head {
       display: flex;
       flex-wrap: wrap;
@@ -745,6 +828,8 @@ export class LiveRead implements OnInit, OnDestroy {
   protected readonly chosen = signal(SAMPLES[0]);
   protected readonly readSample = signal<LiveSample | null>(null);
   protected readonly models = signal<Models | null | undefined>(undefined);
+  /** The API didn't answer, so whether the samples are recorded is unknown. */
+  protected readonly unreachable = signal(false);
   protected readonly phase = signal<Phase>('idle');
   protected readonly rows = signal<PrintedRow[]>([]);
   protected readonly records = signal<RecordsResponse | null>(null);
@@ -771,6 +856,7 @@ export class LiveRead implements OnInit, OnDestroy {
     equal: (a, b) => a.length === b.length && a.every((w, i) => w.d === b[i].d),
   });
   private readonly body = viewChild<ElementRef<HTMLElement>>('body');
+  private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>('dialog');
 
   constructor() {
     // Re-draw the connectors after every render that can move a line or a card.
@@ -786,6 +872,7 @@ export class LiveRead implements OnInit, OnDestroy {
   async ngOnInit() {
     void document.fonts?.ready.then(() => this.measure());
     const config = await this.server.load();
+    this.unreachable.set(config === null);
     // Offer only pages whose recorded answers are on the server; never read Jane's pages live.
     const recorded = new Set(config?.samplePages ?? []);
     const samples = SAMPLES.filter((s) => recorded.has(s.sample));
@@ -796,6 +883,15 @@ export class LiveRead implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.cancel();
+  }
+
+  protected open() {
+    this.dialog().nativeElement.showModal();
+    this.measure();
+  }
+
+  protected close() {
+    this.dialog().nativeElement.close();
   }
 
   protected choose(sample: LiveSample) {
