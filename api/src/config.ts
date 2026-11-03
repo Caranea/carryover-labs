@@ -9,6 +9,8 @@ export interface AppConfig {
   port: number;
   listenHost: string;
   trustLoopbackProxy: boolean;
+  /** The address to open, for the startup log. Compose sets it: the listen host isn't one. */
+  appUrl: string;
   /** Built Angular app, served from the same origin when present. */
   webRoot: string;
   /** Meta Model API endpoint, or null when no key is configured. */
@@ -48,9 +50,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     throw new Error('MODEL_DAILY_BUDGET_USD must be a positive number of US dollars.');
   }
 
+  const listenHost = env['HOST'] || '127.0.0.1';
+
   return {
     port,
-    listenHost: env['HOST'] || '127.0.0.1',
+    listenHost,
+    appUrl: env['APP_URL'] || `http://${listenHost}:${port}`,
     trustLoopbackProxy: env['TRUST_LOOPBACK_PROXY'] === 'true',
     webRoot: resolve(API_ROOT, env['WEB_ROOT'] ?? '../dist/carryover-labs/browser'),
     model: apiKey

@@ -25,7 +25,8 @@ async function bootstrap() {
   app.use(securityHeaders);
 
   // In production, serve the built Angular app from the same origin.
-  if (existsSync(join(config.webRoot, 'index.html'))) {
+  const hasWebApp = existsSync(join(config.webRoot, 'index.html'));
+  if (hasWebApp) {
     app.useStaticAssets(config.webRoot, { index: false });
     app.use((req: Request, res: Response, next: NextFunction) => {
       if (req.method !== 'GET' || !isAppPage(req.path)) return next();
@@ -34,7 +35,13 @@ async function bootstrap() {
   }
 
   await app.listen(config.port, config.listenHost);
-  log.log(`API listening on ${config.listenHost}:${config.port}`);
+  if (hasWebApp) {
+    log.log(`App and API are running: open ${config.appUrl}`);
+  } else {
+    log.warn(
+      `API only, on ${config.appUrl}: no built app in ${config.webRoot}. Run "npm run build".`,
+    );
+  }
 }
 
 void bootstrap();
