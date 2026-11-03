@@ -11,7 +11,6 @@ import {
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { DocumentQueueService } from '../core/document-queue.service';
-import { DEMO_DOCUMENTS } from '../core/demo-documents';
 import { ServerConfigService } from '../core/server-config';
 import { progressText } from '../core/results.service';
 import { LocalDocument, PrivacyMode, SavedDocumentSummary, SourceKind } from '../core/models';
@@ -47,8 +46,14 @@ export class UploadPage implements OnInit {
   protected readonly queue = inject(DocumentQueueService);
   protected readonly device = inject(DeviceCheckService);
   protected readonly server = inject(ServerConfigService);
-  protected readonly sampleDocuments = DEMO_DOCUMENTS;
+  /** Only documents whose every page has a recorded answer on this server. */
+  protected readonly sampleDocuments = this.server.sampleDocuments;
   protected readonly samplePicks = signal(new Set(SAMPLE_PICKS));
+  protected readonly chosenSamples = computed(() =>
+    this.sampleDocuments()
+      .filter((doc) => this.samplePicks().has(doc.id))
+      .map((doc) => doc.id),
+  );
   private readonly sampleDialog = viewChild<ElementRef<HTMLDialogElement>>('sampleDialog');
 
   protected readonly accept = ACCEPT;
@@ -114,7 +119,7 @@ export class UploadPage implements OnInit {
   }
 
   protected addSamples() {
-    this.queue.addSamples([...this.samplePicks()], this.privacyMode());
+    this.queue.addSamples(this.chosenSamples(), this.privacyMode());
     this.sampleDialog()?.nativeElement.close();
   }
 

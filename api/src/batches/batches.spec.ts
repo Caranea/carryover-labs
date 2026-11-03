@@ -230,7 +230,7 @@ describe('without a Meta key', () => {
       assert.deepEqual(await (await fetch(`${base}/config`)).json(), {
         models: { transcription: 'muse-spark-1.3', identification: 'muse-wonder-1.0' },
         live: false,
-        samplePatient: true,
+        samplePages: ['jane-doe-lab-03:0'],
       });
       const page = { ...body(0), sample: 'jane-doe-lab-03:0' };
       assert.equal((await post(`${base}/batches/sample-a/pages`, page)).status, 202);
@@ -289,9 +289,8 @@ describe('without a Meta key', () => {
     const { app, base } = await start(null);
     try {
       assert.deepEqual(
-        ((await (await fetch(`${base}/config`)).json()) as { samplePatient: boolean })
-          .samplePatient,
-        false,
+        ((await (await fetch(`${base}/config`)).json()) as { samplePages: string[] }).samplePages,
+        [],
       );
       assert.equal(
         (await post(`${base}/batches/batch-x/pages`, { ...body(0), sample: 'jane-doe-039:0' }))

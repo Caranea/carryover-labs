@@ -51,15 +51,15 @@ export class BatchesController {
   ) {}
 
   /**
-   * The Meta models, whether new documents can be read (`live`: a key is set), and whether the
-   * sample patient can (its answers are recorded).
+   * The Meta models, whether new documents can be read (`live`: a key is set), and which sample
+   * patient pages have recorded answers.
    */
   @Get('config')
   config() {
     return {
       models: { transcription: SPARK_MODEL, identification: WONDER_MODEL },
       live: this.reading.live,
-      samplePatient: this.reading.samples.available,
+      samplePages: this.reading.samples.pages,
     };
   }
 
