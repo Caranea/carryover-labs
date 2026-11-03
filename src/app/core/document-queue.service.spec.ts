@@ -70,9 +70,12 @@ describe('document privacy boundary', () => {
     const { queue, extraction, create } = setup();
     const namePage = (labelled: boolean): WorkingPage => ({
       ...page(),
-      words: (labelled ? ['Patient:', 'Jane', 'Doe'] : ['jane', 'doe']).map(
-        (text, id) => ({ id, text, line: 0, hidden: false }),
-      ),
+      words: (labelled ? ['Patient:', 'Jane', 'Doe'] : ['jane', 'doe']).map((text, id) => ({
+        id,
+        text,
+        line: 0,
+        hidden: false,
+      })),
     });
     extraction.extract.mockImplementationOnce(async () => [namePage(true)]);
     const [first] = queue.add([new File(['fictional'], 'first.txt')]);

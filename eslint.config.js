@@ -48,7 +48,7 @@ module.exports = tseslint.config(
     languageOptions: { globals: globals.node },
   },
   {
-    files: ['scripts/**/*.{js,mjs}', 'eslint.config.js'],
+    files: ['scripts/**/*.{js,mjs}', 'eval/**/*.{js,mjs}', 'eslint.config.js'],
     extends: [eslint.configs.recommended, prettier],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },

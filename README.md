@@ -20,6 +20,10 @@ Your own documents are always read live, and nothing about them is cached.
 4. **Match tests across languages.** **Muse Wonder** maps the printed test names of the whole batch to one identity per test. Unit conversion and chart building are deterministic server code; the model never supplies numbers.
 5. **Bring it to the appointment.** Print the results page or save it as a PDF from the print dialog.
 
+## How well it works
+
+On the sample patient's 10 documents (24 pages, 2012–2024, three languages, two of them phone photos), Meta's recorded answers were scored against all 289 result rows checked by hand. Muse Spark read every value and unit as printed. Muse Wonder named every charted reading as the right test. All 45 tests that appear in more than one report stay on one line, including 24 printed under different names, such as "Erytrocyty", "Erythrozyten i. VB." and "RCC". These documents were used while building Carryover, so they show the pipeline works end to end, not how it does on layouts it has never seen. `node eval/score-samples.mjs` reproduces the numbers with no key; the method and the caveats are in [evaluation](docs/evaluation.md).
+
 Originals, filenames, OCR text and hidden words never leave the browser. Results are stored in the browser, and "Delete all my data from this browser" in the footer removes them; the API holds a job only in memory, for at most 15 minutes. See [architecture](docs/architecture.md) and [evaluation](docs/evaluation.md).
 
 ## Run locally
@@ -56,9 +60,10 @@ npm run build
 npm --prefix api run build
 npx playwright install chromium   # once
 npm run e2e             # upload → review → approve, the sample patient and the demo, against the built app
+node eval/score-samples.mjs   # Meta's recorded answers against the hand-checked rows (no key)
 ```
 
-CI runs the same steps. Tests use synthetic data and stubbed model calls; they never make paid requests. When `api/samples/recorded.json` is present, the API tests also check that it charts every sample document without a model.
+CI runs the same steps, and prints the evaluation table. Tests use synthetic data and stubbed model calls; they never make paid requests. When `api/samples/recorded.json` is present, the API tests also check that it charts every sample document without a model.
 
 ## Project layout
 
@@ -75,6 +80,7 @@ CI runs the same steps. Tests use synthetic data and stubbed model calls; they n
 | `api/src/shared`                            | Types and pure helpers used by both the app and the API (`@shared/*` in the app)          |
 | `api/samples`, `scripts/record-samples.mjs` | The sample patient's recorded Meta answers, and the script that records them              |
 | `e2e`                                       | Browser smoke tests on the built app (Playwright)                                         |
+| `eval`                                      | Evaluation: recorded answers against checked rows, live model and privacy checks          |
 
 ## Deploying
 

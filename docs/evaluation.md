@@ -1,55 +1,74 @@
 # Evaluation
 
-Measured on 31 October 2026 with synthetic or previously redacted fixtures. These are small checks, not clinical validation or a privacy guarantee.
+How well the pipeline reads, names and charts lab results, measured on the sample patient. These are engineering checks on one patient's documents, not clinical validation or a privacy guarantee.
 
-## Local privacy check
+## Meta's models on the sample patient
 
-`node scripts/check-pipeline-privacy.mjs` serves a browser test on a 2400 × 1800 synthetic page with five identity fields and a lab table. It uses the production OCR service, privacy worker, rules and burn function.
+`node eval/score-samples.mjs` (after `npm --prefix api run build`) scores Meta's answers for all ten sample documents against rows checked by hand. It needs no key and makes no calls: the answers are the ones recorded in `api/samples/recorded.json`, the same real Muse Spark and Muse Wonder answers the app replays for the sample patient. Each answer goes through the server's own code, as in the app: page parsing, test identification, dates, unit conversion and charts. CI runs it on every push.
 
-| Page orientation |    OCR | Detection | Burned PNG | Identifiers fully covered |
-| ---------------- | -----: | --------: | ---------: | ------------------------: |
-| Upright          | 1.15 s |    0.27 s |     0.08 s |                       5/5 |
-| 90°              | 3.67 s |    0.53 s |     0.08 s |                       0/5 |
-| 180°             | 1.55 s |    0.44 s |     0.06 s |                       0/5 |
-| 270°             | 3.73 s |    0.48 s |     0.07 s |                       0/5 |
+**The checked set.** `src/app/core/demo-data.ts` holds every result row printed on the 10 documents (24 pages, 2012–2024, Polish, German and English; two Polish PDF layouts, a German phone photo and an English fax): 289 rows, each transcribed by hand and checked against the page image, with its test and date. The `/demo` charts are built from them.
 
-Automatic detection fails on rotated pages because OCR runs once without orientation detection. Manually drawn boxes burned correctly at all four orientations. No clinical region was masked. The review screen therefore offers Turn left and Turn right on every page image: masks turn with the page, nothing is detected again, and the person hides what is left by hand (covered by `src/app/redaction/rotate.spec.ts`).
+**How rows are paired.** Each checked row is paired with the row Muse Spark read at the same place on the same page (the nearest outline, preferring the same printed name), never by value. Values, units and names compare as printed, ignoring case, spacing, decimal separators and a trailing flag (`eval/compare.mjs`). Charted values compare in the same unit, so a value charted in mg/dL still matches its checked value in µmol/L.
+
+Answers recorded on 2 November 2026 with `muse-spark-1.3` and `muse-wonder-1.0`:
+
+| Step        | Measure                                              |          Result |
+| ----------- | ---------------------------------------------------- | --------------: |
+| Muse Spark  | Rows found                                           |  289/289 (100%) |
+| Muse Spark  | … with the name as checked                           | 288/289 (99.7%) |
+| Muse Spark  | Values as printed                                    |  289/289 (100%) |
+| Muse Spark  | Units as printed                                     |  289/289 (100%) |
+| Muse Spark  | Extra rows that are not results                      |               0 |
+| Muse Wonder | Charted readings named as the same test              |  282/282 (100%) |
+| Server      | Readings the checked set holds for review, also held |      6/6 (100%) |
+| Server      | Results in words, kept as words                      |      1/1 (100%) |
+| End to end  | Charted value equals the checked value               |  282/282 (100%) |
+| End to end  | Charted on the checked date                          |  282/282 (100%) |
+| End to end  | Tests in several reports kept on one line            |    45/45 (100%) |
+| End to end  | … of them printed under different names              |    24/24 (100%) |
+
+Notes on the table:
+
+- **The one name difference is Spark being more precise.** One TRAb result is printed under a section heading, next to the label "Wynik badania:" ("Result:"). The checked row uses that label; Spark gave the test's own name, "P/c. p. receptorom TSH (TRAb)". The value, unit and chart are correct.
+- **Muse Wonder named 100 distinct printed names:** 96 matched to the catalogue and 4 proposed as new tests (non-HDL cholesterol, LDH, band neutrophils %, CKD stage), none left unresolved. A new test counts as the same test when its name matches the checked one: Wonder's "band-neut-pct" and the checked "bands-pct" are both "Band neutrophils %".
+- **The 6 readings held for review** have a unit that can't be verified: eGFR printed in "ml/Min.", and five results printed with no unit. The server holds them with a reason instead of charting them, and the person can check the source and enter the unit.
+- **Merging across reports is the core feature.** 45 tests appear in more than one report. Every one stays on a single line, including 24 printed under different names, such as "Erytrocyty", "Erythrozyten i. VB." and "RCC" for red blood cells.
+
+**What this does and doesn't show.** These ten documents were in front of us while the prompts, the catalogue and the rules were written, so this is the development set, not a held-out test. It shows the whole pipeline works end to end on real, varied layouts in three languages. It doesn't predict accuracy on layouts never seen before. Spark's answers are recorded once; a new recording can differ slightly, which `node eval/score-samples.mjs` measures again. `--rows` lists every row that differs, and the full comparison is written to `artifacts/evaluation/samples.json`.
 
 ## Live Meta models
 
-`node scripts/check-pipeline-models.mjs` (after `npm --prefix api run build`) sends a committed, entirely fictional German phone photo with its identifiers blacked out, `public/samples/live/german-cumulative.jpg`, to Muse Spark upright and rotated 90° and 180°, then normalizes the upright result with Muse Wonder. It scores every row against a hand-checked ground truth, `scripts/fixtures/jane-doe-002.truth.json` (28 rows: name, value, unit and range as printed), and prints the table below. It makes paid calls; `--upright` makes one Spark call only. Scoring lives in `scripts/eval-compare.mjs` and ignores case, spacing, decimal separators and a trailing flag.
+`node eval/check-pipeline-models.mjs` (after `npm --prefix api run build`, with `META_MODEL_API_KEY` set) sends the German phone photo of the sample patient, `public/samples/live/german-cumulative.jpg`, with its identifiers blacked out, to Muse Spark upright and rotated 90° and 180°, then normalizes the upright result with Muse Wonder. It scores each answer against the hand-checked rows in `eval/fixtures/jane-doe-002.truth.json` (28 rows) and prints a table with round-trip times. It makes paid calls (three Spark pages and one Wonder call); `--upright` makes one Spark call only. Use it to check how Spark copes with sideways photos, which the recorded answers don't cover.
 
-_Results on the fictional page: run the script and paste its table here._
+## Local privacy check
 
-Earlier measurement (31 October), on a previously redacted real German report that is not in the repository and therefore can't be reproduced from it:
+`node eval/check-pipeline-privacy.mjs` bundles the production OCR, privacy worker, rules and mask burning into a test page at http://localhost:4294. Open it in a browser with WebGPU and press "Run local checks": it runs a synthetic 2,400 × 1,800 page with five identity fields and a lab table, upright and rotated, and writes timings and coverage to `artifacts/pipeline-verification/privacy-timings.json`.
 
-| Page orientation | Spark round trip | Rows | Printed values matching the 28-row reference | Rows marked uncertain |
-| ---------------- | ---------------: | ---: | -------------------------------------------: | --------------------: |
-| Upright          |           32.8 s |   28 |                                        28/28 |                     3 |
-| 90°              |           36.9 s |   28 |                                        28/28 |                     8 |
-| 180°             |           47.8 s |   28 |                                        26/28 |                     4 |
+Its last run (31 October) found and fully covered all five identifiers on the upright page, and masked no result. On rotated pages automatic detection found nothing, because OCR runs once and doesn't detect orientation. The review screen therefore offers Turn left and Turn right on every page: the masks turn with the page, nothing is detected again, and the person hides what's left by hand (`src/app/redaction/rotate.spec.ts`). Hand-drawn boxes burned correctly at every orientation.
 
-Wonder normalized the 84 rows (59 distinct combinations) in 44.8 s. That report prints order and report dates but no collection date, so every reading correctly stayed in "Readings to check" instead of using another date.
+## Automated tests
 
-Specimen and form rules are covered by `api/src/batches/specimens.spec.ts`: "Kalium", "Harnstoff" and "Mocznik" stay blood tests, ionized and total calcium and direct and total bilirubin get separate lines, and a cell count printed as "3,200" is held for review instead of being read as 3.2.
+CI runs on every push and pull request (`.github/workflows/check.yml`): lint, formatting, the app's unit tests, the API tests, both builds, the evaluation above and the browser tests. None of them make paid calls. Among them:
 
-## Timing logs
+- **Sample recording.** `api/src/batches/samples.spec.ts` checks the recording still matches the current answer schemas and charts every sample document, alone and all together, with no model.
+- **Model boundary.** `api/src/records/meta-model.spec.ts` covers strict JSON schemas, answers cut off at the token limit, busy retries, and provider text kept out of errors.
+- **Spending limit.** `api/src/jobs/daily-spend.spec.ts` covers the daily dollar cap, including calls still running.
+- **Specimens and forms.** `api/src/batches/specimens.spec.ts`: "Kalium", "Harnstoff" and "Mocznik" stay blood tests; ionized and total calcium and direct and total bilirubin get separate lines; a cell count printed as "3,200" is held for review instead of being read as 3.2.
+- **Browser flow.** `e2e/smoke.spec.ts`: a photo read and approved by hand, with only the approved image sent; the sample patient read and charted with no key; the demo replay.
 
-The API logs each model call's total time, the time until response headers, and the token counts reported by Meta, without any content. A failed call logs its reason in our own words (for example `HTTP 503` or `the answer was cut off at 16000 tokens`), never the provider's text.
+## Logs and tracing
 
-Each normalization also logs its size, for example `normalize-batch: 547 rows, 184 questions, 1 specimens, 5 calls, 1 unresolved`. A batch is asked about in calls of up to 40 questions, and a call whose answer is cut off is asked again in two halves, so more calls than `questions / 40` means a halving happened.
-
-Meta counts hidden reasoning in the output tokens (`completion_tokens_details.reasoning_tokens`). Measured on the 20-file Jane Doe selection (49 pages, 1 November 2026): Spark used a median of 5,000 output tokens per page (one dense page 15,800, 10,800 of them reasoning; 19 s median, 71 s worst). At full effort Wonder reasoned about 190 tokens per question, so a 150-question call ran out of its 16,000 tokens; with `reasoning_effort: low` it reasons about 40 per question and a 40-question call takes about 15 s.
+The API logs each model call's total time, the time until response headers and the token counts Meta reports, never content. A failed call logs its reason in our own words (for example `HTTP 503` or `the answer was cut off at 16000 tokens`), never the provider's text. Each normalization logs its size; the sample patient's ten documents log `normalize-batch: 289 rows, 100 questions (100 recorded), 2 specimens, 0 calls, 0 unresolved`.
 
 Set `MODEL_TRACE_DIR` (for example `../tmp/model-trace`) during development to write every model request, its page image and the raw answer to that folder. Leave it unset otherwise.
 
 ## Known limitations
 
 - Rotated or difficult pages need careful manual masking; turning a page upright doesn't re-run detection.
-- Spark can omit or misread rows, and its regions can be inaccurate. The source page is always available for checking.
-- A value like `1,234` is read as 1.234 regardless of the document's locale; for cell counts it is held for review instead.
-- A test gets a separate line only for a different body fluid (urine, CSF), form (free, total, ionized, direct, indirect) or a percentage; the analyser or method does not split it.
-- When the collection date is not printed, a reading is dated by the best other printed date of its report (received, performed, registered, issued, in that order), and the table marks the later kinds. Two different dates of the best kind leave it undated.
+- Spark can omit or misread rows, and its regions can be inaccurate. The source page is always one tap away.
+- A value like `1,234` is read as 1.234 regardless of the document's locale; for cell counts it's held for review instead.
+- A test gets a separate line only for a different body fluid (urine, CSF), form (free, total, ionized, direct, indirect) or a percentage; the analyser or method doesn't split it.
+- When the collection date isn't printed, a reading is dated by the best other printed date of its report (received, performed, registered, issued, in that order), and the table marks the later kinds. Two different dates of the best kind leave it undated.
 - An ambiguous date such as 01/06/2012 is read in the day/month order the batch's other dates settle; without that evidence it stays undated.
 - Browser storage is limited, not encrypted by the app, and tied to one browser profile.
 - The interface and PDF are in English only.

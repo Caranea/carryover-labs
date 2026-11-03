@@ -1,16 +1,16 @@
-// Live check of the Meta model steps against a committed, fully fictional page with a
+// Live check of the Meta model steps against a committed, de-identified page with a
 // hand-checked ground truth. Makes paid calls: up to 3 Muse Spark pages + 1 Muse Wonder batch.
 //
 //   npm --prefix api ci && npm --prefix api run build
-//   node scripts/check-pipeline-models.mjs            # upright, 90° and 180°
-//   node scripts/check-pipeline-models.mjs --upright  # one Spark call only
+//   node eval/check-pipeline-models.mjs            # upright, 90° and 180°
+//   node eval/check-pipeline-models.mjs --upright  # one Spark call only
 //
 // Needs META_MODEL_API_KEY in api/.env. Writes raw answers to artifacts/pipeline-verification/
 // (gitignored) and prints a Markdown table for docs/evaluation.md.
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { randomUUID } from 'node:crypto';
-import { score } from './eval-compare.mjs';
+import { score } from './compare.mjs';
 
 const api = (path) => import(new URL(`../api/dist/${path}`, import.meta.url).href);
 const { loadConfig } = await api('config.js').catch(() => {
