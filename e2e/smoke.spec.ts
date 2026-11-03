@@ -46,6 +46,33 @@ test('a photo is read on the device, checked by hand and sent only as an approve
   expect(String(body['image']).length).toBeLessThan(20_000_000);
 });
 
+test('a document opens even when lazy files can no longer be fetched', async ({ page }) => {
+  await stubBatches(page);
+  await page.goto('/documents');
+  await page.getByText('Change how we check').click();
+  await page.getByRole('radio', { name: /Manual review/ }).check();
+  // As after a new build, or on a dropped connection: the review code must already be here.
+  await page.route('**/chunk-*.js', async (route) => {
+    const response = await route.fetch();
+    if ((await response.text()).includes('app-review')) return route.abort();
+    return route.fulfill({ response });
+  });
+  await page.locator('input[type=file]').first().setInputFiles(PHOTO);
+
+  await page.getByRole('button', { name: /Check and approve/ }).dispatchEvent('click');
+  await expect(page.locator('app-review')).toBeVisible();
+});
+
+test('a missing file is a 404, not the app page', async ({ request }) => {
+  const missing = await request.get('/chunk-REPLACED.js');
+  expect(missing.status()).toBe(404);
+  expect(await missing.text()).not.toContain('<app-root');
+
+  const page = await request.get('/documents');
+  expect(page.status()).toBe(200);
+  expect(page.headers()['content-type']).toContain('text/html');
+});
+
 test('the sample patient is read from recorded answers, with no key, and charted', async ({
   page,
 }) => {
