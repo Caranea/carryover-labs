@@ -10,7 +10,7 @@ export const routes: Routes = [
   {
     path: 'demo',
     data: { demo: true },
-    title: 'Fictional sample – Carryover',
+    title: 'Sample patient – Carryover',
     loadComponent: () => import('./results/results.page').then((m) => m.ResultsPage),
   },
   {

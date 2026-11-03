@@ -2,7 +2,7 @@
 
 Carryover turns years of lab reports in Polish, German and English into one timeline a patient can bring to a short doctor's appointment. Every chart point links back to the page it came from. It does not diagnose, interpret results or give medical advice.
 
-Open `/demo` for an account-free, entirely fictional sample: Jane Doe, an invented patient with 10 lab documents from 2012–2024 in three languages (Polish PDFs from two labs, a German report and an English fax, both photographed). Every result row on them is shown. Every name, lab and address on them is made up; "See initial tests" shows the original pages. The charts are prepared data; "Watch Meta's AI read a page" sends one of two blacked-out sample pages through the pipeline (Muse Spark, then Muse Wonder) and shows Meta's recorded answers for it, line by line.
+Open `/demo` for an account-free, de-identified sample: 10 lab documents from 2012–2024 under the stand-in name Jane Doe, based on real reports and published with the owner's consent, in three languages (Polish PDFs from two labs, a German report and an English fax, both photographed). Every result row on them is shown. Every name, lab and address on them has been replaced; "See initial tests" shows the original pages. The charts are prepared data; "Watch Meta's AI read a page" sends one of two blacked-out sample pages through the pipeline (Muse Spark, then Muse Wonder) and shows Meta's recorded answers for it, line by line.
 
 ## Try the sample patient
 
@@ -80,9 +80,9 @@ CI runs the same steps. Tests use synthetic data and stubbed model calls; they n
 
 `npm --prefix api start` serves the built app and the API from one origin. Keep the model key on the server and use HTTPS. `ops/` has example nginx and systemd files. Browser storage is not encrypted by the app, so use fictional data for shared demos.
 
-### Netlify and Heroku
+### Heroku
 
-Netlify serves the app and proxies `/api` to the API on Heroku. The API can't run as Netlify Functions: it keeps jobs and the daily spending total in one process's memory, and model calls outlast the function limit. Netlify ends proxied requests after 26 seconds, so long polls answer within 20. Approved page images pass through both services on their way to Meta.
+The Docker image serves the app and the API from one origin, so one Heroku app runs both. Keep it to a single dyno: jobs and the daily spending total live in one process's memory.
 
 ```sh
 heroku create --stack container --region eu
@@ -93,7 +93,9 @@ heroku container:release web
 heroku ps:type web=basic   # Eco dynos sleep
 ```
 
-Put the app's host in `netlify.toml`, then run `netlify deploy --build --prod`. Heroku restarts a dyno about once a day and on every release or config change, and each restart resets the spending total, so a day's spending can reach about twice the limit.
+Heroku's registry doesn't accept OCI images, so turn off "Use containerd for pulling and storing images" in Docker Desktop and set `BUILDX_NO_DEFAULT_ATTESTATIONS=1` before pushing.
+
+Heroku restarts a dyno about once a day and on every release or config change, and each restart resets the spending total, so a day's spending can reach about twice the limit.
 
 ### What a public deployment costs
 

@@ -4,7 +4,7 @@ import type { Language } from '@shared/results';
  * The /demo patient's original documents: ten of the cleaned `selection_20` fixtures, served from
  * public/samples/jane-doe. Polish lab PDFs from two labs and two layouts, a German cumulative report
  * and an English fax from 2012, both photographed. Every name, lab, address and identifier on them
- * is fictional.
+ * has been replaced; the reports are based on real records, published with the owner's consent.
  */
 export interface DemoPage {
   /** Relative to the base href. */

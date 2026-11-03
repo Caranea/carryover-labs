@@ -69,8 +69,9 @@ const LANGUAGE: Record<string, string> = { pl: 'Polish', en: 'English', de: 'Ger
 
         <div class="p-4 sm:p-5">
           <p class="rounded-box bg-base-200 p-3 text-sm mb-5">
-            <strong>Fictional sample:</strong> Jane Doe is an invented patient. The names, labs,
-            addresses and numbers on these pages are not real.
+            <strong>De-identified sample:</strong> Jane Doe is a stand-in name. These pages are
+            based on real reports, published with the owner's consent; names, labs, addresses and
+            identifiers have been replaced.
           </p>
 
           @if (selected(); as d) {

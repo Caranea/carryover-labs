@@ -539,7 +539,7 @@ export class ResultsPage implements OnInit, OnDestroy {
         (o) => o.id === ref.observationId && o.documentId === ref.documentId,
       ),
       demoText: this.demo
-        ? (this.demoPages[ref.documentId]?.[ref.page] ?? 'Fictional source text is unavailable.')
+        ? (this.demoPages[ref.documentId]?.[ref.page] ?? 'Source text is unavailable.')
         : undefined,
       demoImage: this.demo ? demoPage(ref.documentId, ref.page) : undefined,
     });

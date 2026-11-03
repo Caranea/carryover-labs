@@ -10,3 +10,5 @@ test-results
 playwright-report
 package-lock.json
 api/package-lock.json
+# Written by scripts/record-samples.mjs; never edited by hand.
+api/samples/recorded.json

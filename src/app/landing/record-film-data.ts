@@ -1,7 +1,7 @@
 /**
  * The content of the landing page's walkthrough: six of Jane Doe's sample documents and four of
  * her tests. Row outlines, printed values and flags are copied from core/demo-data.ts, so it shows
- * what the /demo page shows. Jane is fictional.
+ * what the /demo page shows. Jane Doe is a stand-in name.
  */
 
 /** [x, y, w, h]. */

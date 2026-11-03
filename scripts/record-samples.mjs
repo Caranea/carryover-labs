@@ -120,7 +120,7 @@ const result = {
   recordedAt: new Date().toISOString(),
   models: { transcription: SPARK_MODEL, identification: WONDER_MODEL },
   note:
-    'Real answers from the Meta Model API for the fictional sample patient, recorded by ' +
+    'Real answers from the Meta Model API for the de-identified sample patient, recorded by ' +
     'scripts/record-samples.mjs and replayed by the API at no cost.',
   pages: Object.fromEntries(Object.entries(pages).sort(([a], [b]) => a.localeCompare(b))),
   identities: Object.fromEntries(
