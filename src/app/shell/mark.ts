@@ -1,6 +1,6 @@
 import { Component, input } from '@angular/core';
 
-/** Layered lab reports with matching teal rows. */
+/** A C with a carried dot, like the small digit carried in a sum. */
 @Component({
   selector: 'app-mark',
   template: `

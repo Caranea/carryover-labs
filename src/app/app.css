@@ -33,7 +33,6 @@
   width: 44px;
   height: 44px;
   flex-shrink: 0;
-  filter: drop-shadow(0 2px 3px rgb(13 122 104 / 12%));
 }
 
 .brand-wordmark {
@@ -54,7 +53,7 @@
   font-size: 0.6rem;
   font-weight: 700;
   line-height: 1.2;
-  letter-spacing: 0.24em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
