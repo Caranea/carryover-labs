@@ -11,15 +11,16 @@
 
 ![Muse Spark 1.3](https://img.shields.io/badge/Muse_Spark-1.3-fcd34d)
 ![Muse Wonder 1.0](https://img.shields.io/badge/Muse_Wonder-1.0-fcd34d)
+![XLM-RoBERTa, on your device](https://img.shields.io/badge/XLM--RoBERTa-on_your_device-fcd34d)
 ![Reads Polish, German and English](https://img.shields.io/badge/reads-PL_·_DE_·_EN-0d7a68)
 
-[How it works](#how-it-works) · [How well it works](#how-well-it-works) · [Privacy](#privacy) · [Run it](#run-it) · [Built for the hackathon](#built-for-the-hackathon)
+[How it works](#how-it-works) · [Local PII redaction](#local-pii-redaction) · [How well it works](#how-well-it-works) · [Privacy](#privacy) · [Run it](#run-it) · [Built for the hackathon](#built-for-the-hackathon)
 
 </div>
 
 ![Twelve years of a sample patient's lab tests in one Carryover results table](docs/images/results.webp)
 
-Carryover turns years of lab reports in Polish, German and English into one timeline a patient can bring to a short doctor's appointment. Every chart point links back to the page it came from.
+Carryover turns years of lab reports in Polish, German and English into one timeline a patient can bring to a short doctor's appointment. Personal details are found and blacked out in the browser by a local model built on Meta's XLM-RoBERTa, before anything is sent. Every chart point links back to the page it came from.
 
 > [!IMPORTANT]
 > Carryover does not diagnose, interpret results or give medical advice. High and low flags and reference ranges are copied from the reports.
@@ -48,12 +49,23 @@ Open **[carryover.pl/demo](https://carryover.pl/demo)**. It needs no account and
 ![The six steps from a page on your device to a timeline](docs/images/pipeline.png)
 
 1. **Add a file.** Photos, PDFs, Word and text files are read in the browser (Tesseract OCR, pdf.js, mammoth).
-2. **Hide personal details.** A local model and rules suggest names, addresses and identifiers to hide. The person checks every page, turns sideways pages upright, hides more by tapping words or drawing boxes, and approves. Masks are burned into fresh page images.
+2. **Hide personal details.** A local model built on **XLM-RoBERTa** and rules suggest names, addresses and identifiers to hide. The person checks every page, turns sideways pages upright, hides more by tapping words or drawing boxes, and approves. Masks are burned into fresh page images.
 3. **Read the results.** Each approved, redacted page image is queued as a job for **Muse Spark**, which transcribes the lab table literally. The browser collects results with a long poll, so slow model calls never hold a request open.
 4. **Match tests across languages.** **Muse Wonder** maps the printed test names of the whole batch to one identity per test. Unit conversion and chart building are deterministic server code; the model never supplies numbers.
 5. **Bring it to the appointment.** Print the results page or save it as a PDF from the print dialog.
 
 Readings with an uncertain transcription, an unresolved identity, a missing date or an unverifiable unit stay out of the charts and are listed for review with a reason. The full design is in [architecture](docs/architecture.md).
+
+## Local PII redaction
+
+Health records are too sensitive to redact on a server, so Carryover does it in the browser. It runs [`bardsai/eu-pii-anonimization-multilang`](https://huggingface.co/bardsai/eu-pii-anonimization-multilang), a token classifier built on Meta AI's open [XLM-RoBERTa](https://huggingface.co/FacebookAI/xlm-roberta-base), with no call to any server to find personal details.
+
+- **On your device:** the model runs in a Web Worker, as WebGPU FP16 (about 555 MB) or CPU Q8 (about 279 MB). It's downloaded once from Hugging Face at a pinned revision, then reused.
+- **Model plus rules:** rules catch IDs, emails and postcodes alongside the model. Details hidden in one document are reused in the next.
+- **You decide:** you check every page, hide more by tapping words or drawing boxes, and approve. Manual review skips the model entirely.
+- **Burned in, not covered up:** masks are burned into a fresh JPEG, so nothing sits underneath. Reopening a saved copy can only add masks.
+
+On a synthetic page with five identity fields, the last local check found and fully covered all five and masked no result. On rotated pages, automatic detection found nothing, because OCR doesn't detect orientation, so those pages are turned upright and hidden by hand. `node eval/check-pipeline-privacy.mjs` runs the check in a browser with WebGPU.
 
 ## How well it works
 
@@ -113,12 +125,12 @@ Carryover was built for the [Meta Global AI Developer Hackathon](https://cerebra
 
 The repository starts on Oct 26. The Oct 29 commit is a large rough draft generated during the hackathon. I didn't commit early, and the later commits refine it.
 
-| Not built here                                                                                            | Used for                                    |
-| --------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| Muse Spark 1.3, Muse Wonder 1.0 (Meta Model API)                                                          | Transcribing pages and identifying tests    |
-| [`bardsai/eu-pii-anonimization-multilang`](https://huggingface.co/bardsai/eu-pii-anonimization-multilang) | Suggesting personal details, in the browser |
-| Tesseract OCR, pdf.js, mammoth                                                                            | Reading files in the browser                |
-| Angular, NestJS and other open-source libraries                                                           | The app and the API                         |
+| Not built here                                                                                                                            | Used for                                 |
+| ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| Muse Spark 1.3, Muse Wonder 1.0 (Meta Model API)                                                                                          | Transcribing pages and identifying tests |
+| [`bardsai/eu-pii-anonimization-multilang`](https://huggingface.co/bardsai/eu-pii-anonimization-multilang), built on Meta AI's XLM-RoBERTa | Finding personal details, in the browser |
+| Tesseract OCR, pdf.js, mammoth                                                                                                            | Reading files in the browser             |
+| Angular, NestJS and other open-source libraries                                                                                           | The app and the API                      |
 
 ## For developers
 
