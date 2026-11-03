@@ -128,7 +128,7 @@ interface Models {
           <div class="side flex flex-col min-w-0">
             <fieldset class="chooser" [disabled]="running()">
               <legend class="sr-only">Choose a page</legend>
-              @for (s of samples; track s.key) {
+              @for (s of samples(); track s.key) {
                 <label class="choice" [class.chosen]="chosen().key === s.key">
                   <input
                     type="radio"
@@ -741,7 +741,7 @@ interface Models {
 })
 export class LiveRead implements OnInit, OnDestroy {
   private readonly server = inject(ServerConfigService);
-  protected readonly samples = SAMPLES;
+  protected readonly samples = signal(SAMPLES);
   protected readonly chosen = signal(SAMPLES[0]);
   protected readonly readSample = signal<LiveSample | null>(null);
   protected readonly models = signal<Models | null | undefined>(undefined);
@@ -786,7 +786,12 @@ export class LiveRead implements OnInit, OnDestroy {
   async ngOnInit() {
     void document.fonts?.ready.then(() => this.measure());
     const config = await this.server.load();
-    this.models.set(config?.samplePatient ? config.models : null);
+    // Offer only pages whose recorded answers are on the server; never read Jane's pages live.
+    const recorded = new Set(config?.samplePages ?? []);
+    const samples = SAMPLES.filter((s) => recorded.has(s.sample));
+    this.samples.set(samples);
+    if (samples.length) this.chosen.set(samples[0]);
+    this.models.set(samples.length ? config!.models : null);
   }
 
   ngOnDestroy() {

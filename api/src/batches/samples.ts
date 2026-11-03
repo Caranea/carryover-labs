@@ -49,8 +49,9 @@ export class SampleAnswers implements IdentityCache {
     return new SampleAnswers(recording);
   }
 
-  get available(): boolean {
-    return !!this.recording && Object.keys(this.recording.pages).length > 0;
+  /** The recorded sample pages ("jane-doe-039:0"): the app offers only documents fully recorded. */
+  get pages(): string[] {
+    return Object.keys(this.recording?.pages ?? {}).sort();
   }
 
   has(sample: string): boolean {

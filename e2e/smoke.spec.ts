@@ -86,8 +86,8 @@ test('the sample patient is read from recorded answers, with no key, and charted
   await page.getByRole('radio', { name: /Manual review/ }).check();
   await page.getByRole('button', { name: 'Try the sample patient' }).click();
   const dialog = page.getByRole('dialog', { name: 'Try the sample patient' });
-  // Three documents are picked to start with; keep only the English fax.
-  await dialog.getByRole('checkbox', { name: /^Kumulativbericht/ }).uncheck();
+  // Only fully recorded documents are offered: the test recording has two. Keep the English fax.
+  await expect(dialog.getByRole('checkbox')).toHaveCount(2);
   await dialog.getByRole('checkbox', { name: /^TSH, FT3, FT4 / }).uncheck();
   await dialog.getByRole('button', { name: 'Add 1 document' }).click();
 
@@ -117,7 +117,7 @@ test('the demo says when no sample answers are on the server', async ({ page }) 
       json: {
         models: { transcription: 'muse-spark-1.3', identification: 'muse-wonder-1.0' },
         live: false,
-        samplePatient: false,
+        samplePages: [],
       },
     }),
   );
