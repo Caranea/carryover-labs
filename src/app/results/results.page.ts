@@ -26,6 +26,8 @@ import { DemoDocuments } from './demo-documents';
 import { LiveRead } from './live-read';
 import { InfoTip } from './info-tip';
 import { ScrollSheet } from './scroll-sheet';
+import { PanelNav } from './panel-nav';
+import { ResultsSummary } from './summary';
 import { SparkLine } from './spark';
 import {
   Column,
@@ -133,6 +135,8 @@ export interface Panel {
     SparkLine,
     ScrollSheet,
     InfoTip,
+    PanelNav,
+    ResultsSummary,
   ],
   templateUrl: './results.page.html',
   styleUrl: './results.page.css',
@@ -232,6 +236,11 @@ export class ResultsPage implements OnInit, OnDestroy {
   protected readonly flaggedTotal = computed(() =>
     this.panels().reduce((n, p) => n + p.flagged, 0),
   );
+  /** The results once there is something to sum up: not while loading, and not when empty. */
+  protected readonly summary = computed(() => {
+    const d = this.data();
+    return d && (d.stats.values || d.warnings.length || d.textResults.length) ? d : null;
+  });
   protected readonly expanded = signal<string | null>(null);
   /** Tests that have only results in words. */
   protected readonly textTests = computed(
