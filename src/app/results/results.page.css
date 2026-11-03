@@ -791,13 +791,18 @@ app-spark.wide {
   }
 }
 
-/* Demo: the sample patient's original documents sit beside the title. */
+/* Demo: the originals and the walkthrough open from two buttons beside the title. */
 .results-intro {
   display: grid;
   gap: 1.5rem;
 }
 .intro-main app-results-summary {
   margin-top: 0.5rem;
+}
+.demo-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 /* Your own results: a short title row, and the counts as tiles on the right. */
@@ -863,7 +868,7 @@ app-spark.wide {
 }
 @media (min-width: 64rem) {
   .results-intro.with-aside {
-    grid-template-columns: minmax(0, 1fr) minmax(18rem, 25rem);
+    grid-template-columns: minmax(0, 1fr) minmax(20rem, 23rem);
     align-items: center;
   }
 }

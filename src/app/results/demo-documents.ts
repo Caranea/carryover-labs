@@ -5,24 +5,18 @@ import { Icon } from '../ui/icon';
 
 const LANGUAGE: Record<string, string> = { pl: 'Polish', en: 'English', de: 'German' };
 
-/** "See initial tests": the sample patient's original documents, every page as handed in. */
+/** "See the originals": the sample patient's original documents, every page as handed in. */
 @Component({
   selector: 'app-demo-documents',
   imports: [DatePipe, Icon],
   template: `
-    <button type="button" class="initial-tests" aria-haspopup="dialog" (click)="open()">
-      <span class="stack" aria-hidden="true">
-        @for (d of stack; track d.id) {
-          <img [src]="d.thumb" alt="" />
-        }
-      </span>
-      <span>
-        <span class="title">See the originals <app-icon name="arrow-right" size="1.1rem" /></span>
-        <span class="sub"
-          >The {{ docs.length }} documents Jane brought: Polish PDFs and phone photos,
-          2012–2024</span
-        >
-      </span>
+    <button
+      type="button"
+      class="originals btn btn-outline rounded-full w-full"
+      aria-haspopup="dialog"
+      (click)="open()"
+    >
+      <app-icon name="file-text" size="1.1rem" />See the originals
     </button>
 
     <dialog #dialog class="modal" aria-labelledby="docs-h" (close)="selected.set(null)">
@@ -138,80 +132,12 @@ const LANGUAGE: Record<string, string> = { pl: 'Polish', en: 'English', de: 'Ger
     </dialog>
   `,
   styles: `
-    .initial-tests {
-      display: grid;
-      grid-template-columns: auto minmax(0, 1fr);
-      align-items: center;
-      gap: 1.25rem;
-      width: 100%;
-      padding: 1.1rem 1.25rem;
-      border: 1px solid var(--color-base-300);
-      border-radius: var(--radius-box);
-      background: var(--color-base-200);
-      color: var(--color-base-content);
-      text-align: left;
-      cursor: pointer;
-      transition:
-        border-color 0.15s,
-        box-shadow 0.15s;
-    }
-    .initial-tests:hover {
-      border-color: color-mix(in oklab, var(--color-primary) 45%, var(--color-base-300));
-      box-shadow: 0 10px 24px -18px color-mix(in oklab, var(--color-primary) 70%, black);
-    }
-    .initial-tests:hover app-icon {
-      transform: translateX(3px);
-    }
-    .initial-tests:focus-visible {
-      outline: 3px solid var(--color-primary);
-      outline-offset: 3px;
-    }
-    .stack {
-      position: relative;
-      width: 5rem;
-      height: 5.6rem;
-    }
-    .stack img {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 3.6rem;
-      height: 4.8rem;
-      object-fit: cover;
-      object-position: top;
-      border: 1px solid var(--color-base-300);
-      border-radius: 0.3rem;
-      background: #fff;
-      box-shadow: 0 4px 12px -6px rgb(22 48 44 / 0.35);
-    }
-    .stack img:nth-child(1) {
-      transform: translate(-2px, 6px) rotate(-9deg);
-    }
-    .stack img:nth-child(2) {
-      transform: translate(10px, 2px) rotate(3deg);
-    }
-    .stack img:nth-child(3) {
-      transform: translate(22px, 8px) rotate(12deg);
-    }
-    .title {
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-      font-family: var(--font-display);
-      font-size: 1.2rem;
+    /* Same size as the Meta AI button beside it. */
+    .originals {
+      height: 3.75rem;
+      padding-inline: 1.25rem;
+      font-size: 1.05rem;
       font-weight: 600;
-      line-height: 1.2;
-    }
-    .title app-icon {
-      color: var(--color-primary);
-      transition: transform 0.15s;
-    }
-    .sub {
-      display: block;
-      margin-top: 0.3rem;
-      font-size: 0.9rem;
-      line-height: 1.45;
-      color: color-mix(in oklab, var(--color-base-content) 80%, transparent);
     }
     .doc-grid {
       display: grid;
@@ -278,12 +204,10 @@ const LANGUAGE: Record<string, string> = { pl: 'Polish', en: 'English', de: 'Ger
       background: #fff;
     }
     @media (prefers-reduced-motion: reduce) {
-      .doc-card,
-      .initial-tests {
+      .doc-card {
         transition: none;
       }
-      .doc-card:hover,
-      .initial-tests:hover {
+      .doc-card:hover {
         transform: none;
       }
     }
@@ -294,10 +218,6 @@ export class DemoDocuments {
   private readonly box = viewChild.required<ElementRef<HTMLElement>>('box');
   protected readonly docs = DEMO_DOCUMENTS;
   protected readonly selected = signal<DemoDocument | null>(null);
-  /** A photo, a PDF and the German report, fanned out on the button. */
-  protected readonly stack = ['jane-doe-039', 'jane-doe-lab-28', 'jane-doe-002'].flatMap(
-    (id) => DEMO_DOCUMENTS.find((d) => d.id === id) ?? [],
-  );
 
   open(documentId?: string) {
     this.show(this.docs.find((d) => d.id === documentId) ?? null);
