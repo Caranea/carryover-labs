@@ -151,16 +151,6 @@
 .waiting-state:empty {
   display: none;
 }
-.manual-option {
-  margin-top: 1rem;
-  padding: 1rem;
-  border: 1px solid var(--color-base-300);
-  border-radius: 1rem;
-}
-.manual-option summary {
-  cursor: pointer;
-  font-weight: 600;
-}
 .privacy-actions {
   flex-shrink: 0;
   display: flex;
@@ -201,10 +191,12 @@
     flex-wrap: wrap;
     gap: 0.5rem;
   }
-  .heading-row app-step-rail {
-    order: 3;
-    flex-basis: 100%;
-    max-width: none;
+  /* Covering details takes room: on a phone the page gets the screen. */
+  .heading-row app-step-rail,
+  .batch-progress progress,
+  .batch-progress > p.text-xs,
+  .results-action p {
+    display: none;
   }
   .privacy-body {
     --review-top-space: 0.75rem;
@@ -234,8 +226,5 @@
     flex-direction: column;
     align-items: flex-end;
     gap: 0.35rem;
-  }
-  .results-action p {
-    max-width: 14rem;
   }
 }

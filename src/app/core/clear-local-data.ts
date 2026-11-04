@@ -8,8 +8,7 @@ export const CLEARED_FLAG = 'carryover.cleared';
 
 /**
  * Delete everything Carryover keeps in this browser: approved documents and their page images,
- * results and corrections, files waiting for review, and the details remembered for hiding.
- * The downloaded privacy checker (Cache Storage) stays: it holds no personal data.
+ * results and corrections, and files waiting for review.
  */
 export async function clearLocalData(): Promise<void> {
   // Pages the server may still hold for this browser are dropped too (best effort).

@@ -51,8 +51,6 @@ private-test-data/
 # Local verification screenshots
 /artifacts/
 /.test-temp/
-/public/models/pii-fp16/
-/public/models/pii-fp16-*/
 
 # Playwright
 /test-results/

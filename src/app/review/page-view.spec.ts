@@ -1,7 +1,6 @@
-import { TestBed } from '@angular/core/testing';
-import type { WorkingPage } from '../core/models';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import type { Box, WorkingPage } from '../core/models';
 import { PageView, percentageBox } from './page-view';
-import { TextView } from './text-view';
 
 describe('keyboard redaction areas', () => {
   const page = { width: 1200, height: 1600 };
@@ -42,7 +41,18 @@ describe('final mask preview', () => {
       box: { x, y: 10, w: 10, h: 10 },
     })),
   });
-  it('shows bounded image masks and undo returns to the initiating word', () => {
+  const draw = (fixture: ComponentFixture<PageView>) => {
+    const svg = fixture.nativeElement.querySelector('svg') as SVGSVGElement;
+    svg.getBoundingClientRect = () => ({ left: 0, top: 0, width: 100, height: 80 }) as DOMRect;
+    svg.setPointerCapture = () => undefined;
+    return (type: string, x: number, y: number) =>
+      svg.dispatchEvent(
+        Object.assign(new MouseEvent(type, { bubbles: true, clientX: x, clientY: y }), {
+          pointerId: 1,
+        }),
+      );
+  };
+  it('draws hidden words as bounded masks', () => {
     const fixture = TestBed.createComponent(PageView);
     fixture.componentRef.setInput('page', page());
     fixture.detectChanges();
@@ -51,58 +61,35 @@ describe('final mask preview', () => {
     ) as NodeListOf<SVGRectElement>;
     expect(masks.length).toBe(1);
     expect(masks[0].getAttribute('width')).toBe('14');
-    const toggled: number[] = [];
-    fixture.componentInstance.toggleWord.subscribe((id) => toggled.push(id));
-    masks[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    expect(toggled).toEqual([0]);
   });
-  it('shows tooltip text, not template code, on the page image', () => {
+  it('turns a drag into a box', () => {
     const fixture = TestBed.createComponent(PageView);
-    const p = page();
-    p.words[1] = { ...p.words[1], candidate: 'birth-date' };
-    fixture.componentRef.setInput('page', p);
-    fixture.detectChanges();
-    const tips = [...fixture.nativeElement.querySelectorAll('svg title')].map((t) =>
-      t.textContent.trim(),
-    );
-    expect(tips).toContain('word1: Possible personal detail. Still visible; click to hide.');
-    expect(tips).toContain('word2: Click to hide');
-    expect(tips.join(' ')).not.toContain('{{');
-  });
-  it('keeps the same neighbours visible in the keyboard-friendly text view', () => {
-    const fixture = TestBed.createComponent(TextView);
     fixture.componentRef.setInput('page', page());
     fixture.detectChanges();
-    const masks = fixture.nativeElement.querySelectorAll(
-      'button.redacted',
-    ) as NodeListOf<HTMLButtonElement>;
-    expect(masks.length).toBe(1);
-    expect(fixture.nativeElement.textContent).toContain('word1');
-    const toggled: number[] = [];
-    fixture.componentInstance.toggleWord.subscribe((id) => toggled.push(id));
-    masks[0].click();
-    expect(toggled).toEqual([0]);
+    const added: Box[] = [];
+    fixture.componentInstance.addRegion.subscribe((box) => added.push(box));
+    const pointer = draw(fixture);
+    pointer('pointerdown', 10, 40);
+    pointer('pointermove', 30, 50);
+    pointer('pointerup', 30, 50);
+    expect(added).toEqual([{ x: 10, y: 40, w: 20, h: 10 }]);
   });
-
-  it('highlights an uncertain suggestion without hiding it in either view', () => {
-    const input = page();
-    input.words[1].candidate = 'person';
-    const image = TestBed.createComponent(PageView);
-    image.componentRef.setInput('page', input);
-    image.detectChanges();
-    expect(image.nativeElement.querySelectorAll('rect.word.candidate').length).toBe(1);
-    expect(image.nativeElement.querySelector('rect.word.candidate title').textContent).toContain(
-      'Still visible',
-    );
-    const text = TestBed.createComponent(TextView);
-    text.componentRef.setInput('page', input);
-    text.detectChanges();
-    const candidate = text.nativeElement.querySelector('button.candidate') as HTMLButtonElement;
-    expect(candidate.textContent).toContain('word1');
-    expect(candidate.classList.contains('redacted')).toBe(false);
-    const toggled: number[] = [];
-    text.componentInstance.toggleWord.subscribe((id) => toggled.push(id));
-    candidate.click();
-    expect(toggled).toEqual([1]);
+  it('removes the box under a tap, but never one already saved', () => {
+    const fixture = TestBed.createComponent(PageView);
+    const regions = [
+      { x: 10, y: 40, w: 20, h: 10 },
+      { x: 50, y: 40, w: 20, h: 10 },
+    ];
+    fixture.componentRef.setInput('page', { ...page(), regions, lockedRegions: 1 });
+    fixture.detectChanges();
+    const removed: number[] = [];
+    fixture.componentInstance.removeRegion.subscribe((index) => removed.push(index));
+    const pointer = draw(fixture);
+    pointer('pointerdown', 15, 45);
+    pointer('pointerup', 15, 45);
+    expect(removed).toEqual([]);
+    pointer('pointerdown', 55, 45);
+    pointer('pointerup', 55, 45);
+    expect(removed).toEqual([1]);
   });
 });

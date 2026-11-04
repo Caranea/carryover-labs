@@ -10,10 +10,9 @@ import { QueueRecovery, QUEUE_PROGRESS_KEY, type QueueSnapshot } from './queue-r
 import { DocumentQueueService } from './document-queue.service';
 import { LocalHistory } from './local-history';
 import { ExtractionService } from '../extraction/extraction.service';
-import { NerService } from '../pii/ner.service';
 import { LOCAL_HISTORY_KEY } from './local-history';
 import type { LocalDocument } from './models';
-import { PRIVACY_VERSION } from '../pii/detect';
+import { PRIVACY_VERSION } from '../pii/privacy-version';
 
 function document(id = 'one', status: LocalDocument['status'] = 'review'): LocalDocument {
   return {
@@ -23,12 +22,9 @@ function document(id = 'one', status: LocalDocument['status'] = 'review'): Local
     fileName: `${id}.txt`,
     sourceKind: 'text',
     status,
-    strict: false,
     progress: 1,
     message: '',
     addedAt: 1,
-    privacyMode: 'lightweight',
-    privacyCheck: 'manual',
     file: new File(['fictional original'], `${id}.txt`, { type: 'text/plain' }),
     pages:
       status === 'queued' || status === 'reading'
@@ -42,9 +38,7 @@ function document(id = 'one', status: LocalDocument['status'] = 'review'): Local
               imageUrl: null,
               ocr: false,
               regions: [{ x: 60, y: 60, w: 10, h: 10 }],
-              words: [
-                { id: 1, text: 'Fictional', line: 0, hidden: true, userSet: true, source: 'you' },
-              ],
+              words: [{ id: 1, text: 'Fictional', line: 0, hidden: true }],
             },
           ],
   };
@@ -56,21 +50,14 @@ function snapshot(documents: LocalDocument[] = [document()]): QueueSnapshot {
     reviewId: documents[0]?.localId ?? null,
     reviewOpened: true,
     counter: 6,
-    privacyMode: 'lightweight',
-    privacyModeChosen: true,
   };
 }
 function queueSetup() {
   const extraction = { extract: vi.fn(async () => document().pages) };
-  const ner = { predict: vi.fn(async () => []), error: () => null, checkProgress: () => 0 };
   TestBed.configureTestingModule({
-    providers: [
-      provideRouter([]),
-      { provide: ExtractionService, useValue: extraction },
-      { provide: NerService, useValue: ner },
-    ],
+    providers: [provideRouter([]), { provide: ExtractionService, useValue: extraction }],
   });
-  return { queue: TestBed.inject(DocumentQueueService), extraction, ner };
+  return { queue: TestBed.inject(DocumentQueueService), extraction };
 }
 
 /** Web Locks for one origin: the holder keeps its lock until its tab closes. */
@@ -113,44 +100,19 @@ describe('queue recovery after refresh', () => {
     vi.unstubAllGlobals();
   });
 
-  it('rechecks legacy automatic masks from saved OCR, discards untrusted memory and keeps hand edits', async () => {
-    const source = document('source');
-    source.privacyMode = 'automatic';
-    source.privacyCheck = 'complete';
-    source.pages[0].words = [
-      { id: 0, text: 'Coeliac', line: 0, hidden: true, source: 'rule', kind: 'person' },
-      { id: 1, text: 'Jane', line: 1, hidden: true, userSet: true, source: 'you' },
-      { id: 2, text: 'Doe', line: 1, hidden: false, userSet: true },
-    ];
-    const next = document('next');
-    next.pages[0].words = [
-      { id: 0, text: 'coeliac', line: 0, hidden: true, source: 'remembered', kind: 'person' },
-    ];
-    const state = snapshot([source, next]);
-    state.rememberedDetails = { obsolete: [{ key: 'coeliac', kind: 'person' }] };
+  it('sends progress from an earlier flow back to review with its masks and drawn areas', async () => {
+    const source = { ...document('source'), privacyVersion: PRIVACY_VERSION - 1 };
     const writer = new QueueRecovery();
     await writer.load();
-    await writer.save(state);
-    const { queue, extraction, ner } = queueSetup();
+    await writer.save(snapshot([source]));
+    const { queue, extraction } = queueSetup();
     await queue.ready;
     await settled(() => expect(queue.byId('source')?.status).toBe('review'));
     expect(extraction.extract).not.toHaveBeenCalled();
-    expect(ner.predict).toHaveBeenCalledTimes(1);
-    expect(queue.byId('source')?.pages[0].words.map((w) => w.hidden)).toEqual([false, true, false]);
+    expect(queue.byId('source')?.pages[0].words[0].hidden).toBe(true);
     expect(queue.byId('source')?.pages[0].regions).toEqual(source.pages[0].regions);
     expect(queue.byId('source')?.privacyVersion).toBe(PRIVACY_VERSION);
-    expect(queue.byId('next')?.pages[0].words[0].hidden).toBe(false);
     await queue.retryRecovery();
-    TestBed.resetTestingModule();
-    const restored = queueSetup();
-    await restored.queue.ready;
-    expect(restored.ner.predict).not.toHaveBeenCalled();
-    expect(restored.extraction.extract).not.toHaveBeenCalled();
-    expect(restored.queue.byId('source')?.pages[0].words[1]).toMatchObject({
-      hidden: true,
-      userSet: true,
-    });
-    await restored.queue.retryRecovery();
   });
 
   it('restores files and edits while keeping large images out of localStorage', async () => {
@@ -177,31 +139,6 @@ describe('queue recovery after refresh', () => {
       words: state.documents[0].pages[0].words,
     });
     expect(restored.documents[0].pages[0].image!.size).toBe(6 * 1024 * 1024);
-  });
-
-  it('restores remembered details from an approved source for a new manual file without putting them in the progress marker', async () => {
-    const source = { ...document('source', 'saved'), serverId: 'approved', pages: [], file: null };
-    const state = snapshot([source]);
-    state.rememberedDetails = { source: [{ key: 'alexandra', kind: 'person' }] };
-    state.rememberedDetailsVersion = PRIVACY_VERSION;
-    const writer = new QueueRecovery();
-    await writer.load();
-    await writer.save(state);
-    expect(localStorage.getItem(QUEUE_PROGRESS_KEY)).not.toContain('alexandra');
-    expect((await new QueueRecovery().load())?.rememberedDetails).toEqual(state.rememberedDetails);
-    const { queue, extraction } = queueSetup();
-    await queue.ready;
-    extraction.extract.mockImplementation(async () => [
-      {
-        ...document().pages[0],
-        regions: [],
-        words: [{ id: 1, text: 'ALEXANDRA', line: 0, hidden: false }],
-      },
-    ]);
-    const [id] = queue.add([new File(['fictional'], 'next.txt')], 'lightweight');
-    await settled(() => expect(queue.byId(id)?.status).toBe('review'));
-    expect(queue.byId(id)?.pages[0].words[0]).toMatchObject({ hidden: true, source: 'remembered' });
-    await queue.retryRecovery();
   });
 
   it('coalesces rapid edits and never restores removed or approved originals', async () => {
@@ -337,7 +274,7 @@ describe('queue recovery after refresh', () => {
     expect((await new QueueRecovery().load())!.documents[0].name).toBe('Updated thyroid tests');
   });
 
-  it('waits for the initial file checkpoint before starting OCR', async () => {
+  it('waits for the initial file checkpoint before opening it', async () => {
     const { queue, extraction } = queueSetup();
     await queue.ready;
     await queue.retryRecovery();
@@ -347,7 +284,7 @@ describe('queue recovery after refresh', () => {
         saved = resolve;
       }),
     );
-    const [id] = queue.add([new File(['fictional original'], 'one.txt')], 'lightweight');
+    const [id] = queue.add([new File(['fictional original'], 'one.txt')]);
     expect(queue.byId(id)?.status).toBe('queued');
     expect(extraction.extract).not.toHaveBeenCalled();
     saved();
@@ -357,7 +294,7 @@ describe('queue recovery after refresh', () => {
     await queue.retryRecovery();
   });
 
-  it('reopens the selected review and resumes interrupted files without repeating completed OCR', async () => {
+  it('reopens the selected review and resumes interrupted files without opening completed pages again', async () => {
     const writer = new QueueRecovery();
     await writer.load();
     const docs = [
@@ -366,14 +303,13 @@ describe('queue recovery after refresh', () => {
       document('detecting', 'detecting'),
     ];
     await writer.save(snapshot(docs));
-    const { queue, extraction, ner } = queueSetup();
+    const { queue, extraction } = queueSetup();
     await queue.ready;
     await settled(() => expect(queue.documents().every((d) => d.status === 'review')).toBe(true));
     expect(extraction.extract).toHaveBeenCalledOnce();
-    expect(ner.predict).not.toHaveBeenCalled();
     expect(queue.reviewOpened()).toBe(true);
     expect(queue.reviewId()).toBe('ready');
-    expect(queue.byId('ready')?.pages[0].words[0]).toMatchObject({ hidden: true, userSet: true });
+    expect(queue.byId('ready')?.pages[0].words[0]).toMatchObject({ hidden: true });
     expect(queue.resultsBlocked()).toBe(true);
     await queue.retryRecovery();
   });

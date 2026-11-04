@@ -45,7 +45,7 @@ export async function* readPdf(
         try {
           rendered = await renderPage(page);
         } finally {
-          page.cleanup(); // release PDF caches before the consumer performs OCR
+          page.cleanup(); // release PDF caches before the next page
         }
         yield { ...rendered, index: i - 1, pageCount: doc.numPages };
       } finally {
@@ -72,7 +72,7 @@ async function renderPage(page: PDFPageProxy): Promise<Omit<RenderedPdfPage, 'in
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     await page.render({ canvas, canvasContext: ctx, viewport }).promise;
 
-    // Ignore PDF text layers, including invisible text. Privacy detection uses the rendered pixels.
+    // Only pixels are kept: a PDF's text layer, including invisible text, is never read.
     return { canvas, image: await canvasToBlob(canvas) };
   } catch (error) {
     canvas.width = canvas.height = 0;

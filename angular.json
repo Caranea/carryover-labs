@@ -51,40 +51,9 @@
                 "glob": "**/*",
                 "input": "node_modules/pdfjs-dist/iccs",
                 "output": "vendor/pdfjs/iccs"
-              },
-              {
-                "glob": "worker.min.js",
-                "input": "node_modules/tesseract.js/dist",
-                "output": "vendor/tesseract"
-              },
-              {
-                "glob": "*.wasm.js",
-                "input": "node_modules/tesseract.js-core",
-                "output": "vendor/tesseract-core"
-              },
-              {
-                "glob": "*.traineddata.gz",
-                "input": "node_modules/@tesseract.js-data/pol/4.0.0_best_int",
-                "output": "vendor/tessdata"
-              },
-              {
-                "glob": "*.traineddata.gz",
-                "input": "node_modules/@tesseract.js-data/deu/4.0.0_best_int",
-                "output": "vendor/tessdata"
-              },
-              {
-                "glob": "*.traineddata.gz",
-                "input": "node_modules/@tesseract.js-data/eng/4.0.0_best_int",
-                "output": "vendor/tessdata"
-              },
-              {
-                "glob": "ort-wasm-simd-threaded.asyncify.{mjs,wasm}",
-                "input": "node_modules/onnxruntime-web/dist",
-                "output": "vendor/ort"
               }
             ],
             "styles": ["src/styles.css"],
-            "webWorkerTsConfig": "tsconfig.worker.json",
             "allowedCommonJsDependencies": [
               "@xmldom/xmldom",
               "mammoth",
@@ -94,7 +63,6 @@
               "dingbat-to-unicode",
               "xmlbuilder",
               "heic2any",
-              "tesseract.js",
               "regenerator-runtime"
             ]
           },
@@ -115,7 +83,10 @@
               "outputHashing": "all",
               "optimization": {
                 "scripts": true,
-                "styles": { "minify": true, "inlineCritical": false },
+                "styles": {
+                  "minify": true,
+                  "inlineCritical": false
+                },
                 "fonts": true
               }
             },

@@ -1,15 +1,12 @@
 import { Component, computed, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Box, WorkingPage, WorkingWord } from '../core/models';
+import { Box, WorkingPage } from '../core/models';
 import { boxFromPoints } from '../redaction/geometry';
 import { redactionAction, redactionPlan } from '../redaction/burn';
-import { describeWord } from './describe';
-
-export type EditMode = 'words' | 'draw';
 
 /**
  * One page image with the redaction drawn on top, exactly as it will be
- * burned in. Click a word to hide or show it; in draw mode, drag a box.
+ * burned in. Drag to cover an area; click or tap a box to remove it.
  */
 @Component({
   selector: 'app-page-view',
@@ -35,34 +32,19 @@ export type EditMode = 'words' | 'draw';
         @if (page().imageUrl) {
           <img
             [src]="page().imageUrl"
-            alt="Document page with hidden details covered in black. To hide words with a keyboard or screen reader, turn on Pages as text."
+            alt="Document page with the areas you covered in black. To cover an area with a keyboard, use the form below the page."
             draggable="false"
           />
         }
         <svg
           [attr.viewBox]="'0 0 ' + page().width + ' ' + page().height"
           preserveAspectRatio="none"
-          [class.drawing]="mode() !== 'words'"
-          [class.reveal]="reveal()"
           (pointerdown)="startDraw($event)"
           (pointermove)="moveDraw($event)"
           (pointerup)="endDraw($event)"
           (pointercancel)="cancelDraw()"
           aria-hidden="true"
         >
-          @for (w of visibleWords(); track w.id) {
-            <rect
-              class="word"
-              [class.candidate]="!!w.candidate && !w.userSet"
-              [attr.x]="w.box!.x"
-              [attr.y]="w.box!.y"
-              [attr.width]="w.box!.w"
-              [attr.height]="w.box!.h"
-              (click)="clickWord(w)"
-            >
-              <title>{{ wordTip(w) }}</title>
-            </rect>
-          }
           @for (h of hiddenBoxes(); track h.word.id) {
             <rect
               class="redacted"
@@ -71,10 +53,7 @@ export type EditMode = 'words' | 'draw';
               [attr.y]="h.box.y"
               [attr.width]="h.box.w"
               [attr.height]="h.box.h"
-              (click)="clickHidden(h.index)"
-            >
-              <title>{{ hiddenTip(h.word) }}</title>
-            </rect>
+            />
           }
           @for (r of plan().regionBoxes; track $index) {
             <rect
@@ -84,10 +63,7 @@ export type EditMode = 'words' | 'draw';
               [attr.y]="r.y"
               [attr.width]="r.w"
               [attr.height]="r.h"
-              (click)="clickRegion($index)"
-            >
-              <title>{{ regionTip($index) }}</title>
-            </rect>
+            />
           }
           @if (draft(); as d) {
             <rect
@@ -201,55 +177,16 @@ export type EditMode = 'words' | 'draw';
       width: 100%;
       height: 100%;
     }
+    /* On a phone a sideways drag draws and an up-and-down swipe still scrolls the page. */
     svg {
-      touch-action: pan-y pinch-zoom;
-    }
-    svg.drawing {
       cursor: crosshair;
-      touch-action: none;
-    }
-    .word {
-      fill: transparent;
-      cursor: pointer;
-    }
-    .word.candidate {
-      fill: rgba(255, 213, 79, 0.22);
-      stroke: #ad7100;
-      stroke-width: 1;
-      stroke-dasharray: 3 3;
-      vector-effect: non-scaling-stroke;
-    }
-    svg:not(.drawing) .word:hover {
-      fill: color-mix(in oklab, var(--color-accent) 45%, transparent);
-      stroke: var(--color-primary);
-      stroke-width: 1.5;
-      vector-effect: non-scaling-stroke;
+      touch-action: pan-y pinch-zoom;
     }
     .redacted,
     .region {
       fill: #000;
       /* High-contrast modes must not repaint the black bars. */
       forced-color-adjust: none;
-      cursor: pointer;
-    }
-    svg:not(.drawing) .redacted:not(.locked):hover,
-    svg:not(.drawing) .region:not(.locked):hover {
-      fill: #2b3a37;
-    }
-    .reveal .redacted:not(.locked),
-    .reveal .region:not(.locked) {
-      fill: rgba(0, 0, 0, 0.08);
-      stroke: #000;
-      stroke-width: 2;
-      stroke-dasharray: 5 3;
-      vector-effect: non-scaling-stroke;
-    }
-    .locked {
-      cursor: not-allowed;
-    }
-    svg.drawing .word,
-    svg.drawing .redacted,
-    svg.drawing .region {
       pointer-events: none;
     }
     .draft {
@@ -262,10 +199,7 @@ export type EditMode = 'words' | 'draw';
 })
 export class PageView {
   readonly page = input.required<WorkingPage>();
-  readonly mode = input<EditMode>('words');
-  readonly reveal = input(false);
 
-  readonly toggleWord = output<number>();
   readonly addRegion = output<Box>();
   readonly removeRegion = output<number>();
 
@@ -294,9 +228,6 @@ export class PageView {
   private start: { x: number; y: number } | null = null;
 
   protected readonly plan = computed(() => redactionPlan(this.page()));
-  protected readonly visibleWords = computed(() =>
-    this.page().words.filter((w, i) => !this.plan().hidden.has(i) && w.box),
-  );
   protected readonly hiddenBoxes = computed(() => {
     const p = this.page();
     const plan = this.plan();
@@ -308,48 +239,7 @@ export class PageView {
     }));
   });
 
-  /*
-   * Tooltips for the SVG boxes. An SVG <title> holds text only, so each one is a single
-   * interpolation: a binding split across lines would show as literal text.
-   */
-  protected wordTip(w: WorkingWord): string {
-    return `${w.text}: ${
-      w.candidate && !w.userSet
-        ? 'Possible personal detail. Still visible; click to hide.'
-        : 'Click to hide'
-    }`;
-  }
-
-  protected hiddenTip(w: WorkingWord): string {
-    return w.hidden
-      ? describeWord(w, true)
-      : 'Hidden together with a nearby detail. Click to show it again.';
-  }
-
-  protected regionTip(index: number): string {
-    return index < (this.page().lockedRegions ?? 0)
-      ? 'Already removed'
-      : 'Area you drew: click to undo';
-  }
-
-  protected clickWord(w: WorkingWord) {
-    if (this.mode() === 'words' && !w.locked) this.toggleWord.emit(w.id);
-  }
-
-  protected clickHidden(index: number) {
-    if (this.mode() !== 'words') return;
-    const action = redactionAction(this.page(), index, this.plan());
-    if (action && 'wordId' in action) this.toggleWord.emit(action.wordId);
-    else if (action) this.removeRegion.emit(action.regionIndex);
-  }
-
-  protected clickRegion(index: number) {
-    if (this.mode() === 'words' && index >= (this.page().lockedRegions ?? 0))
-      this.removeRegion.emit(index);
-  }
-
   protected startDraw(e: PointerEvent) {
-    if (this.mode() !== 'draw') return;
     const pt = this.toPage(e);
     if (!pt) return;
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
@@ -367,9 +257,23 @@ export class PageView {
     if (!this.start) return;
     const pt = this.toPage(e);
     const box = pt ? boxFromPoints(this.start.x, this.start.y, pt.x, pt.y) : this.draft();
+    const tapped = this.start;
     this.start = null;
     this.draft.set(null);
     if (box && box.w >= 4 && box.h >= 4) this.addRegion.emit(clamp(box, this.page()));
+    else this.removeRegionAt(tapped);
+  }
+
+  /** A tap on a box you drew removes it; boxes burned in earlier stay. */
+  private removeRegionAt({ x, y }: { x: number; y: number }) {
+    const boxes = this.plan().regionBoxes;
+    for (let i = boxes.length - 1; i >= (this.page().lockedRegions ?? 0); i--) {
+      const b = boxes[i];
+      if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) {
+        this.removeRegion.emit(i);
+        return;
+      }
+    }
   }
 
   private toPage(e: PointerEvent): { x: number; y: number } | null {

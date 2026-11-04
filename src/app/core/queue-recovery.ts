@@ -1,7 +1,6 @@
 import { Injectable, signal } from '@angular/core';
-import type { LocalDocument, PrivacyMode } from './models';
+import type { LocalDocument } from './models';
 import { deviceTransaction } from './device-storage';
-import type { RememberedDetails } from '../pii/remembered-details';
 
 export const QUEUE_PROGRESS_KEY = 'carryover.queue.progress.v1';
 const QUEUE_LOCK = 'carryover.queue';
@@ -10,11 +9,7 @@ export interface QueueSnapshot {
   batchIds: string[];
   reviewId: string | null;
   reviewOpened: boolean;
-  privacyMode: PrivacyMode;
-  privacyModeChosen: boolean;
   counter: number;
-  rememberedDetails?: RememberedDetails;
-  rememberedDetailsVersion?: number;
 }
 interface QueueHead extends Omit<QueueSnapshot, 'documents'> {
   version: 1;
@@ -32,9 +27,6 @@ function sameDocument(a: LocalDocument | undefined, b: LocalDocument): boolean {
     a.name === b.name &&
     a.generatedName === b.generatedName &&
     a.serverId === b.serverId &&
-    a.strict === b.strict &&
-    a.privacyMode === b.privacyMode &&
-    a.privacyCheck === b.privacyCheck &&
     a.privacyVersion === b.privacyVersion &&
     a.error === b.error
   );
@@ -153,10 +145,7 @@ export class QueueRecovery {
               !Number.isSafeInteger(head.counter) ||
               head.counter < 0 ||
               typeof head.reviewOpened !== 'boolean' ||
-              !(head.reviewId === null || typeof head.reviewId === 'string') ||
-              !['automatic', 'lightweight'].includes(head.privacyMode) ||
-              typeof head.privacyModeChosen !== 'boolean' ||
-              !validRememberedDetails(head.rememberedDetails)
+              !(head.reviewId === null || typeof head.reviewId === 'string')
             ) {
               fail(new Error('The saved queue could not be read. Its files have been kept.'));
               return;
@@ -269,11 +258,10 @@ export class QueueRecovery {
         );
         this.stored = snapshot;
         // Small progress checkpoint only. Files, file names and page text stay in IndexedDB.
-        const { rememberedDetails: _privateDetails, ...progress } = head;
         localStorage.setItem(
           QUEUE_PROGRESS_KEY,
           JSON.stringify({
-            ...progress,
+            ...head,
             documents: documents.map(({ localId, status }) => ({ localId, status })),
           }),
         );
@@ -297,34 +285,4 @@ export class QueueRecovery {
           : 'Progress could not be saved on this device. Keep this tab open and retry.',
     );
   }
-}
-
-function validRememberedDetails(value: unknown): boolean {
-  if (value === undefined) return true; // Older checkpoints did not remember details.
-  return (
-    !!value &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.values(value).every(
-      (details) =>
-        Array.isArray(details) &&
-        details.every(
-          (detail) =>
-            detail &&
-            typeof detail.key === 'string' &&
-            detail.key.length > 0 &&
-            detail.key.length <= 200 &&
-            [
-              'person',
-              'address',
-              'national-id',
-              'id-number',
-              'contact',
-              'birth-date',
-              'age',
-              'other',
-            ].includes(detail.kind),
-        ),
-    )
-  );
 }

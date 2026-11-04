@@ -2,14 +2,14 @@
 
 # Builds the Angular app and the API, then runs both from one origin on port 3000:
 #   docker compose up                  (reads META_MODEL_API_KEY from your shell or .env)
-# Without a key, everything but reading your own documents works: on-device redaction, /demo
+# Without a key, everything but reading your own documents works: covering pages, /demo
 # and the sample patient, whose recorded Meta answers (api/samples) are replayed at no cost.
 
 FROM node:24-bookworm-slim AS build
 WORKDIR /app
 
 # Dependencies first, so code changes don't reinstall them.
-# The browser build needs no install scripts (they only fetch native ONNX binaries for Node).
+# The browser build needs no install scripts.
 COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts --no-audit --no-fund
 COPY api/package.json api/package-lock.json api/

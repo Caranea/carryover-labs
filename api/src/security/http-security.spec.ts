@@ -49,8 +49,8 @@ describe('HTTP privacy headers', () => {
     const csp = r.headers.get('Content-Security-Policy') ?? '';
     assert.match(
       csp,
-      /script-src 'self' blob: 'wasm-unsafe-eval' https:\/\/www\.googletagmanager\.com(;|$)/,
-      'no inline script, blob: for the ONNX runtime, and one named remote host',
+      /script-src 'self' 'wasm-unsafe-eval' https:\/\/www\.googletagmanager\.com(;|$)/,
+      'no inline script, and one named remote host',
     );
     assert.match(csp, /frame-ancestors 'none'/);
   });

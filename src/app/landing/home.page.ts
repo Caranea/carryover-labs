@@ -14,7 +14,7 @@ export class HomePage {
     {
       question: 'What actually leaves my device?',
       answer:
-        'Only the copy you approve. Carryover reads each page in your browser and helps you cover personal details with black bars. When you tap “Approve and send”, that blacked-out copy goes to Meta’s AI. Your original files, their names and the words you hid stay on your device. If you accept analytics cookies, Google Analytics also counts your visits to our home and demo pages. It doesn’t run on your documents or results.',
+        'Only the copy you approve. Each page opens in your browser and you cover personal details with black boxes. When you tap “Approve and send”, that blacked-out copy goes to Meta’s AI. Your original files, their names and the words you hid stay on your device. If you accept analytics cookies, Google Analytics also counts your visits to our home and demo pages. It doesn’t run on your documents or results.',
     },
     {
       question: 'Can the black bars be removed later?',
@@ -24,7 +24,7 @@ export class HomePage {
     {
       question: 'What if a personal detail is missed?',
       answer:
-        'The automatic check can miss things, especially on blurry or crooked pages. So check every page before approving it, including doctors’ names, stamps and signatures. You can hide words, draw a box over anything else, turn a sideways page upright, and reopen a saved document to hide more.',
+        'You decide what’s covered, so check every page before approving it, including doctors’ names, stamps and signatures. Anything left visible is sent. You can turn a sideways page upright, undo a box, and reopen a saved document to cover more.',
     },
     {
       question: 'Where are my documents saved?',
@@ -56,9 +56,9 @@ export class HomePage {
         'Export a PDF, then print it or bring it on your phone. Your doctor gets your results in one table, by date, with the lab’s flags, instead of a pile of separate reports. Bring the originals too, in case your doctor wants to see them.',
     },
     {
-      question: 'Why does the first automatic check take so long?',
+      question: 'Why doesn’t Carryover hide my details for me?',
       answer:
-        'To find personal details on your device, your browser downloads a privacy checker once: about 300 to 550 MB, depending on your device. After that it’s reused. If you’d rather not wait, choose manual review and tap the details you want hidden.',
+        'Finding them automatically would mean a model reading your pages before you’ve approved anything. Carryover doesn’t do that: no AI sees a page until you approve it, and then only Meta’s models read the copy you covered.',
     },
   ];
 }

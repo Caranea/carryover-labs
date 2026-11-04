@@ -1,4 +1,4 @@
-/** Longest side of a page image we work with. Enough for OCR, small enough to upload. */
+/** Longest side of a page image we work with. Sharp enough to read, small enough to upload. */
 export const MAX_SIDE = 2600;
 
 export function createCanvas(width: number, height: number): HTMLCanvasElement {

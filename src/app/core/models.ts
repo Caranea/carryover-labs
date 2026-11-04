@@ -7,15 +7,10 @@ export interface Box {
 }
 
 export type SourceKind = 'pdf' | 'image' | 'docx' | 'text';
-/** Lightweight is manual review: neither the model nor pattern rules run. */
-export type PrivacyMode = 'automatic' | 'lightweight';
 
 /** What kind of personal data a hidden word was. Never the data itself. */
 export type PiiKind =
   'person' | 'address' | 'national-id' | 'id-number' | 'contact' | 'birth-date' | 'age' | 'other';
-
-/** Who decided a word is hidden. */
-export type DetectionSource = 'model' | 'rule' | 'you' | 'remembered';
 
 export interface WorkingWord {
   id: number;
@@ -27,15 +22,7 @@ export interface WorkingWord {
   hidden: boolean;
   /** Hidden on the server already; cannot be revealed again. */
   locked?: boolean;
-  /** The user toggled this word by hand; detection must not override it. */
-  userSet?: boolean;
   kind?: PiiKind;
-  source?: DetectionSource;
-  score?: number;
-  /** Local model evidence, retained for review/re-evaluation; never in the saved manifest. */
-  prediction?: { label: string; score: number };
-  /** An uncertain suggestion stays visible, highlighted in the review only. */
-  candidate?: PiiKind;
 }
 
 export interface WorkingPage {
@@ -68,15 +55,10 @@ export interface LocalDocument {
   fileName: string;
   sourceKind: SourceKind;
   status: LocalStatus;
-  /** The last detection pass used the stricter settings. */
-  strict: boolean;
   progress: number;
   message: string;
   error?: string;
-  /** Per-document result: global model readiness does not prove this document was checked. */
-  privacyCheck?: 'complete' | 'incomplete' | 'manual';
-  privacyMode?: PrivacyMode;
-  /** Version of the rules and model interpretation used for these OCR words. */
+  /** Version of the review flow these pages were prepared under. */
   privacyVersion?: number;
   pages: WorkingPage[];
   file: File | null;

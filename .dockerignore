@@ -20,6 +20,5 @@ artifacts
 output
 .test-temp
 coverage
-public/models/pii-fp16-*
 .vscode
 *.log

@@ -1,10 +1,10 @@
-import { clearAutomaticDetections, PRIVACY_VERSION } from '../pii/detect';
+import { PRIVACY_VERSION } from '../pii/privacy-version';
 import { LocalDocument, SavedDocumentSummary } from './models';
 
 /**
  * A document as it comes back from the checkpoint after a refresh: approved ones are marked
  * saved, page images get fresh object URLs, interrupted work is queued again, and pages
- * checked by an older privacy version are checked again from their saved OCR (never reread).
+ * prepared under an older flow go back to review with their masks intact.
  */
 export function restoredDocument(
   doc: LocalDocument,
@@ -29,29 +29,16 @@ export function restoredDocument(
     doc.status !== 'saved' &&
     doc.privacyVersion !== PRIVACY_VERSION &&
     pages.length
-  ) {
-    if (doc.privacyMode === 'lightweight') {
-      const clean = clearAutomaticDetections(pages);
-      return {
-        ...doc,
-        file,
-        pages: clean,
-        privacyVersion: PRIVACY_VERSION,
-        status: 'review',
-        message: '',
-      };
-    }
-    // Recheck saved OCR, never reread the photo. Existing masks and hand
-    // edits stay in the checkpoint while this queued check is running.
+  )
     return {
       ...doc,
       file,
       pages,
-      status: 'queued',
-      progress: 0.7,
-      message: 'Updating privacy check',
+      privacyVersion: PRIVACY_VERSION,
+      status: 'review',
+      progress: 1,
+      message: '',
     };
-  }
   if (['queued', 'reading', 'detecting'].includes(doc.status))
     return {
       ...doc,

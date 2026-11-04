@@ -7,9 +7,9 @@ export function isHeic(file: File): boolean {
 }
 
 /**
- * Decode the photo as displayed, without OCR orientation changes, scaled down so its longest
- * side is at most MAX_SIDE. A 12 MP phone photo would otherwise be too large to upload and
- * too heavy for phone canvases; 2600 px is still more than OCR and Muse Spark need.
+ * Decode the photo as displayed, scaled down so its longest side is at most MAX_SIDE. A 12 MP
+ * phone photo would otherwise be too large to upload and too heavy for phone canvases; 2600 px
+ * is still more than Muse Spark needs.
  *
  * Re-drawing onto a canvas also drops all metadata (EXIF, GPS position,
  * camera serial), so the uploaded image carries only pixels.

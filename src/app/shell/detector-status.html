@@ -93,13 +93,10 @@
         @if (active(); as active) {
           <p class="text-sm text-base-content/80" aria-hidden="true">
             <span class="font-medium text-base-content">{{ stageTitle() }}</span>
-            @if (estimate()) {
-              · {{ estimate() }}
-            }
             <span class="block truncate" [attr.title]="active.fileName">{{ active.fileName }}</span>
           </p>
         }
-        <p class="sr-only" role="status">{{ announcement() }}</p>
+        <p class="sr-only" role="status">{{ stageTitle() }}</p>
         @if (queue.recovery.status() === 'error' || queue.recovery.status() === 'unavailable') {
           <div role="alert" class="mt-2 text-sm text-error">
             {{
@@ -143,7 +140,9 @@
                 }}
               </h3>
               <p>You can check and approve each document while the others keep processing.</p>
-              <p class="text-sm text-base-content/75">Privacy checks run on your device.</p>
+              <p class="text-sm text-base-content/75">
+                Nothing leaves this device until you approve it.
+              </p>
             } @else if (!queue.resultsBlocked() && queue.batchProgress().total) {
               <app-icon name="check-circle" size="2.5rem" />
               <h3 class="font-display text-2xl font-semibold">All documents approved</h3>
@@ -177,22 +176,6 @@
               </div>
             }
           </section>
-        }
-        @if (active()?.privacyMode === 'automatic' && active()?.status === 'detecting') {
-          <details class="manual-option">
-            <summary>Prefer to hide details yourself?</summary>
-            <p class="text-sm mt-2">
-              Stop automatic detection for the remaining documents. You’ll click or tap personal
-              details to hide them yourself and check every page.
-            </p>
-            <button
-              type="button"
-              class="btn btn-sm btn-outline rounded-full mt-3"
-              (click)="switchMode()"
-            >
-              Hide details myself
-            </button>
-          </details>
         }
       }
     </div>

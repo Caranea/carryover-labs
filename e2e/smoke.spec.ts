@@ -22,35 +22,49 @@ async function stubBatches(page: Page) {
   return sent;
 }
 
-test('a photo is read on the device, checked by hand and sent only as an approved image', async ({
-  page,
-}) => {
+test('a box drawn on a photo is burned into the only image sent', async ({ page }) => {
   const sent = await stubBatches(page);
   await page.goto('/documents');
-  // Manual review: the large privacy model isn't downloaded in a smoke test.
-  await page.getByText('Change how we check').click();
-  await page.getByRole('radio', { name: /Manual review/ }).check();
   await page.locator('input[type=file]').first().setInputFiles(PHOTO);
 
-  const review = page.getByRole('button', { name: /Check and approve/ });
-  await expect(review).toBeVisible({ timeout: 60_000 });
-  await review.dispatchEvent('click');
-  await page.getByRole('button', { name: 'Approve and send' }).dispatchEvent('click');
+  const sheet = page.locator('app-page-view svg').first();
+  await expect(sheet).toBeVisible({ timeout: 60_000 });
+  await sheet.scrollIntoViewIfNeeded();
+  const box = (await sheet.boundingBox())!;
+  const at = (x: number, y: number) => [box.x + box.width * x, box.y + box.height * y] as const;
+  await page.mouse.move(...at(0.4, 0.3));
+  await page.mouse.down();
+  await page.mouse.move(...at(0.6, 0.4), { steps: 4 });
+  await page.mouse.up();
+  await expect(page.locator('app-page-view rect.region')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Approve and send' }).click();
 
   await expect.poll(() => sent.length, { timeout: 30_000 }).toBeGreaterThan(0);
   const body = sent[0];
-  // Only the approved page image and its ids leave the device: no file name, OCR or manifest.
+  // Only the approved page image and its ids leave the device: no file name or text.
   expect(Object.keys(body).sort()).toEqual(['documentId', 'image', 'page', 'pageId', 'revision']);
   expect(JSON.stringify(body)).not.toContain('german-cumulative');
-  expect(String(body['image'])).toMatch(/^data:image\/jpeg;base64,/);
-  expect(String(body['image']).length).toBeLessThan(20_000_000);
+  const image = String(body['image']);
+  expect(image).toMatch(/^data:image\/jpeg;base64,/);
+  expect(image.length).toBeLessThan(20_000_000);
+  const black = await page.evaluate(async (src) => {
+    const photo = new Image();
+    photo.src = src;
+    await photo.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = photo.width;
+    canvas.height = photo.height;
+    const context = canvas.getContext('2d')!;
+    context.drawImage(photo, 0, 0);
+    const [r, g, b] = context.getImageData(photo.width / 2, photo.height * 0.35, 1, 1).data;
+    return r + g + b;
+  }, image);
+  expect(black).toBeLessThan(30);
 });
 
 test('a document opens even when lazy files can no longer be fetched', async ({ page }) => {
   await stubBatches(page);
   await page.goto('/documents');
-  await page.getByText('Change how we check').click();
-  await page.getByRole('radio', { name: /Manual review/ }).check();
   // As after a new build, or on a dropped connection: the review code must already be here.
   await page.route('**/chunk-*.js', async (route) => {
     const response = await route.fetch();
@@ -59,7 +73,6 @@ test('a document opens even when lazy files can no longer be fetched', async ({ 
   });
   await page.locator('input[type=file]').first().setInputFiles(PHOTO);
 
-  await page.getByRole('button', { name: /Check and approve/ }).dispatchEvent('click');
   await expect(page.locator('app-review')).toBeVisible();
 });
 
@@ -117,8 +130,6 @@ test('the sample patient is read from recorded answers, with no key, and charted
       sent.push(request.postDataJSON() as Record<string, unknown>);
   });
   await page.goto('/documents');
-  await page.getByText('Change how we check').click();
-  await page.getByRole('radio', { name: /Manual review/ }).check();
   await page.getByRole('button', { name: 'Try the sample patient' }).click();
   const dialog = page.getByRole('dialog', { name: 'Try the sample patient' });
   // Only fully recorded documents are offered: the test recording has two. Keep the English fax.

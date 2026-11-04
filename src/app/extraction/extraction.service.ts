@@ -1,7 +1,6 @@
 import { inject, Injectable, InjectionToken } from '@angular/core';
 import { SourceKind, WorkingPage } from '../core/models';
 import { isHeic, loadImage } from './image-extractor';
-import { OcrService } from './ocr.service';
 import { canvasToBlob, createCanvas } from './render';
 import { PdfPageLimitError } from './pdf-extractor';
 
@@ -18,7 +17,7 @@ export interface ExtractionProgress {
 
 export class UnsupportedFileError extends Error {}
 
-/** Browser resources are injectable so failure cleanup can be checked without real OCR or decoding. */
+/** Browser resources are injectable so failure cleanup can be checked without real decoding. */
 export const EXTRACTION_IO = new InjectionToken<{
   readPdf: typeof import('./pdf-extractor').readPdf;
   loadImage: typeof loadImage;
@@ -47,12 +46,11 @@ export function sourceKindOf(file: File): SourceKind | null {
 }
 
 /**
- * Turns any supported file into pages of positioned words, entirely in the
- * browser. Every rendered page gets one OCR pass for privacy detection only.
+ * Turns any supported file into page images, entirely in the browser. Nothing reads the pages
+ * here: the person covers personal details by hand before anything is sent.
  */
 @Injectable({ providedIn: 'root' })
 export class ExtractionService {
-  private readonly ocr = inject(OcrService);
   private readonly io = inject(EXTRACTION_IO);
 
   async extract(file: File, progress: ExtractionProgress): Promise<WorkingPage[]> {
@@ -84,46 +82,28 @@ export class ExtractionService {
   }
 
   /**
-   * A sample patient document: its page images, read and privacy checked like a photo. They
-   * come from this site, so the browser starts from the same pixels the sample was recorded from.
+   * A sample patient document: its page images, opened like a photo. They come from this site,
+   * so the browser starts from the same pixels the sample was recorded from.
    */
   async extractSample(
     pages: { src: string }[],
     progress: ExtractionProgress,
   ): Promise<WorkingPage[]> {
     const out: WorkingPage[] = [];
-    let nextId = 0;
     try {
       for (const [index, { src }] of pages.entries()) {
-        const label = `Privacy checking page ${index + 1} of ${pages.length}`;
-        progress(index / pages.length, label);
+        progress(index / pages.length, `Opening page ${index + 1} of ${pages.length}`);
         const response = await fetch(new URL(src, document.baseURI));
         if (!response.ok) throw new Error('The sample patient could not be loaded. Try again.');
         const blob = await response.blob();
-        const loaded = await this.io.loadImage(
+        const canvas = await this.io.loadImage(
           new File([blob], src.split('/').pop()!, { type: blob.type }),
         );
-        let canvas = loaded;
         try {
-          const result = await this.ocr.recognizePage(loaded, nextId, (p, msg) =>
-            progress((index + p) / pages.length, msg ?? label),
-          );
-          canvas = result.canvas;
-          nextId += result.words.length;
           const image = await this.io.canvasToBlob(canvas);
-          out.push({
-            index,
-            width: canvas.width,
-            height: canvas.height,
-            image,
-            imageUrl: URL.createObjectURL(image),
-            words: result.words,
-            regions: [],
-            ocr: true,
-          });
+          out.push(pageOf(index, canvas, image));
         } finally {
-          loaded.width = loaded.height = 0;
-          if (canvas !== loaded) canvas.width = canvas.height = 0;
+          canvas.width = canvas.height = 0;
         }
       }
       return out;
@@ -135,7 +115,6 @@ export class ExtractionService {
 
   private async fromPdf(file: File, progress: ExtractionProgress): Promise<WorkingPage[]> {
     const pages: WorkingPage[] = [];
-    let nextId = 0;
     progress(0, 'Opening PDF');
 
     try {
@@ -147,26 +126,11 @@ export class ExtractionService {
               `This PDF has more than ${MAX_PAGES} pages. Split it into smaller files.`,
             );
           }
-          const base = page.index / page.pageCount;
-          const span = 1 / page.pageCount;
-          const label = `Privacy checking page ${page.index + 1} of ${page.pageCount}`;
-          const result = await this.ocr.recognizePage(page.canvas, nextId, (p, msg) =>
-            progress(base + span * p, msg ?? label),
+          progress(
+            page.index / page.pageCount,
+            `Opening page ${page.index + 1} of ${page.pageCount}`,
           );
-          const words = result.words;
-          const image = page.image;
-          const ocr = true;
-          nextId += words.length;
-          pages.push({
-            index: page.index,
-            width: canvas.width,
-            height: canvas.height,
-            image,
-            imageUrl: URL.createObjectURL(image),
-            words,
-            regions: [],
-            ocr,
-          });
+          pages.push(pageOf(page.index, canvas, page.image));
         } finally {
           page.canvas.width = page.canvas.height = 0;
           if (canvas !== page.canvas) canvas.width = canvas.height = 0;
@@ -183,30 +147,11 @@ export class ExtractionService {
 
   private async fromImage(file: File, progress: ExtractionProgress): Promise<WorkingPage[]> {
     progress(0, 'Opening image');
-    const loaded = await this.io.loadImage(file);
-    let canvas = loaded;
+    const canvas = await this.io.loadImage(file);
     try {
-      progress(0.02, 'Recognising text');
-      const result = await this.ocr.recognizePage(loaded, 0, (p, msg) =>
-        progress(p, msg ?? 'Recognising text'),
-      );
-      canvas = result.canvas;
-      const image = await this.io.canvasToBlob(canvas);
-      return [
-        {
-          index: 0,
-          width: canvas.width,
-          height: canvas.height,
-          image,
-          imageUrl: URL.createObjectURL(image),
-          words: result.words,
-          regions: [],
-          ocr: true,
-        },
-      ];
+      return [pageOf(0, canvas, await this.io.canvasToBlob(canvas))];
     } finally {
-      loaded.width = loaded.height = 0;
-      if (canvas !== loaded) canvas.width = canvas.height = 0;
+      canvas.width = canvas.height = 0;
     }
   }
 
@@ -250,28 +195,14 @@ export class ExtractionService {
     if (lines.length > 50 * MAX_PAGES)
       throw new UnsupportedFileError('This file has too many pages. Split it into smaller files.');
     const pages: WorkingPage[] = [];
-    let nextId = 0;
     try {
       for (let offset = 0; offset < lines.length; offset += 50) {
+        progress(offset / lines.length, 'Preparing text');
         ctx.fillStyle = '#fff';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = '#000';
         lines.slice(offset, offset + 50).forEach((line, i) => ctx.fillText(line, 60, 70 + i * 35));
-        const { words } = await this.ocr.recognizePage(canvas, nextId, (p) =>
-          progress((offset + 50 * p) / lines.length, 'Privacy checking text'),
-        );
-        nextId += words.length;
-        const image = await this.io.canvasToBlob(canvas);
-        pages.push({
-          index: pages.length,
-          width: canvas.width,
-          height: canvas.height,
-          words,
-          image,
-          imageUrl: URL.createObjectURL(image),
-          regions: [],
-          ocr: true,
-        });
+        pages.push(pageOf(pages.length, canvas, await this.io.canvasToBlob(canvas)));
       }
       return pages;
     } catch (error) {
@@ -281,4 +212,18 @@ export class ExtractionService {
       canvas.width = canvas.height = 0;
     }
   }
+}
+
+/** A page ready for the person to cover personal details on. */
+function pageOf(index: number, canvas: HTMLCanvasElement, image: Blob): WorkingPage {
+  return {
+    index,
+    width: canvas.width,
+    height: canvas.height,
+    image,
+    imageUrl: URL.createObjectURL(image),
+    words: [],
+    regions: [],
+    ocr: false,
+  };
 }

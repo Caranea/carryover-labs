@@ -6,7 +6,6 @@ import {
   MAX_PAGES,
   UnsupportedFileError,
 } from './extraction.service';
-import { OcrService } from './ocr.service';
 import { PdfPageLimitError, type RenderedPdfPage } from './pdf-extractor';
 
 const canvas = () => Object.assign(document.createElement('canvas'), { width: 120, height: 240 });
@@ -18,7 +17,6 @@ const pdfPage = (index: number): RenderedPdfPage & { pageCount: number } => ({
 });
 
 describe('failed import resource cleanup', () => {
-  const recognizePage = vi.fn();
   const readPdf = vi.fn<typeof import('./pdf-extractor').readPdf>();
   const loadImage = vi.fn<typeof import('./image-extractor').loadImage>();
   const canvasToBlob = vi.fn<typeof import('./render').canvasToBlob>();
@@ -27,10 +25,6 @@ describe('failed import resource cleanup', () => {
   let service: ExtractionService;
   beforeEach(() => {
     vi.resetAllMocks();
-    recognizePage.mockImplementation(async (canvas: HTMLCanvasElement) => ({
-      canvas,
-      words: [{ id: 0, text: 'Synthetic', line: 0, hidden: false }],
-    }));
     createUrl.mockReturnValue('blob:synthetic-page');
     vi.stubGlobal(
       'URL',
@@ -40,10 +34,7 @@ describe('failed import resource cleanup', () => {
       }),
     );
     TestBed.configureTestingModule({
-      providers: [
-        { provide: OcrService, useValue: { recognizePage } },
-        { provide: EXTRACTION_IO, useValue: { readPdf, loadImage, canvasToBlob } },
-      ],
+      providers: [{ provide: EXTRACTION_IO, useValue: { readPdf, loadImage, canvasToBlob } }],
     });
     service = TestBed.inject(ExtractionService);
   });
@@ -52,7 +43,7 @@ describe('failed import resource cleanup', () => {
     TestBed.resetTestingModule();
   });
 
-  it('revokes earlier PDF previews and closes the iterator when a later OCR page fails', async () => {
+  it('revokes earlier PDF previews and closes the iterator when a later page fails', async () => {
     const first = pdfPage(0),
       second = pdfPage(1),
       closed = vi.fn();
@@ -64,11 +55,11 @@ describe('failed import resource cleanup', () => {
         closed();
       }
     });
-    recognizePage
-      .mockResolvedValueOnce({ canvas: first.canvas, words: [] })
-      .mockRejectedValueOnce(new Error('OCR failed'));
+    createUrl.mockReturnValueOnce('blob:synthetic-page').mockImplementationOnce(() => {
+      throw new Error('preview failed');
+    });
     await expect(service.extract(new File(['pdf'], 'test.pdf'), () => undefined)).rejects.toThrow(
-      'OCR failed',
+      'preview failed',
     );
     expect(revokeUrl).toHaveBeenCalledExactlyOnceWith('blob:synthetic-page');
     expect([
@@ -91,7 +82,6 @@ describe('failed import resource cleanup', () => {
     );
     expect(readPdf).toHaveBeenCalledWith(file, MAX_PAGES);
     expect(createUrl).not.toHaveBeenCalled();
-    expect(recognizePage).not.toHaveBeenCalled();
   });
 
   it('keeps successful PDF preview ownership with the returned page while releasing canvas memory', async () => {
@@ -106,32 +96,19 @@ describe('failed import resource cleanup', () => {
       'blob:synthetic-page',
       page.image,
     ]);
-    expect(result.words.length).toBeGreaterThan(0);
+    expect(result.words).toEqual([]);
     expect([page.canvas.width, page.canvas.height]).toEqual([0, 0]);
     expect(revokeUrl).not.toHaveBeenCalled();
   });
 
-  it('releases the loaded image when OCR fails', async () => {
+  it('releases the image canvas when it cannot be encoded', async () => {
     const loaded = canvas();
     vi.mocked(loadImage).mockResolvedValue(loaded);
-    recognizePage.mockRejectedValue(new Error('OCR failed'));
-    await expect(service.extract(new File(['photo'], 'test.jpg'), () => undefined)).rejects.toThrow(
-      'OCR failed',
-    );
-    expect([loaded.width, loaded.height]).toEqual([0, 0]);
-    expect(createUrl).not.toHaveBeenCalled();
-  });
-
-  it('releases both image canvases when the rotated image cannot be encoded', async () => {
-    const loaded = canvas(),
-      upright = canvas();
-    vi.mocked(loadImage).mockResolvedValue(loaded);
-    recognizePage.mockResolvedValue({ words: [], canvas: upright });
     vi.mocked(canvasToBlob).mockRejectedValue(new Error('encoding failed'));
     await expect(service.extract(new File(['photo'], 'test.jpg'), () => undefined)).rejects.toThrow(
       'encoding failed',
     );
-    expect([loaded.width, loaded.height, upright.width, upright.height]).toEqual([0, 0, 0, 0]);
+    expect([loaded.width, loaded.height]).toEqual([0, 0]);
     expect(createUrl).not.toHaveBeenCalled();
   });
 });

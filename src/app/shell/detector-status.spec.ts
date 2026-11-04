@@ -4,7 +4,6 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { vi } from 'vitest';
 import { DetectorStatus } from './detector-status';
-import { NerService } from '../pii/ner.service';
 import { DocumentQueueService } from '../core/document-queue.service';
 import { LocalHistory } from '../core/local-history';
 import { ResultsService } from '../core/results.service';
@@ -21,11 +20,8 @@ function document(id: string, status: LocalStatus = 'review'): LocalDocument {
     name: 'Lab report',
     status,
     sourceKind: 'text',
-    strict: false,
-    privacyMode: 'automatic',
-    privacyCheck: 'complete',
     progress: status === 'reading' ? 0.35 : 0,
-    message: status === 'reading' ? 'Recognising text' : '',
+    message: status === 'reading' ? 'Opening page 1 of 2' : '',
     addedAt: 1,
     file: new File(['fictional'], id + '.txt'),
     pages: [
@@ -46,7 +42,6 @@ function document(id: string, status: LocalStatus = 'review'): LocalDocument {
   };
 }
 async function setup() {
-  const ner = new NerService();
   const create = vi.fn(async (manifest: DocumentManifest) => ({
     id: crypto.randomUUID(),
     ...manifest,
@@ -61,7 +56,6 @@ async function setup() {
         { path: 'documents', component: Destination },
         { path: 'results', component: Destination, canActivate: [resultsReadyGuard] },
       ]),
-      { provide: NerService, useValue: ner },
       {
         provide: ResultsService,
         useValue: {
@@ -126,7 +120,7 @@ async function setup() {
     await fixture.whenStable();
     fixture.detectChanges();
   };
-  return { fixture, dialog, ner, queue, router, button, begin, change };
+  return { fixture, dialog, queue, router, button, begin, change };
 }
 
 describe('continuous document review', () => {
@@ -149,8 +143,7 @@ describe('continuous document review', () => {
   it('keeps a save rejection beside the approval button and clears it after correcting the name', async () => {
     const { fixture, dialog, queue, button, begin } = await setup();
     await begin([document('first')]);
-    queue.toggleWord('first', 0, 0);
-    queue.rename('first', 'Example report');
+    queue.rename('first', 'Report 97010112345');
     fixture.detectChanges();
     button('Approve and send').click();
     await fixture.whenStable();
@@ -171,14 +164,11 @@ describe('continuous document review', () => {
   });
 
   it('opens the first ready document in the same dialog and keeps it selected as later files finish', async () => {
-    const { fixture, dialog, ner, queue, begin, change } = await setup();
+    const { fixture, dialog, queue, begin, change } = await setup();
     await begin([document('first', 'reading'), document('second', 'queued')]);
     expect(dialog.open).toBe(true);
     expect(dialog.textContent).toContain('2 still processing');
     expect(dialog.querySelector('[aria-current="step"]')?.textContent).toContain('Check & approve');
-    // Completion of a previous model call must not label an OCR queue as done.
-    ner.phase.set('complete');
-    fixture.detectChanges();
     expect(dialog.textContent).toContain('Preparing your documents');
     await change('first', 'review');
     await change('second', 'reading');
@@ -186,11 +176,7 @@ describe('continuous document review', () => {
     expect(editor?.querySelector('[role="region"]')?.getAttribute('aria-label')).toBe('first.txt');
     expect(dialog.textContent).toContain('1 ready to check');
     expect(dialog.textContent).toContain('1 still processing');
-    (editor!.querySelector('app-text-view button') as HTMLButtonElement).click();
-    fixture.detectChanges();
-    expect(queue.byId('first')?.pages[0].words[0].hidden).toBe(true);
-    ner.activityId.set(2);
-    ner.phase.set('checking');
+    queue.addRegion('first', 0, { x: 10, y: 10, w: 20, h: 20 });
     fixture.detectChanges();
     await change('second', 'review');
     expect(dialog.querySelector('app-review')).toBe(editor);
@@ -206,7 +192,7 @@ describe('continuous document review', () => {
     picker.value = 'first';
     picker.dispatchEvent(new Event('change'));
     fixture.detectChanges();
-    expect(queue.byId('first')?.pages[0].words[0].hidden).toBe(true);
+    expect(queue.byId('first')?.pages[0].regions).toHaveLength(1);
     fixture.destroy();
   });
 
@@ -262,32 +248,16 @@ describe('continuous document review', () => {
     fixture.destroy();
   });
 
-  it('keeps dismissal respected, supports incomplete/manual review, and resolves failed files without a dead end', async () => {
-    const { fixture, dialog, queue, ner, button, begin, change } = await setup();
+  it('keeps dismissal respected and resolves failed files without a dead end', async () => {
+    const { fixture, dialog, queue, button, begin, change } = await setup();
     await begin([
       document('first', 'detecting'),
       { ...document('broken', 'error'), error: 'Unreadable file' },
     ]);
-    ner.phase.set('downloading');
-    ner.progress.set(0.13);
-    ner.lastProgressAt.set(Date.now());
-    fixture.detectChanges();
-    expect(dialog.textContent).toContain('13%');
     button('Continue in background').click();
     fixture.detectChanges();
     await change('first', 'review');
     expect(dialog.open).toBe(false);
-    queue.documents.update((docs) =>
-      docs.map((doc) =>
-        doc.localId === 'first'
-          ? {
-              ...doc,
-              privacyMode: 'lightweight',
-              privacyCheck: 'manual',
-            }
-          : doc,
-      ),
-    );
     queue.openReview();
     fixture.detectChanges();
     await fixture.whenStable();

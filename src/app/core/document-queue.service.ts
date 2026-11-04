@@ -1,22 +1,17 @@
 import { errorMessage } from './errors';
 import { computed, DestroyRef, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { ExtractionService, sourceKindOf } from '../extraction/extraction.service';
-import { applyDetections, NORMAL, PagePredictions, PRIVACY_VERSION, STRICT } from '../pii/detect';
-import { NerService } from '../pii/ner.service';
-import { fileNameHints, sanitizeFileName } from '../pii/rules';
-import { buildManifest, burnPage, fromTuple, redactionPlan } from '../redaction/burn';
-import { addArea, removeArea, revokePageUrls, toggleWord } from '../redaction/page-edits';
+import { PRIVACY_VERSION } from '../pii/privacy-version';
+import { sanitizeFileName } from '../pii/file-name';
+import { buildManifest, burnPage, fromTuple } from '../redaction/burn';
+import { addArea, removeArea, revokePageUrls } from '../redaction/page-edits';
 import { turnImage, turnPageGeometry, type Turn } from '../redaction/rotate';
 import { LocalHistory } from './local-history';
 import { ResultsService } from './results.service';
-import { Box, LocalDocument, PrivacyMode, SavedDocumentSummary, WorkingPage } from './models';
+import { Box, LocalDocument, SavedDocumentSummary, WorkingPage } from './models';
 import { QueueRecovery, QueueSnapshot } from './queue-recovery';
 import { EditHistory } from './edit-history';
 import { restoredDocument } from './restore-document';
-import { privacyCheck } from '../pii/privacy-check';
-import { applyRememberedDetails, learnDetails, RememberedDetails } from '../pii/remembered-details';
-import { documentReportDate } from './document-name';
-import { protectMedicalTerms } from '../pii/medical-terms';
 import { DEMO_DOCUMENTS } from './demo-documents';
 
 /**
@@ -27,7 +22,6 @@ import { DEMO_DOCUMENTS } from './demo-documents';
 @Injectable({ providedIn: 'root' })
 export class DocumentQueueService {
   private readonly extraction = inject(ExtractionService);
-  private readonly ner = inject(NerService);
   private readonly results = inject(ResultsService);
   private readonly history = inject(LocalHistory);
   readonly processing = this.results.processing;
@@ -39,13 +33,7 @@ export class DocumentQueueService {
   readonly documents = signal<LocalDocument[]>([]);
   readonly saved = signal<SavedDocumentSummary[] | null>(null);
   readonly savedError = signal<string | null>(null);
-  readonly privacyMode = signal<PrivacyMode>('automatic');
-  readonly privacyModeChosen = signal(false);
-
-  choosePrivacyMode(mode: PrivacyMode) {
-    this.privacyModeChosen.set(true);
-    this.privacyMode.set(mode);
-  }
+  /** The person covers personal details by hand; no rule or model looks at a page. */
 
   readonly pending = computed(() => this.documents().filter((d) => d.status !== 'saved'));
   readonly resultsBlocked = computed(() => !this.recoveryReady() || this.pending().length > 0);
@@ -74,9 +62,7 @@ export class DocumentQueueService {
           ? 1
           : doc.status === 'reading'
             ? Math.min(0.7, doc.progress)
-            : doc.status === 'detecting'
-              ? 0.7 + 0.3 * this.ner.checkProgress()
-              : 0),
+            : 0),
       0,
     );
     return {
@@ -102,12 +88,10 @@ export class DocumentQueueService {
     this.reviewOpened.set(false);
   }
 
-  private predictions = new Map<string, PagePredictions[]>();
   private running = false;
   private destroyed = false;
   private counter = 0;
   private readonly activeChecks = new Map<string, AbortController>();
-  private readonly rememberedDetails = signal<RememberedDetails>({});
   /** Hand-edit history per document: page snapshots to step back and forward through. */
   private readonly edits = new EditHistory();
   /** The document edited most recently, for keyboard undo when focus is outside any page. */
@@ -166,11 +150,7 @@ export class DocumentQueueService {
       batchIds: this.batchIds(),
       reviewId: this.reviewId(),
       reviewOpened: this.reviewOpened(),
-      privacyMode: this.privacyMode(),
-      privacyModeChosen: this.privacyModeChosen(),
       counter: this.counter,
-      rememberedDetails: this.rememberedDetails(),
-      rememberedDetailsVersion: PRIVACY_VERSION,
     };
   }
 
@@ -198,20 +178,8 @@ export class DocumentQueueService {
         this.documents.set(documents);
         this.batchIds.set(snapshot.batchIds);
         this.counter = snapshot.counter;
-        // Legacy memory contains guesses with no evidence/provenance. Rebuild it
-        // from rechecked originals; never reuse those guesses as confirmed PII.
-        const memory =
-          snapshot.rememberedDetailsVersion === PRIVACY_VERSION
-            ? { ...snapshot.rememberedDetails }
-            : {};
-        for (const doc of documents)
-          if (doc.status === 'review') memory[doc.localId] = learnDetails(doc.pages);
-        this.rememberedDetails.set(memory);
-        this.refreshReviewDetails();
         this.reviewId.set(snapshot.reviewId);
         this.reviewOpened.set(snapshot.reviewOpened);
-        this.privacyMode.set(snapshot.privacyMode);
-        this.privacyModeChosen.set(snapshot.privacyModeChosen);
         this.recovery.restored(this.snapshot());
       }
       this.recoveryReady.set(true);
@@ -231,12 +199,11 @@ export class DocumentQueueService {
   // ---------------------------------------------------------------------------
 
   /**
-   * Add sample patient documents (DEMO_DOCUMENTS ids). They go through the same privacy check
-   * and approval as your own files; the server answers them from recorded Meta answers.
+   * Add sample patient documents (DEMO_DOCUMENTS ids). They go through the same review and
+   * approval as your own files; the server answers them from recorded Meta answers.
    */
-  addSamples(ids: string[], privacyMode: PrivacyMode = this.privacyMode()): string[] {
+  addSamples(ids: string[]): string[] {
     if (!this.recoveryReady()) return [];
-    this.privacyModeChosen.set(true);
     const added = DEMO_DOCUMENTS.filter((doc) => ids.includes(doc.id)).map(
       (sample): LocalDocument => ({
         localId: crypto.randomUUID(),
@@ -245,8 +212,6 @@ export class DocumentQueueService {
         fileName: sample.name,
         sourceKind: sample.kind,
         status: 'queued',
-        strict: false,
-        privacyMode,
         progress: 0,
         message: 'Waiting',
         pages: [],
@@ -258,9 +223,8 @@ export class DocumentQueueService {
     return this.enqueue(added);
   }
 
-  add(files: Iterable<File>, privacyMode: PrivacyMode = this.privacyMode()): string[] {
+  add(files: Iterable<File>): string[] {
     if (!this.recoveryReady()) return [];
-    this.privacyModeChosen.set(true);
     const added: LocalDocument[] = [];
     for (const file of files) {
       const kind = sourceKindOf(file);
@@ -271,8 +235,6 @@ export class DocumentQueueService {
         fileName: file.name,
         sourceKind: kind ?? 'text',
         status: kind ? 'queued' : 'error',
-        strict: false,
-        privacyMode,
         progress: 0,
         message: kind ? 'Waiting' : '',
         error: kind
@@ -321,7 +283,7 @@ export class DocumentQueueService {
         await this.process(next);
       }
     } catch {
-      /* Recovery exposes the save error; do not start OCR. */
+      /* Recovery exposes the save error; do not start reading. */
     } finally {
       this.running = false;
     }
@@ -343,50 +305,12 @@ export class DocumentQueueService {
           : await this.extraction.extract(doc.file!, progress);
       if (this.destroyed || !this.byId(id)) return revokePageUrls(pages);
 
-      const mode = this.byId(id)!.privacyMode;
-      this.patch(id, {
-        status: 'detecting',
-        progress: 0.7,
-        message:
-          mode === 'lightweight'
-            ? 'Preparing for you to hide personal details'
-            : 'Finding personal details',
-        pages,
-      });
-      const piiStarted = performance.now();
-      const predictions =
-        mode === 'lightweight'
-          ? pages.map(() => null)
-          : await this.ner.predict(pages, abort.signal);
-      const current = this.byId(id);
-      if (this.destroyed || !current) return;
-      this.predictions.set(id, predictions);
-      // Re-read the mode after awaiting: switching to manual must also bypass rules
-      // and filename hints when an in-flight model result arrives or is cancelled.
-      const detected =
-        current.privacyMode === 'lightweight'
-          ? current.pages
-          : applyDetections(
-              current.pages,
-              predictions,
-              current.strict ? STRICT : NORMAL,
-              fileNameHints(current.fileName),
-            );
       this.patch(id, {
         status: 'review',
         privacyVersion: PRIVACY_VERSION,
         progress: 1,
         message: '',
-        pages: detected,
-        strict: current.strict,
-        ...privacyCheck(pages, predictions, current.privacyMode),
-      });
-      this.refreshReviewDetails(id);
-      console.info('[Carryover timing]', {
-        stage: 'pii-detection',
-        documentId: id,
-        pages: pages.length,
-        elapsedMs: Math.round(performance.now() - piiStarted),
+        pages,
       });
     } catch (e) {
       this.patch(id, {
@@ -399,89 +323,9 @@ export class DocumentQueueService {
     }
   }
 
-  /** A thorough pass highlights more uncertain candidates. Hand edits are kept. */
-  async rescan(localId: string, strict = true) {
-    const doc = this.byId(localId);
-    if (!doc || doc.status !== 'review' || doc.privacyMode === 'lightweight') return;
-    const abort = new AbortController();
-    this.activeChecks.set(localId, abort);
-    this.patch(localId, { status: 'detecting', strict, message: 'Checking again, more strictly' });
-    try {
-      let predictions = this.predictions.get(localId);
-      if (!predictions || predictions.some((p) => p === null)) {
-        this.ner.retry();
-        predictions = await this.ner.predict(doc.pages, abort.signal);
-        if (this.byId(localId)) this.predictions.set(localId, predictions);
-      }
-      const current = this.byId(localId);
-      if (!current) return;
-      const manual = current.privacyMode === 'lightweight';
-      const pages = manual
-        ? current.pages
-        : applyDetections(
-            current.pages,
-            predictions,
-            strict ? STRICT : NORMAL,
-            fileNameHints(current.fileName),
-          );
-      this.patch(localId, {
-        status: 'review',
-        privacyVersion: PRIVACY_VERSION,
-        message: '',
-        pages,
-        strict: !manual && strict,
-        ...privacyCheck(pages, predictions, current.privacyMode),
-      });
-      // Detection replaced the pages, so earlier snapshots would undo it as well.
-      this.clearEdits(localId);
-      this.refreshReviewDetails(localId);
-    } catch (e) {
-      this.patch(localId, {
-        status: 'review',
-        message: '',
-        error: e instanceof Error ? e.message : String(e),
-      });
-    } finally {
-      this.activeChecks.delete(localId);
-    }
-  }
-
-  /** Download/use the larger local model only after the user explicitly chooses it. */
-  async runAutomaticCheck(localId: string) {
-    const doc = this.byId(localId);
-    if (!doc || doc.status !== 'review') return;
-    this.patch(localId, { privacyMode: 'automatic', strict: false });
-    this.predictions.delete(localId);
-    await this.rescan(localId, true);
-  }
-
-  /** Keep the files and reviewed masks, stop expensive work, and apply the choice to waiting files. */
-  useLightweightReview() {
-    this.choosePrivacyMode('lightweight');
-    const affected = this.documents().filter(
-      (doc) =>
-        doc.privacyMode !== 'lightweight' &&
-        (['queued', 'reading', 'detecting'].includes(doc.status) ||
-          (doc.status === 'review' && doc.privacyCheck === 'incomplete')),
-    );
-    for (const doc of affected) {
-      this.patch(doc.localId, {
-        privacyMode: 'lightweight',
-        ...(doc.status === 'review' ? privacyCheck(doc.pages, [], 'lightweight') : {}),
-      });
-    }
-    for (const doc of affected) this.activeChecks.get(doc.localId)?.abort();
-    this.ner.cancel();
-  }
-
   // ---------------------------------------------------------------------------
   // Hand edits
   // ---------------------------------------------------------------------------
-
-  /** Hide or show one word by hand. */
-  toggleWord(localId: string, pageIndex: number, wordId: number) {
-    this.editPages(localId, (pages) => toggleWord(pages, pageIndex, wordId));
-  }
 
   addRegion(localId: string, pageIndex: number, region: Box) {
     this.editPages(localId, (pages) => addArea(pages, pageIndex, region));
@@ -492,8 +336,8 @@ export class DocumentQueueService {
   }
 
   /**
-   * Turn a sideways or upside-down page a quarter. Masks turn with it and nothing is detected
-   * again: the person hides what is left by hand. Undo restores the previous orientation.
+   * Turn a sideways or upside-down page a quarter. Boxes turn with it. Undo restores the
+   * previous orientation.
    */
   async rotatePage(localId: string, pageIndex: number, turn: Turn) {
     const page = this.byId(localId)?.pages[pageIndex];
@@ -517,7 +361,7 @@ export class DocumentQueueService {
     return this.edits.canRedo(localId);
   }
 
-  /** Step back through hand edits: clicked words and drawn areas. */
+  /** Step back through hand edits: drawn areas and page turns. */
   undo(localId: string) {
     this.stepEdit(localId, 'undo');
   }
@@ -535,14 +379,8 @@ export class DocumentQueueService {
     this.activeChecks.delete(localId);
     const doc = this.byId(localId);
     if (doc) revokePageUrls(doc.pages);
-    this.predictions.delete(localId);
     this.clearEdits(localId);
     this.documents.update((docs) => docs.filter((d) => d.localId !== localId));
-    this.rememberedDetails.update((memory) => {
-      const { [localId]: _removed, ...rest } = memory;
-      return rest;
-    });
-    this.refreshReviewDetails();
   }
 
   // ---------------------------------------------------------------------------
@@ -555,17 +393,10 @@ export class DocumentQueueService {
     // This explicit action is the privacy approval; no separate acknowledgement is required.
     const name = doc.name.trim() || 'Document';
     const generated = name === doc.generatedName;
-    const hiddenText = doc.pages.flatMap((page) =>
-      [...redactionPlan(page).hidden]
-        .map((index) => page.words[index].text)
-        .filter((text): text is string => text !== null),
-    );
-    const safeName = sanitizeFileName(`${name}.txt`, hiddenText);
-    // Generated titles use fixed test labels and a visible report date. A user can
-    // edit the description while keeping that date without it becoming an ID warning.
-    const reportDate = documentReportDate(doc.pages);
-    const withoutReportDate = reportDate ? name.replaceAll(reportDate, '') : name;
-    if (!generated && (safeName !== name || /@|\b\d[\d\s-]{6,}\b/.test(withoutReportDate))) {
+    const safeName = sanitizeFileName(`${name}.txt`);
+    // A report date in a title is fine; a long number may be an ID.
+    const withoutDates = name.replace(/\b\d{4}-\d{2}-\d{2}\b/g, '');
+    if (!generated && (safeName !== name || /@|\b\d[\d\s-]{6,}\b/.test(withoutDates))) {
       this.patch(localId, {
         error:
           'The document name may contain personal details. Use a general name such as Thyroid tests.',
@@ -606,7 +437,6 @@ export class DocumentQueueService {
         pages: [],
       });
       this.upsertSaved(summary);
-      this.predictions.delete(localId);
       this.clearEdits(localId);
       return true;
     } catch (e) {
@@ -661,9 +491,7 @@ export class DocumentQueueService {
         fileName: doc.originalFileName || doc.name,
         sourceKind: doc.sourceKind,
         status: 'review',
-        strict: false,
         progress: 1,
-        privacyCheck: 'manual',
         message: '',
         pages,
         file: null,
@@ -716,7 +544,6 @@ export class DocumentQueueService {
         d.localId === localId && d.status === 'review' ? { ...d, pages: fn(d.pages) } : d,
       ),
     );
-    this.refreshReviewDetails(localId);
   }
 
   /** A hand edit: records the pages before it so it can be undone. */
@@ -739,32 +566,5 @@ export class DocumentQueueService {
 
   private clearEdits(localId: string) {
     this.edits.clear(localId);
-  }
-
-  private refreshReviewDetails(sourceId?: string) {
-    const source = sourceId ? this.byId(sourceId) : undefined;
-    if (source?.status === 'review') {
-      const learned = learnDetails(source.pages);
-      this.rememberedDetails.update((memory) =>
-        JSON.stringify(memory[source.localId]) === JSON.stringify(learned)
-          ? memory
-          : { ...memory, [source.localId]: learned },
-      );
-    }
-    const memory = this.rememberedDetails();
-    this.documents.update((docs) =>
-      docs.map((doc) => {
-        if (!['review', 'detecting'].includes(doc.status) || !doc.pages.length) return doc;
-        if (
-          doc.privacyMode !== 'lightweight' &&
-          !doc.serverId &&
-          doc.privacyVersion !== PRIVACY_VERSION
-        )
-          return doc;
-        // Same-document and cross-document matches follow the same reversible rule.
-        const pages = applyRememberedDetails(protectMedicalTerms(doc.pages), memory);
-        return pages === doc.pages ? doc : { ...doc, pages };
-      }),
-    );
   }
 }

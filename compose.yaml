@@ -8,7 +8,7 @@ services:
       # Local only: the API spends your Meta credits, so don't publish it on your network.
       - '127.0.0.1:3000:3000'
     # Optional: the same api/.env as a local run (META_MODEL_API_KEY, MODEL_DAILY_BUDGET_USD).
-    # Without a key, /demo, the sample patient and on-device redaction work; your own documents aren't read.
+    # Without a key, /demo, the sample patient and covering pages work; your own documents aren't read.
     env_file:
       - path: api/.env
         required: false

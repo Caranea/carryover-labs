@@ -15,15 +15,11 @@
         </ul>
       </div>
       <h1 class="text-3xl sm:text-4xl tracking-tight">
-        <span class="font-bold">{{
-          doc.privacyMode === 'lightweight'
-            ? 'Hide personal details yourself'
-            : 'Check what is hidden'
-        }}</span>
+        <span class="font-bold">Hide personal details yourself</span>
       </h1>
       <p class="mt-2 text-base-content/80 max-w-3xl leading-relaxed">
-        Words under black bars are removed from the copy that is sent. Tap a word to hide it, or tap
-        a black bar to show the word again. Draw a box over stamps and signatures.
+        Whatever you cover is burned out of the copy that is sent. Everything else is sent as it is,
+        so check every page.
       </p>
     }
 
@@ -37,48 +33,6 @@
           class="review-tools sticky top-[var(--app-header-height)] z-10 flex flex-wrap items-center gap-3 rounded-t-box bg-base-200 px-4 py-3 border-b border-base-300"
           aria-label="Editing tools"
         >
-          @if (hasImages() && !asText()) {
-            <div class="join" role="group" aria-label="What a tap does">
-              <button
-                type="button"
-                class="btn btn-sm join-item"
-                [class.btn-primary]="mode() === 'words'"
-                [attr.aria-pressed]="mode() === 'words'"
-                (click)="mode.set('words')"
-              >
-                <app-icon name="click" size="1rem" /> Hide words
-              </button>
-              <button
-                type="button"
-                class="btn btn-sm join-item"
-                [class.btn-primary]="mode() === 'draw'"
-                [attr.aria-pressed]="mode() === 'draw'"
-                (click)="mode.set('draw')"
-              >
-                <app-icon name="draw-box" size="1rem" /> Draw a box
-              </button>
-            </div>
-          }
-          <label class="label text-sm gap-2 cursor-pointer text-base-content">
-            <input
-              type="checkbox"
-              class="toggle toggle-sm toggle-primary"
-              [checked]="reveal()"
-              (change)="reveal.set(!reveal())"
-            />
-            Show hidden text
-          </label>
-          @if (hasImages()) {
-            <label class="label text-sm gap-2 cursor-pointer text-base-content">
-              <input
-                type="checkbox"
-                class="toggle toggle-sm toggle-primary"
-                [checked]="asText()"
-                (change)="asText.set(!asText())"
-              />
-              Pages as text
-            </label>
-          }
           <div class="join" role="group" aria-label="History">
             <button
               type="button"
@@ -104,33 +58,26 @@
           <span class="badge badge-ghost ml-auto"
             >{{ doc.pages.length }} {{ doc.pages.length === 1 ? 'page' : 'pages' }}</span
           >
-          @if (candidateCount()) {
-            <span class="basis-full text-sm text-base-content/80"
-              >Words outlined in yellow might be personal details and are still visible. Tap one to
-              hide it.</span
-            >
-          }
         </div>
 
-        @if (mode() === 'draw' && !asText()) {
-          <div role="status" class="alert alert-info alert-soft mx-4 mt-4">
-            <app-icon name="draw-box" />
-            <span
-              >Drag over anything that should go: a stamp, a signature, a logo with an
-              address.</span
-            >
-          </div>
-        }
+        <div class="alert alert-info alert-soft mx-4 mt-4">
+          <app-icon name="draw-box" />
+          <span
+            >Drag a box over every name, ID number, address, phone number, date of birth, stamp and
+            signature. Click or tap a box to remove it. On a touchscreen, start your drag sideways;
+            swiping up or down scrolls.</span
+          >
+        </div>
 
         <div class="flex flex-col gap-6 p-4 sm:p-6">
           @for (page of doc.pages; track page.index; let i = $index) {
             <figure class="flex flex-col gap-2">
-              @if (doc.pages.length > 1 || (page.image && !asText())) {
+              @if (doc.pages.length > 1 || page.image) {
                 <figcaption class="flex flex-wrap items-center gap-2 text-sm text-base-content/80">
                   @if (doc.pages.length > 1) {
                     <span>Page {{ i + 1 }} of {{ doc.pages.length }}</span>
                   }
-                  @if (page.image && !asText()) {
+                  @if (page.image) {
                     <span class="ml-auto">Sideways page?</span>
                     <span class="join" role="group" [attr.aria-label]="'Turn page ' + (i + 1)">
                       <button
@@ -153,29 +100,11 @@
                   }
                 </figcaption>
               }
-              @if (page.image && !asText()) {
-                <app-page-view
-                  [page]="page"
-                  [mode]="mode()"
-                  [reveal]="reveal()"
-                  (toggleWord)="toggle(i, $event)"
-                  (addRegion)="addRegion(i, $event)"
-                  (removeRegion)="removeRegion(i, $event)"
-                />
-              } @else {
-                @if (page.image) {
-                  <p class="text-sm text-base-content/80">
-                    The page's words, in reading order. Stamps and signatures aren't words: turn off
-                    "Pages as text" to draw a box over them.
-                  </p>
-                }
-                <app-text-view
-                  [page]="page"
-                  [reveal]="reveal()"
-                  (toggleWord)="toggle(i, $event)"
-                  (removeRegion)="removeRegion(i, $event)"
-                />
-              }
+              <app-page-view
+                [page]="page"
+                (addRegion)="addRegion(i, $event)"
+                (removeRegion)="removeRegion(i, $event)"
+              />
             </figure>
           }
         </div>
@@ -222,86 +151,27 @@
                 {{ hiddenCount() - lockedCount() }}
               </span>
               <p class="font-semibold leading-tight">
-                {{ doc.serverId ? 'more details to remove' : 'details will be removed' }}
+                {{
+                  doc.serverId
+                    ? 'more areas to cover'
+                    : hiddenCount() - lockedCount() === 1
+                      ? 'area covered'
+                      : 'areas covered'
+                }}
               </p>
             </div>
-            @if (kindRows().length || regionCount() || lockedCount()) {
-              <ul class="flex flex-col gap-1.5 text-sm">
-                @for (r of kindRows(); track r.label) {
-                  <li class="flex justify-between">
-                    <span class="first-letter:uppercase">{{ r.label }}</span
-                    ><span class="badge badge-sm badge-neutral tabular-nums">{{ r.n }}</span>
-                  </li>
-                }
-                @if (regionCount()) {
-                  <li class="flex justify-between">
-                    <span>{{ regionCount() === 1 ? 'Area you drew' : 'Areas you drew' }}</span
-                    ><span class="badge badge-sm badge-neutral">{{ regionCount() }}</span>
-                  </li>
-                }
-                @if (lockedCount()) {
-                  <li class="flex justify-between text-base-content/80">
-                    <span>Removed earlier</span
-                    ><span class="badge badge-sm badge-ghost">{{ lockedCount() }}</span>
-                  </li>
-                }
-              </ul>
+            @if (!hiddenCount()) {
+              <p class="text-sm text-base-content/80">
+                Nothing is covered yet, so every page would be sent as it is.
+              </p>
+            }
+            @if (lockedCount()) {
+              <p class="flex justify-between text-sm text-base-content/80">
+                <span>Removed earlier</span
+                ><span class="badge badge-sm badge-ghost">{{ lockedCount() }}</span>
+              </p>
             }
           </div>
-
-          @if (doc.privacyCheck === 'incomplete' || doc.privacyCheck === 'manual') {
-            <button
-              type="button"
-              class="btn btn-sm btn-outline rounded-full h-auto min-h-11 py-2"
-              [disabled]="busy()"
-              (click)="queue.runAutomaticCheck(localId())"
-            >
-              {{
-                doc.privacyMode === 'lightweight'
-                  ? 'Use the full privacy check'
-                  : 'Retry the full privacy check'
-              }}
-            </button>
-          }
-
-          @if (groups().length) {
-            <div class="collapse collapse-arrow border border-base-300 rounded-box">
-              <input
-                type="checkbox"
-                [checked]="groups().length <= 8"
-                aria-label="Show details hidden so far"
-              />
-              <div class="collapse-title font-semibold flex items-center gap-2 pr-10">
-                Details hidden so far
-                <span class="badge badge-sm badge-ghost">{{ groups().length }}</span>
-              </div>
-              <div class="collapse-content">
-                <ul class="flex flex-col divide-y divide-base-300">
-                  @for (g of groups(); track g.key) {
-                    <li class="flex items-center gap-2 py-2">
-                      <div class="min-w-0 flex-1">
-                        <p class="font-medium truncate">{{ g.text }}</p>
-                        <p class="flex items-center gap-1.5 mt-0.5">
-                          <span class="badge badge-xs badge-ghost">{{ kindLabel[g.kind] }}</span>
-                          @if (g.count > 1) {
-                            <span class="text-xs text-base-content/80">×{{ g.count }}</span>
-                          }
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        class="btn btn-xs btn-outline rounded-full border-base-300"
-                        [disabled]="busy()"
-                        (click)="showGroup(g)"
-                      >
-                        Unhide<span class="sr-only"> {{ g.text }}</span>
-                      </button>
-                    </li>
-                  }
-                </ul>
-              </div>
-            </div>
-          }
 
           <div
             class="sticky bottom-0 -mx-5 -mb-5 flex flex-col gap-2 border-t border-base-300 bg-base-100 p-5"

@@ -6,14 +6,12 @@ import {
   ElementRef,
   inject,
   Injector,
-  signal,
   untracked,
   viewChild,
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { DocumentQueueService } from '../core/document-queue.service';
 import { LocalDocument } from '../core/models';
-import { NerService } from '../pii/ner.service';
 import { ReviewPage } from '../review/review.page';
 import { Icon } from '../ui/icon';
 import { StepRail } from './step-rail';
@@ -25,12 +23,10 @@ import { StepRail } from './step-rail';
   styleUrl: './detector-status.css',
 })
 export class DetectorStatus {
-  protected readonly ner = inject(NerService);
   protected readonly queue = inject(DocumentQueueService);
   private readonly router = inject(Router);
   private readonly injector = inject(Injector);
   private readonly dialog = viewChild<ElementRef<HTMLDialogElement>>('dialog');
-  private readonly now = signal(Date.now());
   protected readonly active = computed(() =>
     this.queue.batch().find((doc) => ['reading', 'detecting'].includes(doc.status)),
   );
@@ -59,53 +55,7 @@ export class DetectorStatus {
   protected readonly stageTitle = computed(() => {
     const doc = this.active();
     if (!doc) return '';
-    if (doc.status === 'reading') return doc.message || 'Reading document';
-    switch (this.ner.phase()) {
-      case 'preparing':
-        return 'Choosing the privacy checker';
-      case 'downloading':
-        return 'Downloading the privacy checker · ' + Math.round(this.ner.progress() * 100) + '%';
-      case 'starting':
-        return 'Starting the privacy checker';
-      case 'checking':
-        return 'Checking page ' + this.ner.pageNumber() + ' of ' + this.ner.pageCount();
-      default:
-        return doc.message || 'Preparing document';
-    }
-  });
-  /**
-   * What a screen reader hears about the current step: it changes with the step, and during the
-   * download every tenth, so it is never read out several times a second.
-   */
-  protected readonly announcement = computed(() => {
-    const doc = this.active();
-    if (!doc) return '';
-    if (doc.status === 'detecting' && this.ner.phase() === 'downloading')
-      return `Downloading the privacy checker, ${Math.floor(this.ner.progress() * 10) * 10}% done.`;
-    return this.stageTitle();
-  });
-  protected readonly estimate = computed(() => {
-    if (this.active()?.status !== 'detecting') return '';
-    const phase = this.ner.phase();
-    if (!['preparing', 'downloading', 'starting', 'checking'].includes(phase)) return '';
-    if (phase === 'starting') return 'Starting the checker on your device…';
-    if (phase === 'preparing') return 'Checking this device before downloading…';
-    if (this.now() - this.ner.lastProgressAt() > 15_000)
-      return 'Still working — updating the estimate…';
-    const seconds = this.ner.remainingSeconds();
-    if (seconds === null)
-      return phase === 'downloading'
-        ? 'Measuring your download speed…'
-        : 'Estimating from this page…';
-    const duration =
-      seconds < 60
-        ? Math.max(5, Math.ceil(seconds / 5) * 5) + ' sec'
-        : Math.ceil(seconds / 60) + ' min';
-    return (
-      'About ' +
-      duration +
-      (phase === 'downloading' ? ' left to download' : ' left for this document')
-    );
+    return doc.message || 'Opening document';
   });
 
   constructor() {
@@ -128,12 +78,6 @@ export class DetectorStatus {
         if (show && !dialog.open) dialog.showModal();
         else if (!show && dialog.open) dialog.close();
       });
-    });
-    effect((onCleanup) => {
-      if (!this.queue.reviewOpened() || !this.queue.batchProgress().remaining) return;
-      this.now.set(Date.now());
-      const timer = setInterval(() => this.now.set(Date.now()), 1000);
-      onCleanup(() => clearInterval(timer));
     });
     effect(() => {
       this.queue.reviewId();
@@ -163,8 +107,6 @@ export class DetectorStatus {
         return 'Saving';
       case 'reading':
         return 'Reading';
-      case 'detecting':
-        return 'Checking';
       case 'error':
         return 'Needs attention';
       default:
@@ -174,9 +116,6 @@ export class DetectorStatus {
   protected dismiss(event?: Event) {
     event?.preventDefault();
     this.queue.closeReview();
-  }
-  protected switchMode() {
-    this.queue.useLightweightReview();
   }
   protected results() {
     if (this.queue.resultsBlocked()) return;

@@ -26,8 +26,6 @@ const page = (): WorkingPage => ({
       line: 0,
       hidden: true,
       kind: 'person',
-      source: 'model',
-      score: 0.9,
       box: { x: 100, y: 10, w: 90, h: 20 },
     },
     { id: 2, text: 'PLT', line: 1, hidden: false, box: { x: 10, y: 50, w: 40, h: 20 } },
