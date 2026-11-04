@@ -1,7 +1,7 @@
 import sharp from 'sharp';
 import { createHash } from 'node:crypto';
 import { validateAnswer, type JsonModel, type ModelTask } from '../records/meta-model.js';
-import { parseNumber, toIsoDate } from '../shared/tokens.js';
+import { parseNumber, parseRange, toIsoDate } from '../shared/tokens.js';
 import { SAMPLE_KEY } from './samples.js';
 import type { Observation } from '../shared/results.js';
 import {
@@ -12,6 +12,20 @@ import {
   type PageTranscription,
   type PrintedRow,
 } from '../shared/processing.js';
+
+/**
+ * The lab's own flag. Some reports mark a value with "+" or "-" instead of H or L, but a lone dash
+ * can also be an empty cell, so those count only when the range printed on the row agrees.
+ */
+export function printedFlag(row: PrintedRow, value: number | null): Observation['flag'] {
+  const flag = row.flag?.trim() ?? '';
+  if (['H', 'L', 'HH', 'LL', 'A'].includes(flag)) return flag as Observation['flag'];
+  const range = row.reference ? parseRange(row.reference) : null;
+  if (value === null || !range) return null;
+  if (/^[-−–]$/.test(flag) && range.low !== null && value < range.low) return 'L';
+  if (flag === '+' && range.high !== null && value > range.high) return 'H';
+  return null;
+}
 
 const text = (maxLength: number) => ({ type: ['string', 'null'], maxLength });
 const dateFields = {
@@ -200,9 +214,7 @@ export async function processPage(
       refText: row.reference,
       refLow: null,
       refHigh: null,
-      flag: ['H', 'L', 'HH', 'LL', 'A'].includes(row.flag ?? '')
-        ? (row.flag as Observation['flag'])
-        : null,
+      flag: printedFlag(row, parsed?.value ?? null),
       // Other printed dates are placed by normalization, which sees every page of the document.
       date: row.date?.kind === 'collected' ? row.date.iso : null,
       dateSource: row.date?.kind === 'collected' && row.date.iso ? 'label' : null,

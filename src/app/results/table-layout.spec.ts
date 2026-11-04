@@ -4,10 +4,27 @@ import {
   bandOf,
   printChunks,
   rangeNote,
+  referenceInRowUnit,
   sparkline,
   splitDecimal,
 } from './table-layout';
 import { calendarTimestamp } from './calendar-date';
+
+describe('range in the row unit', () => {
+  it('keeps a range in its printed unit as printed', () => {
+    expect(referenceInRowUnit('12,0 - 15,4', null)).toBe('12.0–15.4');
+  });
+
+  it('converts a range with its value', () => {
+    expect(referenceInRowUnit('12,0 - 15,4', 10)).toBe('120–154');
+    expect(referenceInRowUnit('< 5,0', 0.1)).toBe('< 0.5');
+    expect(referenceInRowUnit('> 60', 2)).toBe('> 120');
+  });
+
+  it('leaves out a range it cannot read rather than show the wrong unit', () => {
+    expect(referenceInRowUnit('see report', 10)).toBe('');
+  });
+});
 
 describe('results table layout', () => {
   it('groups dates by year and marks whole years with no tests', () => {

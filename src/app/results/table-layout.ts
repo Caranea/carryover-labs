@@ -60,6 +60,20 @@ export function formatReference(reference: string): string {
     .trim();
 }
 
+/**
+ * The latest report's range in the unit of its row. A value converted to the chart's unit takes
+ * its range with it; a range that can't be read is left out rather than shown in the wrong unit.
+ */
+export function referenceInRowUnit(reference: string, factor: number | null): string {
+  if (factor === null) return formatReference(reference);
+  const range = parseRange(reference);
+  const scaled = (n: number) => String(Number((n * factor).toPrecision(4)));
+  if (range?.low != null && range.high != null) return `${scaled(range.low)}–${scaled(range.high)}`;
+  if (range?.high != null) return `< ${scaled(range.high)}`;
+  if (range?.low != null) return `> ${scaled(range.low)}`;
+  return '';
+}
+
 /** A two-sided printed range as numbers, for the band behind the trend line; null otherwise. */
 export function bandOf(reference: string): { lo: number; hi: number } | null {
   const range = parseRange(reference);

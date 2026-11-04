@@ -8,3 +8,8 @@ import { extname } from 'node:path';
 export function isAppPage(path: string): boolean {
   return !path.startsWith('/api/') && extname(path) === '';
 }
+
+/** GET and HEAD share an answer: link checkers and uptime monitors ask with HEAD. */
+export function servesAppPage(method: string, path: string): boolean {
+  return (method === 'GET' || method === 'HEAD') && isAppPage(path);
+}

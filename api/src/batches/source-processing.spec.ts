@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import sharp from 'sharp';
-import { parsePageRequest, processPage } from './source-processing.js';
+import { parsePageRequest, printedFlag, processPage } from './source-processing.js';
 import { normalizeBatch } from './normalization.js';
 import type { PageDate, PageRequest, PrintedRow } from '../shared/processing.js';
 import { AnswerCutOff, type JsonModel, type ModelTask } from '../records/meta-model.js';
@@ -21,6 +21,27 @@ export const printedRow = (patch: Partial<PrintedRow> = {}): PrintedRow => ({
   doubt: null,
   ...patch,
 });
+describe('printed flags', () => {
+  const row = (flag: string | null, reference: string | null) =>
+    printedRow({ flag, reference, value: '130' });
+
+  it('keeps the letters a lab prints', () => {
+    assert.equal(printedFlag(row('H', '150 - 370'), 130), 'H');
+    assert.equal(printedFlag(row('LL', '150 - 370'), 130), 'LL');
+  });
+
+  it('reads "+" and "-" when the printed range agrees', () => {
+    assert.equal(printedFlag(row('-', '150 - 370'), 130), 'L');
+    assert.equal(printedFlag(row('+', '10 - 100'), 130), 'H');
+  });
+
+  it('treats a dash inside the range, or with no range, as an empty cell', () => {
+    assert.equal(printedFlag(row('-', '100 - 370'), 130), null);
+    assert.equal(printedFlag(row('-', null), 130), null);
+    assert.equal(printedFlag(row('-', '150 - 370'), null), null);
+  });
+});
+
 export const model = (answer: unknown, tasks: ModelTask[] = []): JsonModel => ({
   name: 'Synthetic Meta',
   async ask<T>(task: ModelTask) {

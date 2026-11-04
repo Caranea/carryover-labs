@@ -31,7 +31,7 @@ import { ResultsSummary } from './summary';
 import { SparkLine } from './spark';
 import {
   Column,
-  formatReference,
+  referenceInRowUnit,
   HeadCell,
   layoutColumns,
   bandOf,
@@ -77,7 +77,7 @@ export interface PanelRow {
   key: string;
   label: string;
   unit: string;
-  /** The latest report's printed range, with one decimal point and a range dash. */
+  /** The latest report's range in this row's unit, with one decimal point and a range dash. */
   reference: string;
   /** Every name the test was printed under, with its report's language when known. */
   printedAs: PrintedName[];
@@ -281,7 +281,10 @@ export class ResultsPage implements OnInit, OnDestroy {
       key: series.key,
       label: series.label,
       unit: formatUnit(series.unit),
-      reference: formatReference(latest?.printedReference ?? ''),
+      reference: referenceInRowUnit(
+        latest?.printedReference ?? '',
+        latest?.conversion?.factor ?? null,
+      ),
       printedAs: this.printedAs(
         series.label,
         series.points.map((p) => [p.printedName, p.documentId]),
