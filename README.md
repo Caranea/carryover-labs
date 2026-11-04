@@ -21,7 +21,7 @@
 
 </div>
 
-[![Watch the 3-minute Carryover demo on YouTube](https://img.youtube.com/vi/tEkvQCoRMUY/maxresdefault.jpg)](https://youtu.be/tEkvQCoRMUY)
+[![Watch the 3-minute Carryover demo on YouTube](docs/images/demo-thumbnail.png)](https://youtu.be/tEkvQCoRMUY)
 
 <p align="center"><a href="https://youtu.be/tEkvQCoRMUY"><b>▶ Watch the 3-minute demo</b></a></p>
 
