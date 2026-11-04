@@ -9,6 +9,7 @@
 **Years of lab reports. One timeline for a short doctor's appointment.**
 
 [![Try the live demo](https://img.shields.io/badge/Try_the_demo-carryover.pl-0d7a68?style=for-the-badge)](https://carryover.pl/demo)
+[![Watch the demo video](https://img.shields.io/badge/Watch_the_demo-3_min-c4302b?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/tEkvQCoRMUY)
 [![Run with Docker](https://img.shields.io/badge/Run_it-docker_compose_up-16302c?style=for-the-badge)](#run-it)
 
 ![Muse Spark 1.3](https://img.shields.io/badge/Muse_Spark-1.3-fcd34d)
@@ -20,7 +21,9 @@
 
 </div>
 
-![Twelve years of a sample patient's lab tests in one Carryover results table](docs/images/results.webp)
+[![Watch the 3-minute Carryover demo on YouTube](https://img.youtube.com/vi/tEkvQCoRMUY/maxresdefault.jpg)](https://youtu.be/tEkvQCoRMUY)
+
+<p align="center"><a href="https://youtu.be/tEkvQCoRMUY"><b>▶ Watch the 3-minute demo</b></a></p>
 
 Carryover turns years of lab reports in Polish, German and English into one timeline a patient can bring to a short doctor's appointment. Personal details are found and blacked out in the browser by a local model built on Meta's XLM-RoBERTa, before anything is sent. Every chart point links back to the page it came from.
 
