@@ -3,14 +3,15 @@ import type { NextFunction, Request, Response } from 'express';
 /**
  * What the app may load. Medical results sit in this browser's storage, so injected script
  * must not run. WebAssembly (OCR, the privacy model) needs 'wasm-unsafe-eval'; OCR and model
- * workers start from blob: URLs; the privacy model downloads from Hugging Face, whose files
+ * workers start from blob: URLs, and the privacy model's ONNX runtime is imported from one;
+ * the privacy model downloads from Hugging Face, whose files
  * redirect to *.hf.co. Angular adds component styles as <style> elements, hence inline styles.
  * Google Analytics loads only after someone accepts it, from src/app/core/analytics.ts; its hosts
  * are Google's published list for GA4. Inline script stays blocked.
  */
 export const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
-  "script-src 'self' 'wasm-unsafe-eval' https://www.googletagmanager.com",
+  "script-src 'self' blob: 'wasm-unsafe-eval' https://www.googletagmanager.com",
   "worker-src 'self' blob:",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://*.google-analytics.com https://*.googletagmanager.com",
