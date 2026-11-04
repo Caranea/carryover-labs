@@ -4,7 +4,7 @@ How well the pipeline reads, names and charts lab results, measured on the sampl
 
 ## Meta's models on the sample patient
 
-`node eval/score-samples.mjs` (after `npm --prefix api run build`) scores Meta's answers for all ten sample documents against rows checked by hand. It needs no key and makes no calls: the answers are the ones recorded in `api/samples/recorded.json`, the same real Muse Spark and Muse Wonder answers the app replays for the sample patient. Each answer goes through the server's own code, as in the app: page parsing, test identification, dates, unit conversion and charts. CI runs it on every push.
+`node eval/score-samples.mjs` (after `npm --prefix api run build`) scores Meta's answers for all ten sample documents against rows checked by hand. It needs no key and makes no calls: the answers are the ones recorded in `api/samples/recorded.json`, the same real Muse Spark and Muse Wonder answers the app replays for the sample patient. Each answer goes through the server's own code, as in the app: page parsing, test identification, dates, unit conversion and charts.
 
 **The checked set.** `src/app/core/demo-data.ts` holds every result row printed on the 10 documents (24 pages, 2012–2024, Polish, German and English; two Polish PDF layouts, a German phone photo and an English fax): 289 rows, each transcribed by hand and checked against the page image, with its test and date. The `/demo` charts are built from them.
 
@@ -40,21 +40,15 @@ Notes on the table:
 
 `node eval/check-pipeline-models.mjs` (after `npm --prefix api run build`, with `META_MODEL_API_KEY` set) sends the German phone photo of the sample patient, `public/samples/live/german-cumulative.jpg`, with its identifiers blacked out, to Muse Spark upright and rotated 90° and 180°, then normalizes the upright result with Muse Wonder. It scores each answer against the hand-checked rows in `eval/fixtures/jane-doe-002.truth.json` (28 rows) and prints a table with round-trip times. It makes paid calls (three Spark pages and one Wonder call); `--upright` makes one Spark call only. Use it to check how Spark copes with sideways photos, which the recorded answers don't cover.
 
-## Local privacy check
-
-`node eval/check-pipeline-privacy.mjs` bundles the production OCR, privacy worker, rules and mask burning into a test page at http://localhost:4294. Open it in a browser with WebGPU and press "Run local checks": it runs a synthetic 2,400 × 1,800 page with five identity fields and a lab table, upright and rotated, and writes timings and coverage to `artifacts/pipeline-verification/privacy-timings.json`.
-
-Its last run (31 October) found and fully covered all five identifiers on the upright page, and masked no result. On rotated pages automatic detection found nothing, because OCR runs once and doesn't detect orientation. The review screen therefore offers Turn left and Turn right on every page: the masks turn with the page, nothing is detected again, and the person hides what's left by hand (`src/app/redaction/rotate.spec.ts`). Hand-drawn boxes burned correctly at every orientation.
-
 ## Automated tests
 
-CI runs on every push and pull request (`.github/workflows/check.yml`): lint, formatting, the app's unit tests, the API tests, both builds, the evaluation above and the browser tests. None of them make paid calls. Among them:
+`.github/workflows/check.yml` runs lint, formatting, the app's unit tests, the API tests, both builds, the evaluation above and the browser tests. None of them make paid calls. Among them:
 
 - **Sample recording.** `api/src/batches/samples.spec.ts` checks the recording still matches the current answer schemas and charts every sample document, alone and all together, with no model.
 - **Model boundary.** `api/src/records/meta-model.spec.ts` covers strict JSON schemas, answers cut off at the token limit, busy retries, and provider text kept out of errors.
 - **Spending limit.** `api/src/jobs/daily-spend.spec.ts` covers the daily dollar cap, including calls still running.
 - **Specimens and forms.** `api/src/batches/specimens.spec.ts`: "Kalium", "Harnstoff" and "Mocznik" stay blood tests; ionized and total calcium and direct and total bilirubin get separate lines; a cell count printed as "3,200" is held for review instead of being read as 3.2.
-- **Browser flow.** `e2e/smoke.spec.ts`: a photo read and approved by hand, with only the approved image sent; the sample patient read and charted with no key; the demo replay.
+- **Browser flow.** `e2e/smoke.spec.ts`: a box drawn on a photo and burned into the only image sent; the sample patient read and charted with no key; the demo replay.
 
 ## Logs and tracing
 
@@ -64,7 +58,7 @@ Set `MODEL_TRACE_DIR` (for example `../tmp/model-trace`) during development to w
 
 ## Known limitations
 
-- Rotated or difficult pages need careful manual masking; turning a page upright doesn't re-run detection.
+- Nothing checks the person's boxes: anything left visible on an approved page is sent.
 - Spark can omit or misread rows, and its regions can be inaccurate. The source page is always one tap away.
 - A value like `1,234` is read as 1.234 regardless of the document's locale; for cell counts it's held for review instead.
 - A test gets a separate line only for a different body fluid (urine, CSF), form (free, total, ionized, direct, indirect) or a percentage; the analyser or method doesn't split it.

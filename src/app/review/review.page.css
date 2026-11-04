@@ -22,6 +22,6 @@
     gap: 1rem;
   }
   .review-embedded .review-decision {
-    max-height: max(20rem, calc(100dvh - 24rem));
+    max-height: max(20rem, calc(100dvh - 20rem));
   }
 }

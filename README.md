@@ -9,23 +9,24 @@
 **Years of lab reports. One timeline for a short doctor's appointment.**
 
 [![Try the live demo](https://img.shields.io/badge/Try_the_demo-carryover.pl-0d7a68?style=for-the-badge)](https://carryover.pl/demo)
-[![Watch the demo video](https://img.shields.io/badge/Watch_the_demo-3_min-c4302b?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/tEkvQCoRMUY)
+[![Watch the demo video](https://img.shields.io/badge/Watch_the_demo-2:24-c4302b?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/tEkvQCoRMUY)
 [![Run with Docker](https://img.shields.io/badge/Run_it-docker_compose_up-16302c?style=for-the-badge)](#run-it)
 
 ![Muse Spark 1.3](https://img.shields.io/badge/Muse_Spark-1.3-fcd34d)
 ![Muse Wonder 1.0](https://img.shields.io/badge/Muse_Wonder-1.0-fcd34d)
-![XLM-RoBERTa, on your device](https://img.shields.io/badge/XLM--RoBERTa-on_your_device-fcd34d)
 ![Reads Polish, German and English](https://img.shields.io/badge/reads-PL_·_DE_·_EN-0d7a68)
 
-[How it works](#how-it-works) · [Local PII redaction](#local-pii-redaction) · [How well it works](#how-well-it-works) · [Privacy](#privacy) · [Run it](#run-it) · [Built for the hackathon](#built-for-the-hackathon)
+[How it works](#how-it-works) · [Hiding personal details](#hiding-personal-details) · [How well it works](#how-well-it-works) · [Privacy](#privacy) · [Run it](#run-it) · [Built for the hackathon](#built-for-the-hackathon)
 
 </div>
 
-[![Watch the 3-minute Carryover demo on YouTube](docs/images/demo-thumbnail.png)](https://youtu.be/tEkvQCoRMUY)
+[![Watch the Carryover demo on YouTube](docs/images/demo-thumbnail.png)](https://youtu.be/tEkvQCoRMUY)
 
-<p align="center"><a href="https://youtu.be/tEkvQCoRMUY"><b>▶ Watch the 3-minute demo</b></a></p>
+<p align="center"><a href="https://youtu.be/tEkvQCoRMUY"><b>▶ Watch the demo</b></a></p>
 
-Carryover turns years of lab reports in Polish, German and English into one timeline a patient can bring to a short doctor's appointment. Personal details are found and blacked out in the browser by a local model built on Meta's XLM-RoBERTa, before anything is sent. Every chart point links back to the page it came from.
+Carryover turns years of lab reports in Polish, German and English into one timeline a patient can bring to a short doctor's appointment. You cover personal details with black boxes in the browser and approve each page, so no model sees a page until you say so. Every chart point links back to the page it came from.
+
+**Hackathon entry:** Indie, Build for Your World. Built Oct 26–Nov 4, 2026. The only models it runs are Meta's: Muse Spark 1.3 and Muse Wonder 1.0.
 
 > [!IMPORTANT]
 > Carryover does not diagnose, interpret results or give medical advice. High and low flags and reference ranges are copied from the reports.
@@ -40,21 +41,21 @@ Open **[carryover.pl/demo](https://carryover.pl/demo)**. It needs no account and
 
 - **See the originals** shows the pages the results came from. Every name, lab and address on them has been replaced.
 - **Watch how Meta AI processes docs** sends one of two blacked-out sample pages through the pipeline and shows Meta's recorded answers line by line.
-- **Try the sample patient**, on the Documents page, runs Jane's documents through the normal flow: the privacy check on your device, your approval, then reading and charting.
+- **Try the sample patient**, on the Documents page, runs Jane's documents through the normal flow: you cover what you want hidden, approve, and they are read and charted.
 
-| Check every page before it leaves                                                         | Watch the models read it                                                                              |
-| ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| ![The review screen with personal details covered by black bars](docs/images/review.webp) | ![Muse Spark and Muse Wonder reading a German phone photo line by line](docs/images/walkthrough.webp) |
+| Cover every detail before it leaves                                                        | Watch the models read it                                                                              |
+| ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| ![The review screen with personal details covered by black boxes](docs/images/review.webp) | ![Muse Spark and Muse Wonder reading a German phone photo line by line](docs/images/walkthrough.webp) |
 
 > [!NOTE]
-> **The sample patient's model responses are real, just cached.** Muse Spark's transcription of each of her 24 pages and Muse Wonder's identity of every test name on them were recorded once from the Meta Model API and are committed in [`api/samples/recorded.json`](api/samples/README.md). The server replays them through the same code as a live answer, so the sample costs nothing, needs no API key and keeps working when the day's spending limit is reached. The recordings were made from the sample pages as published, so hiding more on them doesn't change what comes back. Your own documents are always read live, and nothing about them is cached.
+> **The sample patient's model responses are real, just cached.** Muse Spark's transcription of each of her 24 pages and Muse Wonder's identity of every test name on them were recorded once from the Meta Model API and are committed in [`api/samples/recorded.json`](api/samples/README.md). The server replays them through the same code as a live answer, so the sample costs nothing, needs no API key and keeps working when the day's spending limit is reached. The recordings were made from the sample pages as published, so covering more on them doesn't change what comes back. Your own documents are always read live, and nothing about them is cached.
 
 ## How it works
 
-![The six steps from a page on your device to a timeline](docs/images/pipeline.png)
+![The steps from a page on your device to a timeline](docs/images/pipeline.png)
 
-1. **Add a file.** Photos, PDFs, Word and text files are read in the browser (Tesseract OCR, pdf.js, mammoth).
-2. **Hide personal details.** A local model built on **XLM-RoBERTa** and rules suggest names, addresses and identifiers to hide. The person checks every page, turns sideways pages upright, hides more by tapping words or drawing boxes, and approves. Masks are burned into fresh page images.
+1. **Add a file.** Photos, PDFs, Word and text files become page images in the browser (pdf.js, mammoth). Nothing reads them yet.
+2. **Hide personal details.** The person drags a black box over every name, ID, address and signature, turns sideways pages upright, and approves. Boxes are burned into fresh page images.
 3. **Read the results.** Each approved, redacted page image is queued as a job for **Muse Spark**, which transcribes the lab table literally. The browser collects results with a long poll, so slow model calls never hold a request open.
 4. **Match tests across languages.** **Muse Wonder** maps the printed test names of the whole batch to one identity per test. Unit conversion and chart building are deterministic server code; the model never supplies numbers.
 5. **Bring it to the appointment.** Print the results page or save it as a PDF from the print dialog.
@@ -67,18 +68,17 @@ Readings with an uncertain transcription, an unresolved identity, a missing date
 - **Dates in footnotes.** Some Polish reports print the collection date in a footnote, sometimes on another page. Spark returns each row's footnote marker and every date printed elsewhere, and server code joins them across the document's pages. An ambiguous date such as 01/06/2012 is settled by the other dates in the document, and two conflicting dates leave the reading undated and in review.
 - **Two results on one line.** When a line prints a percentage and an absolute count, as neutrophils often do, Spark returns two rows and Muse Wonder keeps them as separate tests.
 
-Each model has the job it fits. Personal details have to be found before anything leaves the device, so that step runs a small Meta XLM-RoBERTa model in the browser instead of a hosted model. Reading a photographed table needs vision, so each approved page goes to Muse Spark. Naming a test is a question about all the reports together, so Muse Wonder sees every printed name in the batch at once. Numbers never come from a model: unit conversion and charts are plain server code.
+Each model has the job it fits. Reading a photographed table needs vision, so each approved page goes to Muse Spark. Naming a test is a question about all the reports together, so Muse Wonder sees every printed name in the batch at once. Numbers never come from a model: unit conversion and charts are plain server code.
 
-## Local PII redaction
+## Hiding personal details
 
-Health records are too sensitive to redact on a server, so Carryover does it in the browser. It runs [`bardsai/eu-pii-anonimization-multilang`](https://huggingface.co/bardsai/eu-pii-anonimization-multilang), a token classifier built on Meta AI's open [XLM-RoBERTa](https://huggingface.co/FacebookAI/xlm-roberta-base), with no call to any server to find personal details.
+Health records are too sensitive to send anywhere unchecked, so nothing reads a page until the person has approved it.
 
-- **On your device:** the model runs in a Web Worker, as WebGPU FP16 (about 555 MB) or CPU Q8 (about 279 MB). It's downloaded once from Hugging Face at a pinned revision, then reused.
-- **Model plus rules:** rules catch IDs, emails and postcodes alongside the model. Details hidden in one document are reused in the next.
-- **You decide:** you check every page, hide more by tapping words or drawing boxes, and approve. Manual review skips the model entirely.
-- **Burned in, not covered up:** masks are burned into a fresh JPEG, so nothing sits underneath. Reopening a saved copy can only add masks.
+- **On your device:** each page opens as an image in the browser. No model and no OCR run here.
+- **You decide:** drag a box over anything personal, tap a box to remove it, undo, redo and turn sideways pages upright. A keyboard form takes a box as percentages of the page.
+- **Burned in, not covered up:** boxes are burned into a fresh JPEG, so nothing sits underneath and no text layer survives. Reopening a saved copy can only add boxes.
 
-On a synthetic page with five identity fields, the last local check found and fully covered all five and masked no result. On rotated pages, automatic detection found nothing, because OCR doesn't detect orientation, so those pages are turned upright and hidden by hand. `node eval/check-pipeline-privacy.mjs` runs the check in a browser with WebGPU.
+An earlier automatic detector is kept on the `on-device-privacy` branch. It relied on non-Meta models, so it isn't part of this entry or the deployed app.
 
 ## How well it works
 
@@ -95,7 +95,7 @@ On the sample patient's 10 documents (24 pages, 2012–2024, three languages, tw
 
 | Data                                                                    | Where it goes                  |
 | ----------------------------------------------------------------------- | ------------------------------ |
-| Original files, filenames, OCR words, hidden text                       | Nowhere: browser only          |
+| Original files, filenames, anything you cover                           | Nowhere: browser only          |
 | Approved, redacted page images                                          | Our API, then Muse Spark       |
 | Printed test names, units, specimens, section headings and word results | Our API, then Muse Wonder      |
 | Approved sample patient pages                                           | Our API only (recorded answer) |
@@ -115,7 +115,7 @@ docker compose up
 
 Open http://localhost:3000 once the log says `App and API are running`. The first run takes a few minutes. There is one container and no separate frontend or port 4200: the image builds the app and the API for Linux and serves both from one origin.
 
-Put `META_MODEL_API_KEY` in `api/.env` to read your own documents. Without it, `/demo`, the sample patient and on-device redaction still work. The port is bound to `127.0.0.1` because the API spends your Meta credits.
+Put `META_MODEL_API_KEY` in `api/.env` to read your own documents. Without it, `/demo`, the sample patient and covering pages still work. The port is bound to `127.0.0.1` because the API spends your Meta credits.
 
 ### Locally
 
@@ -130,7 +130,7 @@ npm run start:api
 npm start
 ```
 
-Open http://localhost:4200. Without a key, everything but reading your own documents works: `/demo`, the sample patient and on-device redaction.
+Open http://localhost:4200. Without a key, everything but reading your own documents works: `/demo`, the sample patient and covering pages.
 
 ## Built for the hackathon
 
@@ -138,12 +138,13 @@ Carryover was built for the [Meta Global AI Developer Hackathon](https://cerebra
 
 The repository starts on Oct 26. The Oct 29 commit is a large rough draft generated during the hackathon. I didn't commit early, and the later commits refine it.
 
-| Not built here                                                                                                                            | Used for                                 |
-| ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| Muse Spark 1.3, Muse Wonder 1.0 (Meta Model API)                                                                                          | Transcribing pages and identifying tests |
-| [`bardsai/eu-pii-anonimization-multilang`](https://huggingface.co/bardsai/eu-pii-anonimization-multilang), built on Meta AI's XLM-RoBERTa | Finding personal details, in the browser |
-| Tesseract OCR, pdf.js, mammoth                                                                                                            | Reading files in the browser             |
-| Angular, NestJS and other open-source libraries                                                                                           | The app and the API                      |
+| Not built here                                   | Used for                                 |
+| ------------------------------------------------ | ---------------------------------------- |
+| Muse Spark 1.3, Muse Wonder 1.0 (Meta Model API) | Transcribing pages and identifying tests |
+| pdf.js, mammoth                                  | Opening files in the browser             |
+| Angular, NestJS and other open-source libraries  | The app and the API                      |
+
+Muse Spark and Muse Wonder are the only models the project runs.
 
 ## For developers
 
@@ -162,7 +163,7 @@ npm run e2e             # upload → review → approve, the sample patient and 
 node eval/score-samples.mjs   # Meta's recorded answers against the hand-checked rows (no key)
 ```
 
-CI runs the same steps, and prints the evaluation table. Tests use synthetic data and stubbed model calls; they never make paid requests. When `api/samples/recorded.json` is present, the API tests also check that it charts every sample document without a model.
+`.github/workflows/check.yml` runs the same steps and prints the evaluation table. Tests use synthetic data and stubbed model calls; they never make paid requests. When `api/samples/recorded.json` is present, the API tests also check that it charts every sample document without a model.
 
 </details>
 
@@ -171,9 +172,8 @@ CI runs the same steps, and prints the evaluation table. Tests use synthetic dat
 
 | Path                                        | What it does                                                                              |
 | ------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `src/app/extraction`                        | Reads files and runs local OCR                                                            |
-| `src/app/pii`                               | Finds personal details (local model worker + rules)                                       |
-| `src/app/redaction`, `src/app/review`       | Burns masks into page images; the review screen                                           |
+| `src/app/extraction`                        | Turns files into page images in the browser                                               |
+| `src/app/redaction`, `src/app/review`       | Burns boxes into page images; the review screen                                           |
 | `src/app/core/local-history.ts`             | Browser storage for approved documents and results                                        |
 | `src/app/core/results.service.ts`           | Sends approved pages to the API and saves the answers                                     |
 | `src/app/results`                           | Charts, source viewer, corrections, print layout                                          |
@@ -182,7 +182,7 @@ CI runs the same steps, and prints the evaluation table. Tests use synthetic dat
 | `api/src/shared`                            | Types and pure helpers used by both the app and the API (`@shared/*` in the app)          |
 | `api/samples`, `scripts/record-samples.mjs` | The sample patient's recorded Meta answers, and the script that records them              |
 | `e2e`                                       | Browser smoke tests on the built app (Playwright)                                         |
-| `eval`                                      | Evaluation: recorded answers against checked rows, live model and privacy checks          |
+| `eval`                                      | Evaluation: recorded answers against checked rows, live model checks                      |
 
 </details>
 
