@@ -54,7 +54,7 @@ Open **[carryover.pl/demo](https://carryover.pl/demo)**. It needs no account and
 
 ![The steps from a page on your device to a timeline](docs/images/pipeline.png)
 
-1. **Add a file.** Photos, PDFs, Word and text files become page images in the browser (pdf.js, mammoth). Nothing reads them yet.
+1. **Add a file.** Photos, PDFs, Word and text files become page images in the browser (pdf.js, mammoth, heic-to). Nothing reads them yet.
 2. **Hide personal details.** The person drags a black box over every name, ID, address and signature, turns sideways pages upright, and approves. Boxes are burned into fresh page images.
 3. **Read the results.** Each approved, redacted page image is queued as a job for **Muse Spark**, which transcribes the lab table literally. The browser collects results with a long poll, so slow model calls never hold a request open.
 4. **Match tests across languages.** **Muse Wonder** maps the printed test names of the whole batch to one identity per test. Unit conversion and chart building are deterministic server code; the model never supplies numbers.
@@ -141,7 +141,7 @@ The repository starts on Oct 26. The Oct 29 commit is a large rough draft genera
 | Not built here                                   | Used for                                 |
 | ------------------------------------------------ | ---------------------------------------- |
 | Muse Spark 1.3, Muse Wonder 1.0 (Meta Model API) | Transcribing pages and identifying tests |
-| pdf.js, mammoth                                  | Opening files in the browser             |
+| pdf.js, mammoth, heic-to                         | Opening files in the browser             |
 | Angular, NestJS and other open-source libraries  | The app and the API                      |
 
 Muse Spark and Muse Wonder are the only models the project runs.

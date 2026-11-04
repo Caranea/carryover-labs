@@ -62,7 +62,6 @@
               "jszip",
               "dingbat-to-unicode",
               "xmlbuilder",
-              "heic2any",
               "regenerator-runtime"
             ]
           },

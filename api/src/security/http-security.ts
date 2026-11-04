@@ -2,15 +2,15 @@ import type { NextFunction, Request, Response } from 'express';
 
 /**
  * What the app may load. Medical results sit in this browser's storage, so injected script
- * must not run. WebAssembly is for pdf.js's image decoders. Angular adds component styles as
- * <style> elements, hence inline styles. Google Analytics loads only after someone accepts it,
+ * must not run. WebAssembly is for pdf.js's and heic-to's image decoders; heic-to runs in a blob:
+ * worker. Angular adds component styles as <style> elements, hence inline styles. Google Analytics loads only after someone accepts it,
  * from src/app/core/analytics.ts; its hosts are Google's published list for GA4. Inline script
  * stays blocked.
  */
 export const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
   "script-src 'self' 'wasm-unsafe-eval' https://www.googletagmanager.com",
-  "worker-src 'self'",
+  "worker-src 'self' blob:",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://*.google-analytics.com https://*.googletagmanager.com",
   "font-src 'self' data:",

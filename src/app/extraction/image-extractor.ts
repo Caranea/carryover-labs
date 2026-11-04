@@ -15,19 +15,8 @@ export function isHeic(file: File): boolean {
  * camera serial), so the uploaded image carries only pixels.
  */
 export async function loadImage(file: File): Promise<HTMLCanvasElement> {
-  let blob: Blob = file;
-  if (isHeic(file)) {
-    const { default: heic2any } = await import('heic2any');
-    const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.95 });
-    blob = Array.isArray(converted) ? converted[0] : converted;
-  }
-
-  let bitmap: ImageBitmap;
-  try {
-    bitmap = await createImageBitmap(blob, { imageOrientation: 'from-image' });
-  } catch {
-    throw new Error('This image could not be opened. Try saving it as JPEG or PNG.');
-  }
+  const bitmap = (await decode(file)) ?? (isHeic(file) ? await decodeHeic(file) : null);
+  if (!bitmap) throw new Error('This image could not be opened. Try saving it as JPEG or PNG.');
 
   const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height));
   const canvas = createCanvas(bitmap.width * scale, bitmap.height * scale);
@@ -38,4 +27,18 @@ export async function loadImage(file: File): Promise<HTMLCanvasElement> {
   ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   bitmap.close();
   return canvas;
+}
+
+function decode(blob: Blob): Promise<ImageBitmap | null> {
+  return createImageBitmap(blob, { imageOrientation: 'from-image' }).catch(() => null);
+}
+
+/** Safari reads HEIC itself; other browsers get a WebAssembly decoder, loaded only when needed. */
+async function decodeHeic(file: File): Promise<ImageBitmap | null> {
+  try {
+    const { heicTo } = await import('heic-to/csp');
+    return await decode(await heicTo({ blob: file, type: 'image/jpeg', quality: 0.95 }));
+  } catch {
+    return null;
+  }
 }

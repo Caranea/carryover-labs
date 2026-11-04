@@ -62,6 +62,12 @@ test('a box drawn on a photo is burned into the only image sent', async ({ page 
   expect(black).toBeLessThan(30);
 });
 
+test('an iPhone HEIC photo opens under the security policy', async ({ page }) => {
+  await page.goto('/documents');
+  await page.locator('input[type=file]').first().setInputFiles('e2e/fixtures/photo.heic');
+  await expect(page.locator('app-page-view svg').first()).toBeVisible({ timeout: 60_000 });
+});
+
 test('a document opens even when lazy files can no longer be fetched', async ({ page }) => {
   await stubBatches(page);
   await page.goto('/documents');
