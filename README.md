@@ -9,7 +9,7 @@
 **Years of lab reports. One timeline for a short doctor's appointment.**
 
 [![Try the live demo](https://img.shields.io/badge/Try_the_demo-carryover.pl-0d7a68?style=for-the-badge)](https://carryover.pl/demo)
-[![Watch the demo video](https://img.shields.io/badge/Watch_the_demo-2:24-c4302b?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/tEkvQCoRMUY)
+[![Watch the demo video](https://img.shields.io/badge/Watch_the_demo-2:24-c4302b?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/kKB_5de8s74)
 [![Run with Docker](https://img.shields.io/badge/Run_it-docker_compose_up-16302c?style=for-the-badge)](#run-it)
 
 ![Muse Spark 1.3](https://img.shields.io/badge/Muse_Spark-1.3-fcd34d)
@@ -20,9 +20,9 @@
 
 </div>
 
-[![Watch the Carryover demo on YouTube](docs/images/demo-thumbnail.png)](https://youtu.be/tEkvQCoRMUY)
+[![Watch the Carryover demo on YouTube](docs/images/demo-thumbnail.png)](https://youtu.be/kKB_5de8s74)
 
-<p align="center"><a href="https://youtu.be/tEkvQCoRMUY"><b>▶ Watch the demo</b></a></p>
+<p align="center"><a href="https://youtu.be/kKB_5de8s74"><b>▶ Watch the demo</b></a></p>
 
 Carryover turns years of lab reports in Polish, German and English into one timeline a patient can bring to a short doctor's appointment. You cover personal details with black boxes in the browser and approve each page, so no model sees a page until you say so. Every chart point links back to the page it came from.
 
