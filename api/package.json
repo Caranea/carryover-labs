@@ -1,6 +1,7 @@
 {
   "name": "carryover-labs-api",
   "version": "0.1.0",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "description": "Meta model job API for Carryover Labs.",

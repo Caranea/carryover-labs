@@ -146,6 +146,8 @@ The repository starts on Oct 26. The Oct 29 commit is a large rough draft genera
 
 Muse Spark and Muse Wonder are the only models the project runs.
 
+The code is under the [MIT License](LICENSE).
+
 ## For developers
 
 <details>
